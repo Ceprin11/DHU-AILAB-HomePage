@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Mail, MessageCircle, Play } from 'lucide-react';
 import { useSiteSettings } from '@/lib/site';
 import { useAuth } from '@/lib/AuthContext';
-import { base44 } from '@/api/base44Client';
+import { api } from '@/api/client';
 
 const LOGO_URL = '/ailab-logo.png';
 
@@ -14,9 +14,9 @@ export default function Footer() {
 
   useEffect(() => {
     Promise.all([
-      base44.entities.Member.list().then((r) => r.length).catch(() => 0),
-      base44.entities.Award.list().then((r) => r.length).catch(() => 0),
-      base44.entities.Activity.list().then((r) => r.length).catch(() => 0),
+      api.entities.Member.list().then((r) => r.length).catch(() => 0),
+      api.entities.Award.list().then((r) => r.length).catch(() => 0),
+      api.entities.Activity.list().then((r) => r.length).catch(() => 0),
     ]).then(([m, a, act]) => setStats({ members: m, awards: a, activities: act }));
   }, []);
 

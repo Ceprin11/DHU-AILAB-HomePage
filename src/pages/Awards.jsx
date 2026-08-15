@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Trophy, FlaskConical, Loader2, FileText } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { api } from '@/api/client';
 import { Image } from '@/components/ui/image';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import SectionHeading from '@/components/SectionHeading';
@@ -51,7 +51,7 @@ export default function Awards() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    base44.entities.Award.list('-date', 300)
+    api.entities.Award.list('-date', 300)
       .then((r) => { setItems(r || []); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);

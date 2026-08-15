@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, HelpCircle, Loader2 } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { ChevronDown, Loader2 } from 'lucide-react';
+import { api } from '@/api/client';
 import SectionHeading from '@/components/SectionHeading';
 import { cn } from '@/lib/utils';
 
@@ -10,7 +10,7 @@ export default function QAPage() {
   const [open, setOpen] = useState(null);
 
   useEffect(() => {
-    base44.entities.QA.list('order_index', 200)
+    api.entities.QA.list('order_index', 200)
       .then((r) => { setItems(r || []); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);

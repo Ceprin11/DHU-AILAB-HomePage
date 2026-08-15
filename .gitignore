@@ -1,6 +1,7 @@
 #env
 .env
 .env.*
+!.env.example
 
 # Logs
 /logs
@@ -14,6 +15,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+data/
 *.local
 
 # Editor directories and files

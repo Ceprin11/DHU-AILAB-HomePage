@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ArrowUpRight, Bell, Trophy, Users, Camera, BookOpen } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { api } from '@/api/client';
 import { useSiteSettings, formatDate } from '@/lib/site';
 import { Image } from '@/components/ui/image';
 import SectionHeading from '@/components/SectionHeading';
 import PhotoCarousel from '@/components/PhotoCarousel';
 
 const HERO_PHOTOS = [
-  'https://media.base44.com/images/public/6a802abc08cc560d7cecf5bf/3c5b174a2_38f6a6d4a5ea8e8852a121167d3cdb00.jpg',
-  'https://media.base44.com/images/public/6a802abc08cc560d7cecf5bf/c008f876f_8fac8d49748dffdb2d0ed9cea52a8d41.jpg',
-  'https://media.base44.com/images/public/6a802abc08cc560d7cecf5bf/6140b4efe_bccb7f9f1b01aee4df1ecae370e6c4c5.jpg',
-  'https://media.base44.com/images/public/6a802abc08cc560d7cecf5bf/3a4d2adac_3f81da846781dbff54ba91da09a3faf7.jpg',
+  '/hero/hero-1.jpg',
+  '/hero/hero-2.jpg',
+  '/hero/hero-3.jpg',
+  '/hero/hero-4.jpg',
 ];
 
 export default function Home() {
@@ -22,18 +22,18 @@ export default function Home() {
   const [stats, setStats] = useState({ members: 0, awards: 0, activities: 0 });
 
   useEffect(() => {
-    base44.entities.Notification.list('-date', 3).then(setNotifs).catch(() => {});
-    base44.entities.Award.list('-date', 3).then(setAwards).catch(() => {});
-    base44.entities.HomeImage.list('order_index', 50)
+    api.entities.Notification.list('-date', 3).then(setNotifs).catch(() => {});
+    api.entities.Award.list('-date', 3).then(setAwards).catch(() => {});
+    api.entities.HomeImage.list('order_index', 50)
       .then((rows) => {
         const photos = (rows || []).map((item) => item.image_url).filter(Boolean);
         if (photos.length > 0) setHeroPhotos(photos);
       })
       .catch(() => {});
     Promise.all([
-      base44.entities.Member.list().then((r) => r.length).catch(() => 0),
-      base44.entities.Award.list().then((r) => r.length).catch(() => 0),
-      base44.entities.Activity.list().then((r) => r.length).catch(() => 0),
+      api.entities.Member.list().then((r) => r.length).catch(() => 0),
+      api.entities.Award.list().then((r) => r.length).catch(() => 0),
+      api.entities.Activity.list().then((r) => r.length).catch(() => 0),
     ]).then(([m, a, act]) => setStats({ members: m, awards: a, activities: act }));
   }, []);
 

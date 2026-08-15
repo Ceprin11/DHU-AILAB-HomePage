@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Play, Loader2, ExternalLink } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { api } from '@/api/client';
 import { Image } from '@/components/ui/image';
 import SectionHeading from '@/components/SectionHeading';
 import { formatDate } from '@/lib/site';
@@ -10,7 +10,7 @@ export default function Videos() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    base44.entities.VideoLink.list('-date', 200)
+    api.entities.VideoLink.list('-date', 200)
       .then((r) => { setItems(r || []); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
