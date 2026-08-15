@@ -5,12 +5,16 @@ import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
 
 const AuthContext = createContext();
 
-const previewAdminUser = import.meta.env.DEV && import.meta.env.VITE_PREVIEW_ADMIN === 'true'
-  ? { id: 'local-preview-admin', role: 'admin', full_name: '本地预览管理员' }
-  : null;
+const ADMIN_SESSION_KEY = 'ailab_admin_authenticated';
+const ADMIN_ACCOUNT = 'AILAB';
+const ADMIN_PASSWORD = 'AILAB123';
+const localAdminUser = { id: 'ailab-admin', role: 'admin', full_name: 'AILAB 管理员' };
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [isLocalAdmin, setIsLocalAdmin] = useState(() =>
+    typeof window !== 'undefined' && window.sessionStorage.getItem(ADMIN_SESSION_KEY) === 'true'
+  );
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(true);
@@ -136,16 +140,33 @@ export const AuthProvider = ({ children }) => {
     base44.auth.redirectToLogin(window.location.href);
   };
 
+  const loginAdmin = (account, password) => {
+    const isValid = account === ADMIN_ACCOUNT && password === ADMIN_PASSWORD;
+    if (!isValid) return false;
+
+    window.sessionStorage.setItem(ADMIN_SESSION_KEY, 'true');
+    setIsLocalAdmin(true);
+    return true;
+  };
+
+  const logoutAdmin = () => {
+    window.sessionStorage.removeItem(ADMIN_SESSION_KEY);
+    setIsLocalAdmin(false);
+  };
+
   return (
     <AuthContext.Provider value={{ 
-      user: previewAdminUser || user,
-      isAuthenticated: Boolean(previewAdminUser) || isAuthenticated,
+      user: isLocalAdmin ? localAdminUser : user,
+      isAuthenticated: isLocalAdmin || isAuthenticated,
+      isLocalAdmin,
       isLoadingAuth,
       isLoadingPublicSettings,
       authError,
       appPublicSettings,
       authChecked,
       logout,
+      loginAdmin,
+      logoutAdmin,
       navigateToLogin,
       checkUserAuth,
       checkAppState

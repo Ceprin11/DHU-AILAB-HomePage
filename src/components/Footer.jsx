@@ -26,8 +26,8 @@ export default function Footer() {
         <div className="grid gap-10 md:grid-cols-12">
           <div className="md:col-span-5">
             <div className="flex items-center gap-2.5">
-              <span className="flex h-9 w-[84px] items-center overflow-hidden rounded-md">
-                <img src={LOGO_URL} alt="AILab" className="h-full w-auto max-w-none scale-[2.45] object-contain" />
+              <span className="flex h-9 w-[84px] items-center justify-center overflow-hidden rounded-md">
+                <img src={LOGO_URL} alt="AILab" className="h-full w-auto max-w-none scale-[2.35] object-contain" />
               </span>
               <span className="flex flex-col leading-tight">
                 <span className="font-display text-sm font-bold tracking-tight">东华大学人工智能创新实验室</span>
@@ -86,7 +86,7 @@ export default function Footer() {
 
         <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-border pt-6 text-xs text-muted-foreground sm:flex-row">
           <p className="font-mono-date">© {new Date().getFullYear()} 东华大学人工智能创新实验室 AILAB</p>
-          {user?.role === 'admin' && <Link to="/admin" className="hover:text-primary">管理后台</Link>}
+          <Link to={user?.role === 'admin' ? '/admin' : '/admin-login'} className="hover:text-primary">管理后台</Link>
         </div>
       </div>
     </footer>

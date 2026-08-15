@@ -18,11 +18,18 @@ export default function Home() {
   const settings = useSiteSettings();
   const [notifs, setNotifs] = useState([]);
   const [awards, setAwards] = useState([]);
+  const [heroPhotos, setHeroPhotos] = useState(HERO_PHOTOS);
   const [stats, setStats] = useState({ members: 0, awards: 0, activities: 0 });
 
   useEffect(() => {
     base44.entities.Notification.list('-date', 3).then(setNotifs).catch(() => {});
     base44.entities.Award.list('-date', 3).then(setAwards).catch(() => {});
+    base44.entities.HomeImage.list('order_index', 50)
+      .then((rows) => {
+        const photos = (rows || []).map((item) => item.image_url).filter(Boolean);
+        if (photos.length > 0) setHeroPhotos(photos);
+      })
+      .catch(() => {});
     Promise.all([
       base44.entities.Member.list().then((r) => r.length).catch(() => 0),
       base44.entities.Award.list().then((r) => r.length).catch(() => 0),
@@ -67,7 +74,7 @@ export default function Home() {
               </div>
             </div>
             <div className="lg:col-span-5">
-              <PhotoCarousel photos={HERO_PHOTOS} />
+              <PhotoCarousel photos={heroPhotos} />
             </div>
           </div>
 

@@ -17,6 +17,7 @@ import Join from '@/pages/Join';
 import QAPage from '@/pages/QAPage';
 import Resources from '@/pages/Resources';
 import Admin from '@/pages/Admin';
+import AdminLogin from '@/pages/AdminLogin';
 import ClubLife from '@/pages/ClubLife';
 // Add page imports here
 
@@ -57,6 +58,7 @@ const AuthenticatedApp = () => {
         <Route path="/qa" element={<QAPage />} />
         <Route path="/resources" element={<Resources />} />
         <Route path="/club-life" element={<ClubLife />} />
+        <Route path="/admin-login" element={<AdminLogin />} />
         <Route path="/admin" element={<Admin />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />

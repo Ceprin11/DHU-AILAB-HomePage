@@ -1,77 +1,46 @@
-# Base44 Project
+# DHU AILAB HomePage
 
-Use this repository to run and edit the app locally, then publish changes back through Base44.
+东华大学人工智能创新实验室个人网站初版，包含实验室介绍、成员、通知、成果、活动、资料、问答、招新和管理后台。
 
-Any change pushed to the repo will also be reflected in the Base44 Builder.
+## 技术栈
 
-## Prerequisites
+- React 18 + Vite
+- Tailwind CSS
+- Base44 SDK 与数据实体
 
-1. Clone the repository using the project's Git URL.
-2. Navigate to the project directory.
-3. Install dependencies: `npm install`.
-4. Install the Base44 CLI: `npm install -g base44@latest`.
-
-See the [Base44 CLI docs](https://docs.base44.com/developers/references/cli/get-started/overview) if you want to run Base44 commands directly.
-
-## Run Locally
-
-Run the full local development environment from the project root:
+## 本地运行
 
 ```bash
-base44 dev
-```
-
-`base44 dev` starts the local Base44 development backend and, when this app is configured for it, also starts the frontend dev server for you. Use the frontend URL printed by the command.
-
-For example, when the Base44 project config includes a `serveCommand`, `base44 dev` can launch the frontend too:
-
-```json5
-{
-  "site": {
-    "serveCommand": "npm run dev"
-  }
-}
-```
-
-In a Base44 project this lives in `base44/config.jsonc`.
-
-## Run Only The Frontend
-
-If you only want to work on the frontend against the hosted Base44 backend, run:
-
-```bash
+npm install
 npm run dev
 ```
 
-Open the local URL printed by Vite.
+浏览器访问 Vite 输出的地址，通常为 `http://localhost:5173/`。
 
-## Use The Hosted Backend
-
-For frontend-only development, create or update `.env.local` in the project root:
+生产构建：
 
 ```bash
-VITE_BASE44_APP_ID=your_app_id
-VITE_BASE44_APP_BASE_URL=https://your-app.base44.app
+npm run build
 ```
 
-`VITE_BASE44_APP_ID` identifies the Base44 app.
+构建产物位于 `dist/`，部署时需要为单页应用配置路由回退到 `index.html`。
 
-`VITE_BASE44_APP_BASE_URL` tells the Base44 Vite plugin where to send local `/api` requests. Point it at your deployed Base44 app URL when you want the local frontend to use the hosted backend.
+## 管理后台
 
-When you use `base44 dev`, the command injects the local Base44 values for you, so `.env.local` is mainly needed for frontend-only workflows.
+- 登录地址：`/admin-login`
+- 账号：`AILAB`
+- 密码：`AILAB123`
 
-## Publish Your Changes
+当前账号密码写在前端，仅适合初版演示。正式部署前应替换为服务器端鉴权，并修改默认密码。
 
-After pushing your changes to git, open the Base44 dashboard and publish the app:
+## 后端说明
+
+当前数据读写和图片上传仍使用 Base44。实体定义位于 `base44/entities/`，前端客户端位于 `src/api/base44Client.js`。
+
+修改实体后，需要同步 Base44 后端配置：
 
 ```bash
-base44 dashboard open
+npx base44 entities push
 ```
 
-## Docs & Support
-
-Documentation: [https://docs.base44.com/Integrations/Using-GitHub](https://docs.base44.com/Integrations/Using-GitHub)
-
-Base44 CLI command reference: [https://docs.base44.com/developers/references/cli/commands/introduction](https://docs.base44.com/developers/references/cli/commands/introduction)
-
-Support: [https://app.base44.com/support](https://app.base44.com/support)
+`.env.local` 只用于本地配置，已被 Git 忽略，请勿提交密钥或访问令牌。
