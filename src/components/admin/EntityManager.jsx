@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2, Loader2, X } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { api } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import MediaUpload from '@/components/admin/MediaUpload';
-import { cn } from '@/lib/utils';
 
 export default function EntityManager({ entityName, label, fields, itemTitle, sort = '-created_date' }) {
   const [items, setItems] = useState([]);
@@ -19,7 +18,7 @@ export default function EntityManager({ entityName, label, fields, itemTitle, so
 
   const load = () => {
     setLoading(true);
-    base44.entities[entityName].list(sort, 200)
+    api.entities[entityName].list(sort, 200)
       .then((r) => { setItems(r || []); setLoading(false); })
       .catch(() => setLoading(false));
   };
@@ -42,9 +41,9 @@ export default function EntityManager({ entityName, label, fields, itemTitle, so
         if (v !== undefined) payload[f.key] = v;
       });
       if (editing.id) {
-        await base44.entities[entityName].update(editing.id, payload);
+        await api.entities[entityName].update(editing.id, payload);
       } else {
-        await base44.entities[entityName].create(payload);
+        await api.entities[entityName].create(payload);
       }
       setEditing(null);
       load();
@@ -58,7 +57,7 @@ export default function EntityManager({ entityName, label, fields, itemTitle, so
 
   const remove = async (rec) => {
     try {
-      await base44.entities[entityName].delete(rec.id);
+      await api.entities[entityName].delete(rec.id);
       setConfirmDelete(null);
       load();
     } catch (e) {

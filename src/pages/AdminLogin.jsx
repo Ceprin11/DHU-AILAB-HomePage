@@ -13,17 +13,20 @@ export default function AdminLogin() {
   const [account, setAccount] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   if (user?.role === 'admin') {
     return <Navigate to="/admin" replace />;
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
+    setLoading(true);
 
-    if (!loginAdmin(account.trim(), password)) {
+    if (!await loginAdmin(account.trim(), password)) {
       setError('账号或密码错误，请重新输入。');
+      setLoading(false);
       return;
     }
 
@@ -85,8 +88,8 @@ export default function AdminLogin() {
             </div>
           </div>
 
-          <Button type="submit" className="h-11 w-full font-semibold">
-            登录管理后台
+          <Button type="submit" className="h-11 w-full font-semibold" disabled={loading}>
+            {loading ? '正在登录…' : '登录管理后台'}
           </Button>
         </form>
       </div>

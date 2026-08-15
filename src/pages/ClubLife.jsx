@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Loader2, X, ChevronLeft, ChevronRight, Camera } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { api } from '@/api/client';
 import { Image } from '@/components/ui/image';
 import SectionHeading from '@/components/SectionHeading';
 import { formatDate } from '@/lib/site';
@@ -12,7 +12,7 @@ export default function ClubLife() {
 
   const load = () => {
     setLoading(true);
-    base44.entities.ClubLife.list('-date', 300)
+    api.entities.ClubLife.list('-date', 300)
       .then((r) => { setItems(r || []); setLoading(false); })
       .catch(() => setLoading(false));
   };

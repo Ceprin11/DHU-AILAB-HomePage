@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, LogOut, Save, Settings } from 'lucide-react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { base44 } from '@/api/base44Client';
+import { api } from '@/api/client';
 import { useAuth } from '@/lib/AuthContext';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -106,7 +106,7 @@ function SiteSettingsTab() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    base44.entities.SiteSettings.list().then((r) => setData(r[0] || {})).catch(() => setData({}));
+    api.entities.SiteSettings.list().then((r) => setData(r[0] || {})).catch(() => setData({}));
   }, []);
 
   const set = (k, v) => setData((s) => ({ ...s, [k]: v }));
@@ -127,9 +127,9 @@ function SiteSettingsTab() {
         summer_process: data.summer_process || '',
       };
       if (data.id) {
-        await base44.entities.SiteSettings.update(data.id, payload);
+        await api.entities.SiteSettings.update(data.id, payload);
       } else {
-        await base44.entities.SiteSettings.create(payload);
+        await api.entities.SiteSettings.create(payload);
       }
       alert('保存成功');
     } catch (e) {
@@ -188,8 +188,8 @@ export default function Admin() {
     return <Navigate to="/admin-login" replace />;
   }
 
-  const handleLogout = () => {
-    logoutAdmin();
+  const handleLogout = async () => {
+    await logoutAdmin();
     navigate('/admin-login', { replace: true });
   };
 

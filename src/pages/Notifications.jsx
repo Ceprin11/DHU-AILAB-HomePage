@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, Loader2, Pin } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { api } from '@/api/client';
 import SectionHeading from '@/components/SectionHeading';
 import { formatDate } from '@/lib/site';
 import { cn } from '@/lib/utils';
@@ -13,7 +13,7 @@ export default function Notifications() {
   const [active, setActive] = useState(null);
 
   useEffect(() => {
-    base44.entities.Notification.list('-date', 200)
+    api.entities.Notification.list('-date', 200)
       .then((r) => { setItems(r || []); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);

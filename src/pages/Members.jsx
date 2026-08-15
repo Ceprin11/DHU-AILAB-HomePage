@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Mail, X, Loader2, GraduationCap, Compass, Award, FlaskConical, UserCog } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { api } from '@/api/client';
 import { Image } from '@/components/ui/image';
 import SectionHeading from '@/components/SectionHeading';
-import { cn } from '@/lib/utils';
 
 const DEST_LABEL = { '保研': '保研', '留学': '留学', '就业': '就业', '其他': '其他' };
 
@@ -95,7 +94,7 @@ export default function Members() {
   const [focus, setFocus] = useState(null);
 
   useEffect(() => {
-    base44.entities.Member.list('order_index', 300)
+    api.entities.Member.list('order_index', 300)
       .then((r) => { setMembers(r || []); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { api } from '@/api/client';
 
 export function formatDate(dateStr) {
   if (!dateStr) return '';
@@ -15,7 +15,7 @@ export function useSiteSettings() {
   const [settings, setSettings] = useState(null);
   useEffect(() => {
     let mounted = true;
-    base44.entities.SiteSettings.list()
+    api.entities.SiteSettings.list()
       .then((rows) => { if (mounted) setSettings(rows[0] || null); })
       .catch(() => {});
     return () => { mounted = false; };
@@ -29,7 +29,7 @@ export function useEntityData(entityName, sort = '-created_date', limit = 100) {
   useEffect(() => {
     let mounted = true;
     setLoading(true);
-    base44.entities[entityName].list(sort, limit)
+    api.entities[entityName].list(sort, limit)
       .then((rows) => { if (mounted) { setData(rows || []); setLoading(false); } })
       .catch(() => { if (mounted) setLoading(false); });
     return () => { mounted = false; };

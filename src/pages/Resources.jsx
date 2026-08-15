@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, FileCode, Database, FileBox, Video, Download, Loader2 } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { api } from '@/api/client';
 import SectionHeading from '@/components/SectionHeading';
 import { formatDate } from '@/lib/site';
 import { cn } from '@/lib/utils';
@@ -20,7 +20,7 @@ export default function Resources() {
   const [cat, setCat] = useState('全部');
 
   useEffect(() => {
-    base44.entities.StudyMaterial.list('-date', 200)
+    api.entities.StudyMaterial.list('-date', 200)
       .then((r) => { setItems(r || []); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);

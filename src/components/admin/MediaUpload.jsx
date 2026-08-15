@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Upload, X, FileText, Loader2, Link2 } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { Upload, X, FileText, Loader2 } from 'lucide-react';
+import { api } from '@/api/client';
 import { Image } from '@/components/ui/image';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -14,7 +14,7 @@ export default function MediaUpload({ value, onChange, type = 'image', label }) 
     if (!file) return;
     setUploading(true);
     try {
-      const res = await base44.integrations.Core.UploadFile({ file });
+      const res = await api.upload(file);
       onChange(res.file_url);
     } catch (e) {
       console.error(e);
