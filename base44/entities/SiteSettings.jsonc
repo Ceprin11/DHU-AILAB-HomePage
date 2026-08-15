@@ -1,0 +1,69 @@
+{
+  "name": "SiteSettings",
+  "type": "object",
+  "properties": {
+    "contact_email": {
+      "type": "string",
+      "title": "\u8054\u7cfb\u90ae\u7bb1"
+    },
+    "bilibili_url": {
+      "type": "string",
+      "title": "B\u7ad9\u4e3b\u9875\u94fe\u63a5"
+    },
+    "bilibili_name": {
+      "type": "string",
+      "title": "B\u7ad9\u540d\u79f0"
+    },
+    "qq_group": {
+      "type": "string",
+      "title": "QQ\u7fa4\u53f7"
+    },
+    "lab_intro": {
+      "type": "string",
+      "title": "\u5b9e\u9a8c\u5ba4\u7b80\u4ecb"
+    },
+    "lab_slogan": {
+      "type": "string",
+      "title": "\u5b9e\u9a8c\u5ba4\u6807\u8bed"
+    },
+    "autumn_requirements": {
+      "type": "string",
+      "title": "\u79cb\u5b63\u62db\u65b0\u8981\u6c42",
+      "description": "\u6bcf\u884c\u4e00\u6761"
+    },
+    "autumn_process": {
+      "type": "string",
+      "title": "\u79cb\u5b63\u62db\u65b0\u6d41\u7a0b",
+      "description": "\u6bcf\u884c\u4e00\u6b65"
+    },
+    "summer_requirements": {
+      "type": "string",
+      "title": "\u6691\u671f\u62db\u65b0\u8981\u6c42",
+      "description": "\u6bcf\u884c\u4e00\u6761"
+    },
+    "summer_process": {
+      "type": "string",
+      "title": "\u6691\u671f\u62db\u65b0\u6d41\u7a0b",
+      "description": "\u6bcf\u884c\u4e00\u6b65"
+    }
+  },
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  },
+  "required": []
+}

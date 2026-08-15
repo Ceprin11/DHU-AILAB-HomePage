@@ -1,0 +1,475 @@
+{
+  "appId": "6a802abc08cc560d7cecf5bf",
+  "source": "https://app.base44.com/apps/6a802abc08cc560d7cecf5bf/editor/workspace/code?filePath=base44%2Fentities%2FMember.jsonc",
+  "startedAt": "2026-08-15T12:33:10.312Z",
+  "exportDirectory": "base44-project-6a802abc08cc560d7cecf5bf-2026-08-15T12-33-10-294Z",
+  "discovered": 116,
+  "saved": [
+    {
+      "path": "base44/entities/Activity.jsonc",
+      "bytes": 1246
+    },
+    {
+      "path": "base44/entities/Award.jsonc",
+      "bytes": 1654
+    },
+    {
+      "path": "base44/entities/ClubLife.jsonc",
+      "bytes": 1055
+    },
+    {
+      "path": "base44/entities/Member.jsonc",
+      "bytes": 2222
+    },
+    {
+      "path": "base44/entities/Notification.jsonc",
+      "bytes": 925
+    },
+    {
+      "path": "base44/entities/QA.jsonc",
+      "bytes": 754
+    },
+    {
+      "path": "base44/entities/SiteSettings.jsonc",
+      "bytes": 1571
+    },
+    {
+      "path": "base44/entities/StudyMaterial.jsonc",
+      "bytes": 1110
+    },
+    {
+      "path": "base44/entities/User.jsonc",
+      "bytes": 251
+    },
+    {
+      "path": "base44/entities/VideoLink.jsonc",
+      "bytes": 867
+    },
+    {
+      "path": "base44/config.jsonc",
+      "bytes": 181
+    },
+    {
+      "path": "src/api/base44Client.js",
+      "bytes": 337
+    },
+    {
+      "path": "src/components/admin/EntityManager.jsx",
+      "bytes": 8732
+    },
+    {
+      "path": "src/components/admin/MediaUpload.jsx",
+      "bytes": 5259
+    },
+    {
+      "path": "src/components/ui/accordion.jsx",
+      "bytes": 1615
+    },
+    {
+      "path": "src/components/ui/alert-dialog.jsx",
+      "bytes": 3461
+    },
+    {
+      "path": "src/components/ui/alert.jsx",
+      "bytes": 1335
+    },
+    {
+      "path": "src/components/ui/aspect-ratio.jsx",
+      "bytes": 140
+    },
+    {
+      "path": "src/components/ui/avatar.jsx",
+      "bytes": 1043
+    },
+    {
+      "path": "src/components/ui/badge.jsx",
+      "bytes": 990
+    },
+    {
+      "path": "src/components/ui/breadcrumb.jsx",
+      "bytes": 2271
+    },
+    {
+      "path": "src/components/ui/button.jsx",
+      "bytes": 1679
+    },
+    {
+      "path": "src/components/ui/calendar.jsx",
+      "bytes": 2851
+    },
+    {
+      "path": "src/components/ui/card.jsx",
+      "bytes": 1440
+    },
+    {
+      "path": "src/components/ui/carousel.jsx",
+      "bytes": 4821
+    },
+    {
+      "path": "src/components/ui/chart.jsx",
+      "bytes": 8639
+    },
+    {
+      "path": "src/components/ui/checkbox.jsx",
+      "bytes": 880
+    },
+    {
+      "path": "src/components/ui/collapsible.jsx",
+      "bytes": 329
+    },
+    {
+      "path": "src/components/ui/command.jsx",
+      "bytes": 3897
+    },
+    {
+      "path": "src/components/ui/context-menu.jsx",
+      "bytes": 5995
+    },
+    {
+      "path": "src/components/ui/dialog.jsx",
+      "bytes": 3228
+    },
+    {
+      "path": "src/components/ui/drawer.jsx",
+      "bytes": 2359
+    },
+    {
+      "path": "src/components/ui/dropdown-menu.jsx",
+      "bytes": 6157
+    },
+    {
+      "path": "src/components/ui/form.jsx",
+      "bytes": 3141
+    },
+    {
+      "path": "src/components/ui/hover-card.jsx",
+      "bytes": 1070
+    },
+    {
+      "path": "src/components/ui/image-helpers.js",
+      "bytes": 2482
+    },
+    {
+      "path": "src/components/ui/image.jsx",
+      "bytes": 6905
+    },
+    {
+      "path": "src/components/ui/input-otp.jsx",
+      "bytes": 1811
+    },
+    {
+      "path": "src/components/ui/input.jsx",
+      "bytes": 690
+    },
+    {
+      "path": "src/components/ui/label.jsx",
+      "bytes": 525
+    },
+    {
+      "path": "src/components/ui/menubar.jsx",
+      "bytes": 6790
+    },
+    {
+      "path": "src/components/ui/navigation-menu.jsx",
+      "bytes": 4217
+    },
+    {
+      "path": "src/components/ui/pagination.jsx",
+      "bytes": 2322
+    },
+    {
+      "path": "src/components/ui/popover.jsx",
+      "bytes": 1166
+    },
+    {
+      "path": "src/components/ui/progress.jsx",
+      "bytes": 1166
+    },
+    {
+      "path": "src/components/ui/radio-group.jsx",
+      "bytes": 1135
+    },
+    {
+      "path": "src/components/ui/resizable.jsx",
+      "bytes": 1570
+    },
+    {
+      "path": "src/components/ui/scroll-area.jsx",
+      "bytes": 1362
+    },
+    {
+      "path": "src/components/ui/select.jsx",
+      "bytes": 4677
+    },
+    {
+      "path": "src/components/ui/separator.jsx",
+      "bytes": 600
+    },
+    {
+      "path": "src/components/ui/sheet.jsx",
+      "bytes": 3549
+    },
+    {
+      "path": "src/components/ui/sidebar.jsx",
+      "bytes": 20643
+    },
+    {
+      "path": "src/components/ui/skeleton.jsx",
+      "bytes": 227
+    },
+    {
+      "path": "src/components/ui/slider.jsx",
+      "bytes": 227
+    },
+    {
+      "path": "src/components/ui/sonner.jsx",
+      "bytes": 914
+    },
+    {
+      "path": "src/components/ui/switch.jsx",
+      "bytes": 1025
+    },
+    {
+      "path": "src/components/ui/table.jsx",
+      "bytes": 2231
+    },
+    {
+      "path": "src/components/ui/tabs.jsx",
+      "bytes": 1529
+    },
+    {
+      "path": "src/components/ui/textarea.jsx",
+      "bytes": 587
+    },
+    {
+      "path": "src/components/ui/toast.jsx",
+      "bytes": 3915
+    },
+    {
+      "path": "src/components/ui/toaster.jsx",
+      "bytes": 785
+    },
+    {
+      "path": "src/components/ui/toggle-group.jsx",
+      "bytes": 1284
+    },
+    {
+      "path": "src/components/ui/toggle.jsx",
+      "bytes": 1310
+    },
+    {
+      "path": "src/components/ui/tooltip.jsx",
+      "bytes": 1091
+    },
+    {
+      "path": "src/components/ui/use-toast.jsx",
+      "bytes": 3379
+    },
+    {
+      "path": "src/components/AuthLayout.jsx",
+      "bytes": 955
+    },
+    {
+      "path": "src/components/Footer.jsx",
+      "bytes": 5460
+    },
+    {
+      "path": "src/components/GoogleIcon.jsx",
+      "bytes": 5460
+    },
+    {
+      "path": "src/components/Layout.jsx",
+      "bytes": 454
+    },
+    {
+      "path": "src/components/Navbar.jsx",
+      "bytes": 4404
+    },
+    {
+      "path": "src/components/PhotoCarousel.jsx",
+      "bytes": 1593
+    },
+    {
+      "path": "src/components/ProtectedRoute.jsx",
+      "bytes": 1069
+    },
+    {
+      "path": "src/components/ScrollToTop.jsx",
+      "bytes": 805
+    },
+    {
+      "path": "src/components/SectionHeading.jsx",
+      "bytes": 868
+    },
+    {
+      "path": "src/components/UserNotRegisteredError.jsx",
+      "bytes": 1592
+    },
+    {
+      "path": "src/hooks/use-mobile.jsx",
+      "bytes": 545
+    },
+    {
+      "path": "src/hooks/use-size.jsx",
+      "bytes": 900
+    },
+    {
+      "path": "src/lib/app-params.js",
+      "bytes": 1791
+    },
+    {
+      "path": "src/lib/AuthContext.jsx",
+      "bytes": 4902
+    },
+    {
+      "path": "src/lib/authReturnTo.js",
+      "bytes": 1743
+    },
+    {
+      "path": "src/lib/PageNotFound.jsx",
+      "bytes": 3930
+    },
+    {
+      "path": "src/lib/query-client.js",
+      "bytes": 197
+    },
+    {
+      "path": "src/lib/site.js",
+      "bytes": 1268
+    },
+    {
+      "path": "src/lib/utils.js",
+      "bytes": 190
+    },
+    {
+      "path": "src/pages/Activities.jsx",
+      "bytes": 4175
+    },
+    {
+      "path": "src/pages/Admin.jsx",
+      "bytes": 13534
+    },
+    {
+      "path": "src/pages/Awards.jsx",
+      "bytes": 4774
+    },
+    {
+      "path": "src/pages/ClubLife.jsx",
+      "bytes": 5335
+    },
+    {
+      "path": "src/pages/ForgotPassword.jsx",
+      "bytes": 2434
+    },
+    {
+      "path": "src/pages/Home.jsx",
+      "bytes": 10748
+    },
+    {
+      "path": "src/pages/Join.jsx",
+      "bytes": 5891
+    },
+    {
+      "path": "src/pages/Login.jsx",
+      "bytes": 4343
+    },
+    {
+      "path": "src/pages/Members.jsx",
+      "bytes": 10133
+    },
+    {
+      "path": "src/pages/Notifications.jsx",
+      "bytes": 3984
+    },
+    {
+      "path": "src/pages/OAuthConsent.jsx",
+      "bytes": 9904
+    },
+    {
+      "path": "src/pages/QAPage.jsx",
+      "bytes": 2638
+    },
+    {
+      "path": "src/pages/Register.jsx",
+      "bytes": 7259
+    },
+    {
+      "path": "src/pages/ResetPassword.jsx",
+      "bytes": 3729
+    },
+    {
+      "path": "src/pages/Resources.jsx",
+      "bytes": 4648
+    },
+    {
+      "path": "src/pages/Videos.jsx",
+      "bytes": 3065
+    },
+    {
+      "path": "src/utils/index.ts",
+      "bytes": 97
+    },
+    {
+      "path": "src/App.jsx",
+      "bytes": 2810
+    },
+    {
+      "path": "src/index.css",
+      "bytes": 4422
+    },
+    {
+      "path": "src/main.jsx",
+      "bytes": 189
+    },
+    {
+      "path": ".gitignore",
+      "bytes": 302
+    },
+    {
+      "path": "AGENTS.md",
+      "bytes": 1592
+    },
+    {
+      "path": "CLAUDE.md",
+      "bytes": 57
+    },
+    {
+      "path": "components.json",
+      "bytes": 57
+    },
+    {
+      "path": "eslint.config.js",
+      "bytes": 444
+    },
+    {
+      "path": "index.html",
+      "bytes": 941
+    },
+    {
+      "path": "jsconfig.json",
+      "bytes": 583
+    },
+    {
+      "path": "package.json",
+      "bytes": 3239
+    },
+    {
+      "path": "postcss.config.js",
+      "bytes": 80
+    },
+    {
+      "path": "README.md",
+      "bytes": 2377
+    },
+    {
+      "path": "tailwind.config.js",
+      "bytes": 2377
+    },
+    {
+      "path": "vite.config.js",
+      "bytes": 2711
+    }
+  ],
+  "failed": [],
+  "finishedAt": "2026-08-15T12:35:54.360Z"
+}

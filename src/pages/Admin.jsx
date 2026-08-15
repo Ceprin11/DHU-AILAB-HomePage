@@ -1,0 +1,223 @@
+import React, { useState, useEffect } from 'react';
+import { Shield, Loader2, Save, Settings } from 'lucide-react';
+import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import EntityManager from '@/components/admin/EntityManager';
+
+const memberFields = [
+  { key: 'name', label: '姓名', type: 'text', required: true },
+  { key: 'title', label: '职位/头衔', type: 'text', placeholder: '如：社长、技术负责人' },
+  { key: 'category', label: '类别', type: 'select', options: [
+    { value: 'advisor', label: '指导老师' }, { value: 'president', label: '社长' }, { value: 'core', label: '核心成员' }, { value: 'member', label: '成员' }] },
+  { key: 'grade', label: '年级（如 2023，已毕业填毕业年份）', type: 'text' },
+  { key: 'graduated', label: '是否已毕业', type: 'boolean' },
+  { key: 'destination', label: '去向（仅已毕业）', type: 'select', options: [
+    { value: '保研', label: '保研' }, { value: '留学', label: '留学' }, { value: '就业', label: '就业' }, { value: '其他', label: '其他' }] },
+  { key: 'photo_url', label: '照片', type: 'image' },
+  { key: 'email', label: '邮箱', type: 'text' },
+  { key: 'research_interests', label: '研究方向', type: 'textarea', rows: 2 },
+  { key: 'bio', label: '个人简介', type: 'textarea', rows: 4 },
+  { key: 'competition_awards', label: '个人竞赛获奖（每行一条）', type: 'textarea', rows: 4 },
+  { key: 'research_achievements', label: '个人科研成果（每行一条）', type: 'textarea', rows: 4 },
+  { key: 'order_index', label: '排序(小在前)', type: 'number' },
+];
+
+const notifFields = [
+  { key: 'title', label: '标题', type: 'text', required: true },
+  { key: 'content', label: '正文', type: 'textarea', rows: 6 },
+  { key: 'date', label: '发布日期', type: 'date' },
+  { key: 'category', label: '分类', type: 'select', options: [
+    { value: 'notice', label: '通知' }, { value: 'news', label: '新闻' }, { value: 'event', label: '活动' }] },
+  { key: 'pinned', label: '置顶', type: 'boolean' },
+];
+
+const awardFields = [
+  { key: 'title', label: '成果名称', type: 'text', required: true },
+  { key: 'type', label: '成果类型', type: 'select', options: [
+    { value: 'competition', label: '竞赛获奖' }, { value: 'research', label: '科研成果' }] },
+  { key: 'recipient', label: '获奖者/作者/团队', type: 'text' },
+  { key: 'date', label: '日期', type: 'date' },
+  { key: 'level', label: '竞赛级别（仅竞赛获奖）', type: 'select', options: [
+    { value: 'national', label: '国家级' }, { value: 'provincial', label: '省级' }, { value: 'university', label: '校级' }, { value: 'other', label: '其他' }] },
+  { key: 'ccf_level', label: 'CCF等级/会议（如 CCF-A、CVPR、ACL）', type: 'text' },
+  { key: 'description', label: '详细描述', type: 'textarea', rows: 4 },
+  { key: 'notes', label: '其他备注', type: 'textarea', rows: 2 },
+  { key: 'image_url', label: '图片', type: 'image' },
+];
+
+const activityFields = [
+  { key: 'title', label: '活动名称', type: 'text', required: true },
+  { key: 'date', label: '活动日期', type: 'date' },
+  { key: 'location', label: '活动地点', type: 'text' },
+  { key: 'description', label: '活动介绍', type: 'textarea', rows: 5 },
+  { key: 'image_url', label: '活动封面', type: 'image' },
+  { key: 'document_url', label: '相关文档（可上传或粘贴链接）', type: 'file' },
+  { key: 'external_link', label: '外部链接', type: 'text', placeholder: 'https://...' },
+];
+
+const videoFields = [
+  { key: 'title', label: '视频标题', type: 'text', required: true },
+  { key: 'bilibili_url', label: 'B站链接', type: 'text', required: true },
+  { key: 'thumbnail_url', label: '封面图', type: 'image' },
+  { key: 'date', label: '发布日期', type: 'date' },
+  { key: 'description', label: '视频简介', type: 'textarea', rows: 3 },
+];
+
+const materialFields = [
+  { key: 'title', label: '资料名称', type: 'text', required: true },
+  { key: 'category', label: '分类', type: 'text', placeholder: '如：论文、教程、数据集' },
+  { key: 'file_type', label: '文件类型', type: 'select', options: [
+    { value: 'pdf', label: 'PDF' }, { value: 'code', label: '代码' }, { value: 'data', label: '数据' }, { value: 'doc', label: '文档' }, { value: 'video', label: '视频' }, { value: 'other', label: '其他' }] },
+  { key: 'file_url', label: '文件（视频将自动预览）', type: 'file' },
+  { key: 'date', label: '上传日期', type: 'date' },
+  { key: 'description', label: '资料描述', type: 'textarea', rows: 3 },
+];
+
+const qaFields = [
+  { key: 'question', label: '问题', type: 'textarea', rows: 2, required: true },
+  { key: 'answer', label: '回答', type: 'textarea', rows: 4, required: true },
+  { key: 'category', label: '分类', type: 'text' },
+  { key: 'order_index', label: '排序(小在前)', type: 'number' },
+];
+
+const clubLifeFields = [
+  { key: 'title', label: '标题', type: 'text', required: true, placeholder: '如：五一踏青' },
+  { key: 'album', label: '相册分组', type: 'text', placeholder: '如：2025日常活动' },
+  { key: 'date', label: '日期', type: 'date' },
+  { key: 'image_url', label: '照片', type: 'image' },
+  { key: 'description', label: '照片描述', type: 'textarea', rows: 2 },
+];
+
+function SiteSettingsTab() {
+  const [data, setData] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    base44.entities.SiteSettings.list().then((r) => setData(r[0] || {})).catch(() => setData({}));
+  }, []);
+
+  const set = (k, v) => setData((s) => ({ ...s, [k]: v }));
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const payload = {
+        contact_email: data.contact_email || '',
+        bilibili_url: data.bilibili_url || '',
+        bilibili_name: data.bilibili_name || '',
+        qq_group: data.qq_group || '',
+        lab_intro: data.lab_intro || '',
+        lab_slogan: data.lab_slogan || '',
+        autumn_requirements: data.autumn_requirements || '',
+        autumn_process: data.autumn_process || '',
+        summer_requirements: data.summer_requirements || '',
+        summer_process: data.summer_process || '',
+      };
+      if (data.id) {
+        await base44.entities.SiteSettings.update(data.id, payload);
+      } else {
+        await base44.entities.SiteSettings.create(payload);
+      }
+      alert('保存成功');
+    } catch (e) {
+      alert('保存失败：' + (e.message || '未知错误'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!data) return <div className="flex justify-center py-10 text-muted-foreground"><Loader2 className="animate-spin" /></div>;
+
+  return (
+    <div className="max-w-2xl space-y-5">
+      <div className="rounded-xl border border-border bg-card p-5">
+        <h3 className="font-display text-base font-semibold">实验室信息</h3>
+        <div className="mt-4 space-y-4">
+          <div><Label className="mb-1.5 block">实验室简介（首页展示）</Label><Textarea rows={3} value={data.lab_intro || ''} onChange={(e) => set('lab_intro', e.target.value)} /></div>
+          <div><Label className="mb-1.5 block">实验室标语</Label><Input value={data.lab_slogan || ''} onChange={(e) => set('lab_slogan', e.target.value)} /></div>
+        </div>
+      </div>
+      <div className="rounded-xl border border-border bg-card p-5">
+        <h3 className="font-display text-base font-semibold">联系方式</h3>
+        <div className="mt-4 space-y-4">
+          <div><Label className="mb-1.5 block">联系邮箱</Label><Input value={data.contact_email || ''} onChange={(e) => set('contact_email', e.target.value)} placeholder="ailab@dhu.edu.cn" /></div>
+          <div><Label className="mb-1.5 block">B站主页链接</Label><Input value={data.bilibili_url || ''} onChange={(e) => set('bilibili_url', e.target.value)} placeholder="https://space.bilibili.com/..." /></div>
+          <div><Label className="mb-1.5 block">B站名称</Label><Input value={data.bilibili_name || ''} onChange={(e) => set('bilibili_name', e.target.value)} /></div>
+          <div><Label className="mb-1.5 block">QQ群号</Label><Input value={data.qq_group || ''} onChange={(e) => set('qq_group', e.target.value)} /></div>
+        </div>
+      </div>
+      <div className="rounded-xl border border-border bg-card p-5">
+        <h3 className="font-display text-base font-semibold">秋季招新</h3>
+        <div className="mt-4 space-y-4">
+          <div><Label className="mb-1.5 block">秋季招新要求（每行一条）</Label><Textarea rows={4} value={data.autumn_requirements || ''} onChange={(e) => set('autumn_requirements', e.target.value)} /></div>
+          <div><Label className="mb-1.5 block">秋季招新流程（每行一步）</Label><Textarea rows={4} value={data.autumn_process || ''} onChange={(e) => set('autumn_process', e.target.value)} /></div>
+        </div>
+      </div>
+      <div className="rounded-xl border border-border bg-card p-5">
+        <h3 className="font-display text-base font-semibold">暑期招新</h3>
+        <div className="mt-4 space-y-4">
+          <div><Label className="mb-1.5 block">暑期招新要求（每行一条）</Label><Textarea rows={4} value={data.summer_requirements || ''} onChange={(e) => set('summer_requirements', e.target.value)} /></div>
+          <div><Label className="mb-1.5 block">暑期招新流程（每行一步）</Label><Textarea rows={4} value={data.summer_process || ''} onChange={(e) => set('summer_process', e.target.value)} /></div>
+        </div>
+      </div>
+      <Button onClick={save} disabled={saving} className="gap-1.5">
+        {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} 保存设置
+      </Button>
+    </div>
+  );
+}
+
+export default function Admin() {
+  const { user } = useAuth();
+
+  if (user?.role !== 'admin') {
+    return (
+      <div className="mx-auto flex max-w-md flex-col items-center px-5 py-32 text-center">
+        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10 text-destructive"><Shield size={26} /></span>
+        <h1 className="mt-5 font-display text-xl font-semibold">权限不足</h1>
+        <p className="mt-2 text-sm text-muted-foreground">仅实验室管理员可访问此后台。请联系管理员获取权限。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-5xl px-5 py-12 sm:px-8 sm:py-16">
+      <div className="flex items-center gap-2.5">
+        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground"><Settings size={18} /></span>
+        <div>
+          <h1 className="font-display text-2xl font-bold tracking-tight">管理后台</h1>
+          <p className="font-mono-date text-xs text-muted-foreground">AILAB Admin Console</p>
+        </div>
+      </div>
+
+      <Tabs defaultValue="members" className="mt-8">
+        <TabsList className="flex w-full flex-wrap justify-start gap-1 h-auto bg-secondary/50 p-1">
+          <TabsTrigger value="members">团队成员</TabsTrigger>
+          <TabsTrigger value="notifications">通知</TabsTrigger>
+          <TabsTrigger value="awards">成果展示</TabsTrigger>
+          <TabsTrigger value="activities">活动</TabsTrigger>
+          <TabsTrigger value="clublife">社团生活</TabsTrigger>
+          <TabsTrigger value="videos">视频</TabsTrigger>
+          <TabsTrigger value="materials">资料</TabsTrigger>
+          <TabsTrigger value="qa">问答</TabsTrigger>
+          <TabsTrigger value="settings">设置</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="members" className="mt-6"><EntityManager entityName="Member" label="成员" fields={memberFields} sort="order_index" itemTitle={(it) => it.name} /></TabsContent>
+        <TabsContent value="notifications" className="mt-6"><EntityManager entityName="Notification" label="通知" fields={notifFields} itemTitle={(it) => it.title} /></TabsContent>
+        <TabsContent value="awards" className="mt-6"><EntityManager entityName="Award" label="成果" fields={awardFields} itemTitle={(it) => it.title} /></TabsContent>
+        <TabsContent value="activities" className="mt-6"><EntityManager entityName="Activity" label="活动" fields={activityFields} itemTitle={(it) => it.title} /></TabsContent>
+        <TabsContent value="clublife" className="mt-6"><EntityManager entityName="ClubLife" label="社团生活" fields={clubLifeFields} sort="-date" itemTitle={(it) => it.title} /></TabsContent>
+        <TabsContent value="videos" className="mt-6"><EntityManager entityName="VideoLink" label="视频" fields={videoFields} itemTitle={(it) => it.title} /></TabsContent>
+        <TabsContent value="materials" className="mt-6"><EntityManager entityName="StudyMaterial" label="学习资料" fields={materialFields} itemTitle={(it) => it.title} /></TabsContent>
+        <TabsContent value="qa" className="mt-6"><EntityManager entityName="QA" label="问答" fields={qaFields} sort="order_index" itemTitle={(it) => it.question} /></TabsContent>
+        <TabsContent value="settings" className="mt-6"><SiteSettingsTab /></TabsContent>
+      </Tabs>
+    </div>
+  );
+}

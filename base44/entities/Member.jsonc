@@ -1,0 +1,99 @@
+{
+  "name": "Member",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "title": "\u59d3\u540d"
+    },
+    "title": {
+      "type": "string",
+      "title": "\u804c\u4f4d/\u5934\u8854",
+      "description": "\u5982\uff1a\u793e\u957f\u3001\u6280\u672f\u8d1f\u8d23\u4eba\u3001\u6838\u5fc3\u6210\u5458"
+    },
+    "category": {
+      "type": "string",
+      "title": "\u6210\u5458\u7c7b\u522b",
+      "enum": [
+        "advisor",
+        "president",
+        "core",
+        "member"
+      ],
+      "default": "member"
+    },
+    "grade": {
+      "type": "string",
+      "title": "\u5e74\u7ea7",
+      "description": "\u5982\uff1a2023\u30012024\uff08\u5df2\u6bd5\u4e1a\u586b\u6bd5\u4e1a\u5e74\u4efd\uff09"
+    },
+    "graduated": {
+      "type": "boolean",
+      "title": "\u662f\u5426\u5df2\u6bd5\u4e1a",
+      "default": false
+    },
+    "destination": {
+      "type": "string",
+      "title": "\u53bb\u5411",
+      "enum": [
+        "\u4fdd\u7814",
+        "\u7559\u5b66",
+        "\u5c31\u4e1a",
+        "\u5176\u4ed6"
+      ],
+      "description": "\u4ec5\u5df2\u6bd5\u4e1a\u6210\u5458\u586b\u5199"
+    },
+    "bio": {
+      "type": "string",
+      "title": "\u4e2a\u4eba\u7b80\u4ecb"
+    },
+    "photo_url": {
+      "type": "string",
+      "title": "\u7167\u7247"
+    },
+    "email": {
+      "type": "string",
+      "title": "\u90ae\u7bb1"
+    },
+    "research_interests": {
+      "type": "string",
+      "title": "\u7814\u7a76\u65b9\u5411"
+    },
+    "competition_awards": {
+      "type": "string",
+      "title": "\u4e2a\u4eba\u7ade\u8d5b\u83b7\u5956",
+      "description": "\u6bcf\u884c\u4e00\u6761"
+    },
+    "research_achievements": {
+      "type": "string",
+      "title": "\u4e2a\u4eba\u79d1\u7814\u6210\u679c",
+      "description": "\u6bcf\u884c\u4e00\u6761"
+    },
+    "order_index": {
+      "type": "number",
+      "title": "\u6392\u5e8f",
+      "default": 0
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

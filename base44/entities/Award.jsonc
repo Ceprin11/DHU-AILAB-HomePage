@@ -1,0 +1,79 @@
+{
+  "name": "Award",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "title": "\u6210\u679c\u540d\u79f0"
+    },
+    "type": {
+      "type": "string",
+      "title": "\u6210\u679c\u7c7b\u578b",
+      "enum": [
+        "competition",
+        "research"
+      ],
+      "default": "competition",
+      "description": "\u7ade\u8d5b\u83b7\u5956 / \u79d1\u7814\u6210\u679c"
+    },
+    "description": {
+      "type": "string",
+      "title": "\u8be6\u7ec6\u63cf\u8ff0"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "title": "\u65e5\u671f"
+    },
+    "level": {
+      "type": "string",
+      "title": "\u7ade\u8d5b\u7ea7\u522b",
+      "enum": [
+        "national",
+        "provincial",
+        "university",
+        "other"
+      ],
+      "default": "university",
+      "description": "\u4ec5\u7ade\u8d5b\u83b7\u5956\u9002\u7528"
+    },
+    "ccf_level": {
+      "type": "string",
+      "title": "CCF\u7b49\u7ea7/\u4f1a\u8bae",
+      "description": "\u5982 CCF-A\u3001CCF-B\u3001CVPR\u3001ACL \u7b49"
+    },
+    "notes": {
+      "type": "string",
+      "title": "\u5176\u4ed6\u5907\u6ce8"
+    },
+    "image_url": {
+      "type": "string",
+      "title": "\u56fe\u7247"
+    },
+    "recipient": {
+      "type": "string",
+      "title": "\u83b7\u5956\u8005/\u4f5c\u8005/\u56e2\u961f"
+    }
+  },
+  "required": [
+    "title"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

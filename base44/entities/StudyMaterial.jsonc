@@ -1,0 +1,62 @@
+{
+  "name": "StudyMaterial",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "title": "\u8d44\u6599\u540d\u79f0"
+    },
+    "description": {
+      "type": "string",
+      "title": "\u8d44\u6599\u63cf\u8ff0"
+    },
+    "file_url": {
+      "type": "string",
+      "title": "\u6587\u4ef6\u94fe\u63a5"
+    },
+    "file_type": {
+      "type": "string",
+      "title": "\u6587\u4ef6\u7c7b\u578b",
+      "enum": [
+        "pdf",
+        "code",
+        "data",
+        "doc",
+        "video",
+        "other"
+      ],
+      "default": "pdf"
+    },
+    "category": {
+      "type": "string",
+      "title": "\u5206\u7c7b",
+      "default": "\u901a\u7528"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "title": "\u4e0a\u4f20\u65e5\u671f"
+    }
+  },
+  "required": [
+    "title"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
