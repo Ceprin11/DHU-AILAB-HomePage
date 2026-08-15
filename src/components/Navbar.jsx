@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, NavLink, useLocation } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { cn } from '@/lib/utils';
@@ -32,8 +32,8 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 border-b border-border/60 glass">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-8">
         <Link to="/" className="group flex items-center gap-2.5" onClick={() => setOpen(false)}>
-          <span className="flex h-9 w-[84px] shrink-0 items-center overflow-hidden rounded-md">
-            <img src={LOGO_URL} alt="AILab" className="h-full w-auto max-w-none scale-[2.45] object-contain" />
+          <span className="flex h-9 w-[84px] shrink-0 items-center justify-center overflow-hidden rounded-md">
+            <img src={LOGO_URL} alt="AILab" className="h-full w-auto max-w-none scale-[2.35] object-contain" />
           </span>
           <span className="flex flex-col leading-tight">
             <span className="font-display text-xs font-bold tracking-tight text-foreground sm:text-sm">东华大学人工智能创新实验室</span>
@@ -50,12 +50,10 @@ export default function Navbar() {
         </nav>
 
         <div className="hidden items-center gap-3 lg:flex">
-          {user?.role === 'admin' && (
-            <NavLink to="/admin" className={({ isActive }) =>
-              cn('text-sm font-medium', isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')}>
-              管理
-            </NavLink>
-          )}
+          <NavLink to={user?.role === 'admin' ? '/admin' : '/admin-login'} className={({ isActive }) =>
+            cn('text-sm font-medium', isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')}>
+            管理
+          </NavLink>
           <Link
             to="/join"
             className="inline-flex h-9 items-center rounded-full bg-amber px-5 text-sm font-semibold text-amber-foreground shadow-sm transition-transform hover:scale-[1.02]"
@@ -89,11 +87,9 @@ export default function Navbar() {
                 {n.label}
               </NavLink>
             ))}
-            {user?.role === 'admin' && (
-              <NavLink to="/admin" onClick={() => setOpen(false)} className="border-l-2 border-transparent py-2.5 pl-3 text-sm text-muted-foreground">
-                管理后台
-              </NavLink>
-            )}
+            <NavLink to={user?.role === 'admin' ? '/admin' : '/admin-login'} onClick={() => setOpen(false)} className="border-l-2 border-transparent py-2.5 pl-3 text-sm text-muted-foreground">
+              管理后台
+            </NavLink>
             <Link
               to="/join"
               onClick={() => setOpen(false)}

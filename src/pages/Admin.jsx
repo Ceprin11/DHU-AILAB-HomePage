@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Loader2, Save, Settings } from 'lucide-react';
+import { Loader2, LogOut, Save, Settings } from 'lucide-react';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -93,6 +94,13 @@ const clubLifeFields = [
   { key: 'description', label: '照片描述', type: 'textarea', rows: 2 },
 ];
 
+const homeImageFields = [
+  { key: 'title', label: '图片名称', type: 'text', required: true, placeholder: '如：实验室合影' },
+  { key: 'image_url', label: '主页图片', type: 'image', required: true },
+  { key: 'alt_text', label: '图片说明', type: 'text', placeholder: '用于图片无法显示时的文字说明' },
+  { key: 'order_index', label: '轮播顺序（数字越小越靠前）', type: 'number' },
+];
+
 function SiteSettingsTab() {
   const [data, setData] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -173,26 +181,31 @@ function SiteSettingsTab() {
 }
 
 export default function Admin() {
-  const { user } = useAuth();
+  const { user, logoutAdmin } = useAuth();
+  const navigate = useNavigate();
 
   if (user?.role !== 'admin') {
-    return (
-      <div className="mx-auto flex max-w-md flex-col items-center px-5 py-32 text-center">
-        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10 text-destructive"><Shield size={26} /></span>
-        <h1 className="mt-5 font-display text-xl font-semibold">权限不足</h1>
-        <p className="mt-2 text-sm text-muted-foreground">仅实验室管理员可访问此后台。请联系管理员获取权限。</p>
-      </div>
-    );
+    return <Navigate to="/admin-login" replace />;
   }
+
+  const handleLogout = () => {
+    logoutAdmin();
+    navigate('/admin-login', { replace: true });
+  };
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-12 sm:px-8 sm:py-16">
-      <div className="flex items-center gap-2.5">
-        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground"><Settings size={18} /></span>
-        <div>
-          <h1 className="font-display text-2xl font-bold tracking-tight">管理后台</h1>
-          <p className="font-mono-date text-xs text-muted-foreground">AILAB Admin Console</p>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground"><Settings size={18} /></span>
+          <div>
+            <h1 className="font-display text-2xl font-bold tracking-tight">管理后台</h1>
+            <p className="font-mono-date text-xs text-muted-foreground">AILAB Admin Console</p>
+          </div>
         </div>
+        <Button variant="outline" size="sm" onClick={handleLogout} className="gap-1.5">
+          <LogOut size={15} /> 退出登录
+        </Button>
       </div>
 
       <Tabs defaultValue="members" className="mt-8">
@@ -202,6 +215,7 @@ export default function Admin() {
           <TabsTrigger value="awards">成果展示</TabsTrigger>
           <TabsTrigger value="activities">活动</TabsTrigger>
           <TabsTrigger value="clublife">社团生活</TabsTrigger>
+          <TabsTrigger value="home-images">主页图片</TabsTrigger>
           <TabsTrigger value="videos">视频</TabsTrigger>
           <TabsTrigger value="materials">资料</TabsTrigger>
           <TabsTrigger value="qa">问答</TabsTrigger>
@@ -213,6 +227,7 @@ export default function Admin() {
         <TabsContent value="awards" className="mt-6"><EntityManager entityName="Award" label="成果" fields={awardFields} itemTitle={(it) => it.title} /></TabsContent>
         <TabsContent value="activities" className="mt-6"><EntityManager entityName="Activity" label="活动" fields={activityFields} itemTitle={(it) => it.title} /></TabsContent>
         <TabsContent value="clublife" className="mt-6"><EntityManager entityName="ClubLife" label="社团生活" fields={clubLifeFields} sort="-date" itemTitle={(it) => it.title} /></TabsContent>
+        <TabsContent value="home-images" className="mt-6"><EntityManager entityName="HomeImage" label="主页图片" fields={homeImageFields} sort="order_index" itemTitle={(it) => it.title} /></TabsContent>
         <TabsContent value="videos" className="mt-6"><EntityManager entityName="VideoLink" label="视频" fields={videoFields} itemTitle={(it) => it.title} /></TabsContent>
         <TabsContent value="materials" className="mt-6"><EntityManager entityName="StudyMaterial" label="学习资料" fields={materialFields} itemTitle={(it) => it.title} /></TabsContent>
         <TabsContent value="qa" className="mt-6"><EntityManager entityName="QA" label="问答" fields={qaFields} sort="order_index" itemTitle={(it) => it.question} /></TabsContent>

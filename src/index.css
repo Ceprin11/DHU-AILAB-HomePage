@@ -23,12 +23,12 @@
     --border: 220 14% 91%;
     --input: 220 14% 91%;
     --ring: 243 75% 59%;
-    --amber: 25 96% 61%;
-    --amber-foreground: 30 50% 15%;
+    --amber: 190 65% 72%;
+    --amber-foreground: 199 55% 20%;
     --chart-1: 243 75% 59%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
-    --chart-4: 25 96% 61%;
+    --chart-4: 190 65% 72%;
     --chart-5: 27 87% 67%;
     --radius: 0.75rem;
     --font-heading: "Inter Tight", ui-sans-serif, system-ui, sans-serif;
@@ -65,7 +65,7 @@
     --border: 240 4% 18%;
     --input: 240 4% 18%;
     --ring: 243 75% 65%;
-    --amber: 25 96% 61%;
+    --amber: 190 65% 68%;
     --chart-1: 243 75% 65%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;

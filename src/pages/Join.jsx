@@ -11,9 +11,9 @@ function Branch({ title, requirements, process, accent }) {
   return (
     <div className="grid gap-12 lg:grid-cols-2">
       <div>
-        <h3 className="font-display text-lg font-semibold text-foreground">加入要求</h3>
+        <h3 className="font-display text-lg font-semibold text-foreground">{title}加入要求</h3>
         {reqs.length === 0 ? (
-          <p className="mt-4 text-sm text-muted-foreground">暂未设置</p>
+          <p className="mt-4 text-sm text-muted-foreground">{title}加入要求暂未设置</p>
         ) : (
           <ul className="mt-6 space-y-4">
             {reqs.map((r, i) => (
@@ -26,9 +26,9 @@ function Branch({ title, requirements, process, accent }) {
         )}
       </div>
       <div>
-        <h3 className="font-display text-lg font-semibold text-foreground">加入流程</h3>
+        <h3 className="font-display text-lg font-semibold text-foreground">{title}加入流程</h3>
         {steps.length === 0 ? (
-          <p className="mt-4 text-sm text-muted-foreground">暂未设置</p>
+          <p className="mt-4 text-sm text-muted-foreground">{title}加入流程暂未设置</p>
         ) : (
           <ol className="mt-6 space-y-0">
             {steps.map((p, i) => (
@@ -75,7 +75,7 @@ export default function Join() {
 
       <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-20">
         <Tabs defaultValue="autumn">
-          <TabsList className="flex w-auto gap-1 bg-secondary/50 p-1">
+          <TabsList className="inline-flex w-fit justify-start gap-1 bg-secondary/50 p-1">
             <TabsTrigger value="autumn">秋季招新</TabsTrigger>
             <TabsTrigger value="summer">暑期招新</TabsTrigger>
           </TabsList>
