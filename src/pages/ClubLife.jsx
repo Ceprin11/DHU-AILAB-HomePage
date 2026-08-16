@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { AnimatePresence, m, useReducedMotion } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, Camera } from 'lucide-react';
 import { api } from '@/api/client';
 import SectionHeading from '@/components/SectionHeading';
@@ -11,6 +12,7 @@ export default function ClubLife() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lightbox, setLightbox] = useState(null); // {album, idx}
+  const reduceMotion = useReducedMotion();
 
   const load = () => {
     setLoading(true);
@@ -80,9 +82,13 @@ export default function ClubLife() {
               </div>
               <div className="mt-6 columns-2 gap-3 sm:columns-3 sm:gap-4 lg:columns-4">
                 {albums[album].map((it, idx) => (
-                  <button
+                  <m.button
                     key={it.id}
                     onClick={() => openLightbox(album, idx)}
+                    initial={reduceMotion ? false : { opacity: 0, y: 14 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, amount: 0.1 }}
+                    transition={{ duration: reduceMotion ? 0 : 0.42, delay: reduceMotion ? 0 : Math.min(idx, 6) * 0.045, ease: [0.16, 1, 0.3, 1] }}
                     className="group relative mb-3 block w-full break-inside-avoid overflow-hidden rounded-xl border border-border/75 bg-card text-left shadow-[0_10px_26px_hsl(var(--foreground)/0.03)] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_16px_32px_hsl(var(--primary)/0.08)] focus-visible:outline-offset-4 sm:mb-4"
                   >
                     {it.image_url ? (
@@ -101,7 +107,7 @@ export default function ClubLife() {
                         {it.date && <p className="mt-1 font-mono-date text-[10px] text-muted-foreground">{formatDate(it.date)}</p>}
                       </div>
                     )}
-                  </button>
+                  </m.button>
                 ))}
               </div>
             </div>
@@ -110,8 +116,9 @@ export default function ClubLife() {
       )}
 
       {/* Lightbox */}
+      <AnimatePresence>
       {current && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/85 p-4 backdrop-blur-sm animate-fade-in" onClick={closeLightbox} role="dialog" aria-modal="true" aria-label={current.title || text('life_title')}>
+        <m.div initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={reduceMotion ? undefined : { opacity: 0 }} transition={{ duration: reduceMotion ? 0 : 0.2 }} className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/85 p-4 backdrop-blur-sm" onClick={closeLightbox} role="dialog" aria-modal="true" aria-label={current.title || text('life_title')}>
           <button aria-label="关闭图片预览" className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-background/20 bg-background/15 text-background transition-colors hover:bg-background/30" onClick={closeLightbox}>
             <X size={20} />
           </button>
@@ -122,14 +129,17 @@ export default function ClubLife() {
             <ChevronRight size={24} />
           </button>
           <div className="max-h-[85vh] max-w-4xl px-10 sm:px-12" onClick={(e) => e.stopPropagation()}>
-            {current.image_url && <img src={current.image_url} alt={current.title} className="mx-auto max-h-[76vh] max-w-full rounded-xl object-contain" />}
+            <AnimatePresence mode="wait" initial={false}>
+              {current.image_url && <m.img key={current.id} initial={reduceMotion ? false : { opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={reduceMotion ? undefined : { opacity: 0, x: -12 }} transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.16, 1, 0.3, 1] }} src={current.image_url} alt={current.title} className="mx-auto max-h-[76vh] max-w-full rounded-xl object-contain" />}
+            </AnimatePresence>
             <div className="mt-4 text-center text-background">
               {current.title && <p className="font-display text-lg font-semibold">{current.title}</p>}
               <p className="mt-1 font-mono-date text-xs text-background/70">{formatDate(current.date)}</p>
             </div>
           </div>
-        </div>
+        </m.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }

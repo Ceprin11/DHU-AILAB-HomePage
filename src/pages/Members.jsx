@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { AnimatePresence, m, useReducedMotion } from 'framer-motion';
 import { Mail, X, GraduationCap, Compass, Award, FlaskConical, UserCog, MapPin, Heart, MessageCircle } from 'lucide-react';
 import { api } from '@/api/client';
 import { Image } from '@/components/ui/image';
 import SectionHeading from '@/components/SectionHeading';
 import { ContentLoading, EmptyState } from '@/components/ContentState';
 import { useSiteText } from '@/lib/siteText';
+import { Reveal } from '@/components/motion/MotionPrimitives';
 
 const DEST_LABEL = { '保研': '保研', '留学': '留学', '就业': '就业', '其他': '其他' };
 
@@ -68,10 +70,15 @@ function PortraitMedia({ src, alt }) {
   );
 }
 
-function MemberCard({ m, onClick, text }) {
+function MemberCard({ m, onClick, text, index = 0 }) {
+  const reduceMotion = useReducedMotion();
   return (
-    <button
+    <m.button
       onClick={() => onClick(m)}
+      initial={reduceMotion ? false : { opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.15 }}
+      transition={{ duration: reduceMotion ? 0 : 0.46, delay: reduceMotion ? 0 : Math.min(index, 6) * 0.055, ease: [0.16, 1, 0.3, 1] }}
       className="group min-w-0 rounded-xl text-left focus-visible:outline-offset-4"
       aria-label={`查看${m.name || '成员'}详情`}
     >
@@ -96,11 +103,12 @@ function MemberCard({ m, onClick, text }) {
           <DestinationDetails member={m} text={text} compact />
         )}
       </div>
-    </button>
+    </m.button>
   );
 }
 
 function FocusPanel({ member, onClose, text }) {
+  const reduceMotion = useReducedMotion();
   useEffect(() => {
     if (!member) return undefined;
 
@@ -118,10 +126,22 @@ function FocusPanel({ member, onClose, text }) {
     };
   }, [member, onClose]);
 
-  if (!member) return null;
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-foreground/30 backdrop-blur-sm animate-fade-in" onClick={onClose}>
-      <div
+    <AnimatePresence>
+    {member && (
+    <m.div
+      initial={reduceMotion ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={reduceMotion ? undefined : { opacity: 0 }}
+      transition={{ duration: reduceMotion ? 0 : 0.2 }}
+      className="fixed inset-0 z-50 flex justify-end bg-foreground/30 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <m.div
+        initial={reduceMotion ? false : { x: '100%' }}
+        animate={{ x: 0 }}
+        exit={reduceMotion ? undefined : { x: '100%' }}
+        transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 330, damping: 36, mass: 0.85 }}
         className="h-full w-full max-w-lg overflow-y-auto border-l border-border/75 bg-background shadow-[0_0_60px_hsl(var(--foreground)/0.12)]"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
@@ -196,8 +216,10 @@ function FocusPanel({ member, onClose, text }) {
             <a href={`mailto:${member.email}`} className="mt-6 inline-flex items-center gap-2 rounded-sm text-sm text-primary hover:underline"><Mail size={15} /> {member.email}</a>
           )}
         </div>
-      </div>
-    </div>
+      </m.div>
+    </m.div>
+    )}
+    </AnimatePresence>
   );
 }
 
@@ -228,7 +250,7 @@ export default function Members() {
         <>
           {/* Advisor */}
           {advisor && (
-            <section className="mt-14 overflow-hidden border-y border-border/75 bg-secondary/30">
+            <Reveal as="section" className="mt-14 overflow-hidden border-y border-border/75 bg-secondary/30">
               <div className="grid md:grid-cols-[17rem_1fr]">
                 <div className="aspect-[4/5] overflow-hidden bg-accent/40 md:aspect-auto md:min-h-[21rem]">
                   {advisor.photo_url ? (
@@ -261,7 +283,7 @@ export default function Members() {
                   )}
                 </div>
               </div>
-            </section>
+            </Reveal>
           )}
 
           {/* In-school members */}
@@ -277,7 +299,7 @@ export default function Members() {
               <EmptyState title={text('members_empty_current')} icon={GraduationCap} compact className="mt-5" />
             ) : (
               <div className="mt-7 grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {inSchool.map((m) => <MemberCard key={m.id} m={m} onClick={setFocus} text={text} />)}
+                {inSchool.map((m, index) => <MemberCard key={m.id} m={m} onClick={setFocus} text={text} index={index} />)}
               </div>
             )}
           </section>
@@ -293,7 +315,7 @@ export default function Members() {
                 <span className="font-mono-date text-xs text-muted-foreground">{String(graduated.length).padStart(2, '0')} {text('members_count_unit')}</span>
               </div>
               <div className="mt-7 grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {graduated.map((m) => <MemberCard key={m.id} m={m} onClick={setFocus} text={text} />)}
+                {graduated.map((m, index) => <MemberCard key={m.id} m={m} onClick={setFocus} text={text} index={index} />)}
               </div>
             </section>
           )}

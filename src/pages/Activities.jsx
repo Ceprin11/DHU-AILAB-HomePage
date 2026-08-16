@@ -5,6 +5,7 @@ import SectionHeading from '@/components/SectionHeading';
 import { formatDate } from '@/lib/site';
 import { ContentLoading, EmptyState } from '@/components/ContentState';
 import { useSiteText } from '@/lib/siteText';
+import { MotionItem } from '@/components/motion/MotionPrimitives';
 
 export default function Activities() {
   const text = useSiteText();
@@ -27,8 +28,8 @@ export default function Activities() {
         <EmptyState title={text('activities_empty')} icon={Calendar} />
       ) : (
         <div className="mt-12 border-y border-border/75">
-          {items.map((a) => (
-            <article key={a.id} className="grid gap-5 border-b border-border/75 py-8 last:border-b-0 md:grid-cols-[7.5rem_minmax(0,1fr)] md:gap-7 sm:py-10">
+          {items.map((a, index) => (
+            <MotionItem as="article" index={index} key={a.id} className="grid gap-5 border-b border-border/75 py-8 last:border-b-0 md:grid-cols-[7.5rem_minmax(0,1fr)] md:gap-7 sm:py-10">
               <aside className="hidden pt-1 md:block">
                 <span className="font-mono-date text-xs font-semibold text-primary">{formatDate(a.date)}</span>
                 {a.location && <span className="mt-2 flex items-start gap-1.5 text-xs leading-5 text-muted-foreground"><MapPin size={12} strokeWidth={1.8} className="mt-0.5 shrink-0" /> {a.location}</span>}
@@ -65,7 +66,7 @@ export default function Activities() {
                   )}
                 </div>
               </div>
-            </article>
+            </MotionItem>
           ))}
         </div>
       )}

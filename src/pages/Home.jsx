@@ -6,6 +6,7 @@ import { useSiteSettings, formatDate } from '@/lib/site';
 import { Image } from '@/components/ui/image';
 import PhotoCarousel from '@/components/PhotoCarousel';
 import { splitTextLines, useSiteText } from '@/lib/siteText';
+import { AnimatedNumber, MotionItem, Reveal } from '@/components/motion/MotionPrimitives';
 
 export default function Home() {
   const settings = useSiteSettings();
@@ -52,7 +53,7 @@ export default function Home() {
         <div className="absolute -left-40 top-16 h-80 w-80 rounded-full bg-amber/20 blur-3xl" />
         <div className="relative mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16 lg:py-20">
           <div className={`grid items-center gap-10 lg:gap-14 ${heroPhotos.length > 0 ? 'lg:grid-cols-12' : ''}`}>
-            <div className={heroPhotos.length > 0 ? 'lg:col-span-6' : 'max-w-3xl'}>
+            <Reveal className={heroPhotos.length > 0 ? 'lg:col-span-6' : 'max-w-3xl'} amount={0.05}>
               <div className="flex items-center gap-3 text-amber-foreground">
                 <span className="h-px w-8 bg-amber-foreground/60" />
                 <span className="font-mono-date text-xs uppercase tracking-[0.22em]">{text('home_eyebrow')}</span>
@@ -77,19 +78,19 @@ export default function Home() {
                   <div key={stat.label} className={index === 0 ? 'py-5 pr-3' : 'border-l border-border/80 px-3 py-5 sm:px-5'}>
                     <p className="text-xs text-muted-foreground sm:text-sm">{stat.label}</p>
                     <p className="mt-1.5 font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-                      {String(stat.value).padStart(2, '0')}
+                      <AnimatedNumber value={stat.value} />
                       <span className="ml-1 text-xs font-medium text-muted-foreground sm:text-sm">{stat.unit}</span>
                     </p>
                   </div>
                 ))}
               </div>
-            </div>
+            </Reveal>
 
             {heroPhotos.length > 0 && (
-              <div className="relative lg:col-span-6">
+              <Reveal className="relative lg:col-span-6" delay={0.08} amount={0.05}>
                 <div className="absolute inset-[8%] rounded-[2rem] bg-amber/15 blur-3xl" />
                 <PhotoCarousel photos={heroPhotos} className="aspect-[5/4]" />
-              </div>
+              </Reveal>
             )}
           </div>
         </div>
@@ -108,11 +109,11 @@ export default function Home() {
 
         <div className="mt-10 grid border-y border-border sm:grid-cols-2">
           {quickLinks.map((item, index) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              className={`group flex min-h-40 items-start gap-5 py-7 transition-colors hover:bg-amber/10 active:bg-amber/20 sm:px-7 ${index < 2 ? 'border-b border-border' : ''} ${index % 2 === 0 ? 'sm:border-r sm:pl-0' : 'sm:pr-0'}`}
-            >
+            <MotionItem key={item.to} index={index}>
+              <Link
+                to={item.to}
+                className={`group flex min-h-40 items-start gap-5 py-7 transition-colors hover:bg-amber/10 active:bg-amber/20 sm:px-7 ${index < 2 ? 'border-b border-border' : ''} ${index % 2 === 0 ? 'sm:border-r sm:pl-0' : 'sm:pr-0'}`}
+              >
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber/25 text-amber-foreground transition-transform group-hover:-translate-y-0.5">
                 <item.icon size={20} strokeWidth={1.8} />
               </span>
@@ -123,7 +124,8 @@ export default function Home() {
                 </span>
                 <span className="mt-2 block text-sm leading-6 text-muted-foreground">{item.desc}</span>
               </span>
-            </Link>
+              </Link>
+            </MotionItem>
           ))}
         </div>
       </section>

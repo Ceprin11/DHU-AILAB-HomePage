@@ -1,9 +1,10 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { Reveal } from '@/components/motion/MotionPrimitives';
 
 export default function SectionHeading({ eyebrow, title, description, align = 'left', className = undefined }) {
   return (
-    <div className={cn('max-w-[44rem]', align === 'center' && 'mx-auto text-center', className)}>
+    <Reveal className={cn('max-w-[44rem]', align === 'center' && 'mx-auto text-center', className)}>
       {eyebrow && (
         <div className={cn('flex items-center gap-3 text-primary', align === 'center' && 'justify-center')}>
           <span className="h-px w-5 bg-primary/55" aria-hidden="true" />
@@ -16,6 +17,6 @@ export default function SectionHeading({ eyebrow, title, description, align = 'l
       {description && (
         <p className={cn('mt-4 max-w-[65ch] text-base leading-7 text-muted-foreground sm:leading-8', align === 'center' && 'mx-auto')}>{description}</p>
       )}
-    </div>
+    </Reveal>
   );
 }

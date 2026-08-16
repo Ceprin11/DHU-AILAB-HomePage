@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { AnimatePresence, m, useReducedMotion } from 'framer-motion';
 import { ChevronDown, CircleHelp } from 'lucide-react';
 import { api } from '@/api/client';
 import SectionHeading from '@/components/SectionHeading';
@@ -11,6 +12,7 @@ export default function QAPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(null);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     api.entities.QA.list('order_index', 200)
@@ -44,13 +46,20 @@ export default function QAPage() {
                   <span className="flex-1 font-display text-base font-semibold leading-6 text-foreground sm:text-lg">{q.question}</span>
                   <ChevronDown size={18} strokeWidth={1.8} className={cn('shrink-0 text-muted-foreground transition-transform duration-200', isOpen && 'rotate-180 text-primary')} />
                 </button>
-                <div className={cn('grid transition-all', isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
-                  <div id={`qa-answer-${q.id}`} className="overflow-hidden">
+                <AnimatePresence initial={false}>
+                  {isOpen && <m.div
+                    id={`qa-answer-${q.id}`}
+                    initial={reduceMotion ? false : { opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
+                    transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.16, 1, 0.3, 1] }}
+                    className="overflow-hidden"
+                  >
                     <div className="border-t border-border/70 px-3 py-5 pl-12 sm:px-5 sm:py-6 sm:pl-[4.25rem]">
                       <p className="max-w-[65ch] whitespace-pre-line text-sm leading-7 text-muted-foreground">{q.answer}</p>
                     </div>
-                  </div>
-                </div>
+                  </m.div>}
+                </AnimatePresence>
               </div>
             );
           })}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { AnimatePresence, m, useReducedMotion } from 'framer-motion';
 import { FileText, FileCode, Database, FileBox, Video, Download } from 'lucide-react';
 import { api } from '@/api/client';
 import SectionHeading from '@/components/SectionHeading';
@@ -21,6 +22,7 @@ export default function Resources() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cat, setCat] = useState(null);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     api.entities.StudyMaterial.list('-date', 200)
@@ -59,12 +61,21 @@ export default function Resources() {
           {filtered.length === 0 ? (
             <EmptyState title={text('resources_empty')} icon={FileBox} />
           ) : (
-            <div className="mt-8 divide-y divide-border/75 border-y border-border/75">
+            <m.div layout={!reduceMotion} className="mt-8 divide-y divide-border/75 border-y border-border/75">
+              <AnimatePresence mode="popLayout" initial={false}>
               {filtered.map((m) => {
                 const t = TYPE_ICON[m.file_type] || TYPE_ICON.other;
                 const isVideo = m.file_type === 'video' && m.file_url;
                 return (
-                  <article key={m.id} className="overflow-hidden transition-colors duration-200 hover:bg-secondary/25">
+                  <m.article
+                    layout={!reduceMotion}
+                    key={m.id}
+                    initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={reduceMotion ? undefined : { opacity: 0, y: -8 }}
+                    transition={{ duration: reduceMotion ? 0 : 0.26, ease: [0.16, 1, 0.3, 1] }}
+                    className="overflow-hidden transition-colors duration-200 hover:bg-secondary/25"
+                  >
                     <div className="flex items-center gap-4 px-3 py-5 sm:px-5 sm:py-6">
                       <span className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-primary/10', t.cls)}>
                         <t.icon size={19} strokeWidth={1.8} />
@@ -90,10 +101,11 @@ export default function Resources() {
                         <video src={m.file_url} controls className="max-h-80 w-full" />
                       </div>
                     )}
-                  </article>
+                  </m.article>
                 );
               })}
-            </div>
+              </AnimatePresence>
+            </m.div>
           )}
         </>
       )}

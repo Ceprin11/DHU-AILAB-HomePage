@@ -1,16 +1,19 @@
 import React from 'react';
+import { m, useReducedMotion } from 'framer-motion';
 import { Mail, Play, MessageCircle, Check } from 'lucide-react';
 import { useSiteSettings } from '@/lib/site';
 import SectionHeading from '@/components/SectionHeading';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useSiteText } from '@/lib/siteText';
+import { MotionItem, Reveal } from '@/components/motion/MotionPrimitives';
 
 function Branch({ title, requirements, process, text }) {
+  const reduceMotion = useReducedMotion();
   const reqs = (requirements || '').split('\n').filter(Boolean);
   const steps = (process || '').split('\n').filter(Boolean);
 
   return (
-    <div className="grid gap-12 lg:grid-cols-2 lg:gap-0">
+    <m.div initial={reduceMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduceMotion ? 0 : 0.3, ease: [0.16, 1, 0.3, 1] }} className="grid gap-12 lg:grid-cols-2 lg:gap-0">
       <div className="lg:pr-12">
         <h3 className="font-display text-lg font-semibold text-foreground">{title}{text('join_requirements')}</h3>
         {reqs.length === 0 ? (
@@ -42,7 +45,7 @@ function Branch({ title, requirements, process, text }) {
           </ol>
         )}
       </div>
-    </div>
+    </m.div>
   );
 }
 
@@ -62,7 +65,7 @@ export default function Join() {
         <div className="absolute inset-0 neural-grid opacity-50" />
         <div className="absolute right-0 top-0 h-80 w-80 rounded-full bg-amber/10 blur-3xl" />
         <div className="page-shell relative py-20 sm:py-28">
-          <div className="max-w-2xl">
+          <Reveal className="max-w-2xl" amount={0.05}>
             <div className="flex items-center gap-2">
               <span className="h-px w-8 bg-amber" />
               <span className="font-mono-date text-xs uppercase tracking-[0.25em] text-amber-foreground">{text('join_eyebrow')}</span>
@@ -71,7 +74,7 @@ export default function Join() {
             <p className="mt-5 text-lg leading-relaxed text-muted-foreground text-balance">
               {text('join_description')}
             </p>
-          </div>
+          </Reveal>
         </div>
       </section>
 
@@ -105,9 +108,9 @@ export default function Join() {
                 </div>
               );
               return c.href ? (
-                <a key={i} href={c.href} target={c.href.startsWith('http') ? '_blank' : undefined} rel="noreferrer" className="block">{Inner}</a>
+                <MotionItem key={c.label} index={i}><a href={c.href} target={c.href.startsWith('http') ? '_blank' : undefined} rel="noreferrer" className="block">{Inner}</a></MotionItem>
               ) : (
-                <div key={i}>{Inner}</div>
+                <MotionItem key={c.label} index={i}>{Inner}</MotionItem>
               );
             })}
           </div>

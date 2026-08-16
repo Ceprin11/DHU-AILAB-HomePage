@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
+import { AnimatePresence, m, useReducedMotion } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { cn } from '@/lib/utils';
@@ -11,6 +12,7 @@ export default function Navbar() {
   const [open, setOpen] = useState(false);
   const { user } = useAuth();
   const text = useSiteText();
+  const reduceMotion = useReducedMotion();
   const nav = [
     { to: '/', label: text('nav_home'), end: true }, { to: '/members', label: text('nav_team') },
     { to: '/ai-guide', label: text('nav_guide') }, { to: '/notifications', label: text('nav_notice') },
@@ -21,10 +23,10 @@ export default function Navbar() {
 
   const linkClass = ({ isActive }) =>
     cn(
-      'relative px-1 py-5 text-sm font-medium transition-colors duration-200 after:absolute after:inset-x-1 after:bottom-3 after:h-0.5 after:origin-left after:rounded-full after:bg-primary after:transition-transform after:duration-200',
+      'relative px-1 py-5 text-sm font-medium transition-colors duration-200',
       isActive
-        ? 'text-foreground after:scale-x-100'
-        : 'text-muted-foreground after:scale-x-0 hover:text-foreground hover:after:scale-x-100'
+        ? 'text-foreground'
+        : 'text-muted-foreground hover:text-foreground'
     );
 
   return (
@@ -43,7 +45,12 @@ export default function Navbar() {
         <nav aria-label="主导航" className="hidden items-center gap-5 xl:flex">
           {nav.map((n) => (
             <NavLink key={n.to} to={n.to} end={n.end} className={linkClass}>
-              {n.label}
+              {({ isActive }) => (
+                <>
+                  {n.label}
+                  {isActive && <m.span layoutId="desktop-nav-indicator" className="absolute inset-x-1 bottom-3 h-0.5 rounded-full bg-primary" transition={{ type: 'spring', stiffness: 420, damping: 34 }} />}
+                </>
+              )}
             </NavLink>
           ))}
         </nav>
@@ -72,8 +79,16 @@ export default function Navbar() {
         </button>
       </div>
 
-      {open && (
-        <div id="mobile-navigation" className="border-t border-border/75 bg-background/98 shadow-[0_16px_28px_hsl(var(--foreground)/0.06)] xl:hidden">
+      <AnimatePresence initial={false}>
+        {open && (
+        <m.div
+          id="mobile-navigation"
+          initial={reduceMotion ? false : { opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reduceMotion ? undefined : { opacity: 0, y: -6 }}
+          transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.16, 1, 0.3, 1] }}
+          className="border-t border-border/75 bg-background/98 shadow-[0_16px_28px_hsl(var(--foreground)/0.06)] xl:hidden"
+        >
           <nav aria-label="移动端导航" className="page-shell grid grid-cols-2 gap-1 py-4 sm:grid-cols-3">
             {nav.map((n) => (
               <NavLink
@@ -99,8 +114,9 @@ export default function Navbar() {
               {text('nav_join')}
             </Link>
           </nav>
-        </div>
-      )}
+        </m.div>
+        )}
+      </AnimatePresence>
     </header>
   );
 }

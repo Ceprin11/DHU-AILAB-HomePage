@@ -8,6 +8,7 @@ import { formatDate } from '@/lib/site';
 import { cn } from '@/lib/utils';
 import { ContentLoading, EmptyState } from '@/components/ContentState';
 import { useSiteText } from '@/lib/siteText';
+import { MotionItem } from '@/components/motion/MotionPrimitives';
 
 const LEVEL = {
   national: { textKey: 'awards_level_national', cls: 'bg-amber/30 text-primary' },
@@ -16,11 +17,11 @@ const LEVEL = {
   other: { textKey: 'awards_level_other', cls: 'bg-muted text-muted-foreground' },
 };
 
-function AwardEntry({ a, text }) {
+function AwardEntry({ a, text, index = 0 }) {
   const isResearch = a.type === 'research';
   const level = LEVEL[a.level] || LEVEL.other;
   return (
-    <article className="group grid gap-5 border-t border-border/75 py-7 first:border-t-0 first:pt-0 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-7 sm:py-8">
+    <MotionItem as="article" index={index} className="group grid gap-5 border-t border-border/75 py-7 first:border-t-0 first:pt-0 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-7 sm:py-8">
       <div>
         {a.image_url ? (
           <div className="aspect-[4/3] overflow-hidden rounded-xl border border-border/75 bg-secondary/45 shadow-[0_10px_26px_hsl(var(--foreground)/0.03)]">
@@ -47,7 +48,7 @@ function AwardEntry({ a, text }) {
           </p>
         )}
       </div>
-    </article>
+    </MotionItem>
   );
 }
 
@@ -58,7 +59,7 @@ function AwardGrid({ items, emptyTitle, emptyIcon, text }) {
 
   return (
     <div>
-      {items.map((award) => <AwardEntry key={award.id} a={award} text={text} />)}
+      {items.map((award, index) => <AwardEntry key={award.id} a={award} text={text} index={index} />)}
     </div>
   );
 }

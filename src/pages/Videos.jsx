@@ -6,6 +6,7 @@ import SectionHeading from '@/components/SectionHeading';
 import { formatDate } from '@/lib/site';
 import { ContentLoading, EmptyState } from '@/components/ContentState';
 import { useSiteText } from '@/lib/siteText';
+import { MotionItem } from '@/components/motion/MotionPrimitives';
 
 export default function Videos() {
   const text = useSiteText();
@@ -28,8 +29,9 @@ export default function Videos() {
         <EmptyState title={text('videos_empty')} icon={Play} />
       ) : (
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((v) => (
-            <a key={v.id} href={v.bilibili_url} target="_blank" rel="noreferrer" className="group overflow-hidden rounded-xl border border-border/75 bg-card shadow-[0_10px_26px_hsl(var(--foreground)/0.03)] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_16px_32px_hsl(var(--primary)/0.08)] focus-visible:outline-offset-4">
+          {items.map((v, index) => (
+            <MotionItem key={v.id} index={index}>
+            <a href={v.bilibili_url} target="_blank" rel="noreferrer" className="group block overflow-hidden rounded-xl border border-border/75 bg-card shadow-[0_10px_26px_hsl(var(--foreground)/0.03)] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_16px_32px_hsl(var(--primary)/0.08)] focus-visible:outline-offset-4">
               <div className="relative aspect-video overflow-hidden border-b border-border/70 bg-accent/35">
                 {v.thumbnail_url ? (
                   <Image src={v.thumbnail_url} fittingType="fit" className="h-full w-full object-contain" />
@@ -53,6 +55,7 @@ export default function Videos() {
                 {v.description && <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">{v.description}</p>}
               </div>
             </a>
+            </MotionItem>
           ))}
         </div>
       )}

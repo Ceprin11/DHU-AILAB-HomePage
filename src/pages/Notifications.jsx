@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { AnimatePresence, m, useReducedMotion } from 'framer-motion';
 import { ArrowLeft, Bell, ChevronRight, Pin } from 'lucide-react';
 import { api } from '@/api/client';
 import SectionHeading from '@/components/SectionHeading';
@@ -13,6 +14,7 @@ export default function Notifications() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState(null);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     api.entities.Notification.list('-date', 200)
@@ -34,8 +36,9 @@ export default function Notifications() {
         <EmptyState title={text('notice_empty')} icon={Bell} />
       ) : (
         <div className="mt-10">
+          <AnimatePresence mode="wait" initial={false}>
           {active ? (
-            <div>
+            <m.div key="detail" initial={reduceMotion ? false : { opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={reduceMotion ? undefined : { opacity: 0, x: -8 }} transition={{ duration: reduceMotion ? 0 : 0.28, ease: [0.16, 1, 0.3, 1] }}>
               <button onClick={() => setActive(null)} className="interactive-link mb-7 inline-flex items-center gap-2 rounded-sm text-sm font-medium text-primary hover:text-foreground"><ArrowLeft size={15} strokeWidth={1.8} /> {text('notice_back')}</button>
               <article className="border-y border-border/75 py-7 sm:py-9">
                 <div className="flex items-center gap-2">
@@ -46,17 +49,20 @@ export default function Notifications() {
                 <p className="mt-3 font-mono-date text-xs text-muted-foreground">{formatDate(active.date)}</p>
                 <div className="mt-8 max-w-[70ch] whitespace-pre-line text-base leading-8 text-foreground/90">{active.content}</div>
               </article>
-            </div>
+            </m.div>
           ) : (
-            <div className="divide-y divide-border/75 border-y border-border/75">
-              {list.map((n) => (
-                <button
+            <m.div key="list" className="divide-y divide-border/75 border-y border-border/75" initial={reduceMotion ? false : { opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={reduceMotion ? undefined : { opacity: 0, x: 8 }} transition={{ duration: reduceMotion ? 0 : 0.26, ease: [0.16, 1, 0.3, 1] }}>
+              {list.map((n, index) => (
+                <m.button
                   key={n.id}
                   onClick={() => setActive(n)}
                   className={cn(
                     'group grid w-full gap-3 px-4 py-5 text-left transition-[background-color,transform] duration-200 sm:grid-cols-[6.5rem_minmax(0,1fr)_6rem_1.25rem] sm:items-center sm:gap-5 sm:px-5 sm:py-6',
                     n.pinned ? 'bg-secondary/45 hover:bg-secondary/65' : 'hover:bg-secondary/30'
                   )}
+                  initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.32, delay: reduceMotion ? 0 : Math.min(index, 6) * 0.045 }}
                 >
                   <div className="flex items-center gap-2 sm:block">
                     <p className="font-mono-date text-xs text-muted-foreground">{formatDate(n.date)}</p>
@@ -71,10 +77,11 @@ export default function Notifications() {
                   </div>
                   <span className="hidden justify-self-end text-xs font-medium text-muted-foreground sm:block">{n.pinned ? text('notice_pinned') : ''}</span>
                   <ChevronRight size={17} strokeWidth={1.8} className="hidden text-muted-foreground transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-primary sm:block" aria-hidden="true" />
-                </button>
+                </m.button>
               ))}
-            </div>
+            </m.div>
           )}
+          </AnimatePresence>
         </div>
       )}
     </div>

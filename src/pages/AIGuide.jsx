@@ -16,6 +16,7 @@ import { api } from '@/api/client';
 import { Image } from '@/components/ui/image';
 import { ContentLoading, EmptyState } from '@/components/ContentState';
 import { splitTextLines, useSiteText } from '@/lib/siteText';
+import { MotionItem, Reveal } from '@/components/motion/MotionPrimitives';
 
 const CATEGORY_ICONS = {
   code: Code2,
@@ -27,14 +28,14 @@ const CATEGORY_ICONS = {
 
 const splitLines = (value) => String(value || '').split('\n').map((line) => line.trim()).filter(Boolean);
 
-function CourseCard({ course, icon: Icon, text }) {
+function CourseCard({ course, icon: Icon, text, index = 0 }) {
   const links = [
     [course.primary_link_label || text('guide_primary_link_default'), course.primary_url],
     [course.secondary_link_label || text('guide_secondary_link_default'), course.secondary_url],
   ].filter(([, url]) => url);
 
   return (
-    <article className="overflow-hidden rounded-xl border border-border/75 bg-card shadow-[0_10px_26px_hsl(var(--foreground)/0.03)] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_16px_32px_hsl(var(--primary)/0.08)]">
+    <MotionItem as="article" index={index} className="overflow-hidden rounded-xl border border-border/75 bg-card shadow-[0_10px_26px_hsl(var(--foreground)/0.03)] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_16px_32px_hsl(var(--primary)/0.08)]">
       <div className="flex aspect-[16/9] items-center justify-center overflow-hidden bg-secondary/50">
         {course.image_url ? (
           <Image src={course.image_url} alt={`${course.title}封面`} fittingType="fit" className="h-full w-full object-contain" />
@@ -55,7 +56,7 @@ function CourseCard({ course, icon: Icon, text }) {
           </div>
         )}
       </div>
-    </article>
+    </MotionItem>
   );
 }
 
@@ -147,7 +148,7 @@ export default function AIGuide() {
           ) : (
             <div className="mt-10 grid gap-6 md:grid-cols-2">
               {stages.map((stage, index) => (
-                <article key={stage.id} className="overflow-hidden rounded-xl border border-border/75 bg-card shadow-[0_10px_26px_hsl(var(--foreground)/0.03)]">
+                <MotionItem as="article" index={index} key={stage.id} className="overflow-hidden rounded-xl border border-border/75 bg-card shadow-[0_10px_26px_hsl(var(--foreground)/0.03)]">
                   <div className="relative border-b border-border/75 bg-secondary/50 px-6 py-6">
                     <span className="font-mono-date text-xs font-semibold text-primary">{String(index + 1).padStart(2, '0')}</span>
                     <h3 className="mt-3 font-display text-2xl font-bold text-foreground">{stage.title}</h3>
@@ -160,7 +161,7 @@ export default function AIGuide() {
                       </li>
                     ))}
                   </ul>
-                </article>
+                </MotionItem>
               ))}
             </div>
           )}
@@ -179,11 +180,11 @@ export default function AIGuide() {
             <EmptyState title={text('guide_empty_category')} icon={Code2} className="mt-10" />
           ) : (
             <div className="mt-12 space-y-16">
-              {categories.map((category) => {
+              {categories.map((category, categoryIndex) => {
                 const Icon = CATEGORY_ICONS[category.icon] || Code2;
                 const categoryCourses = coursesByCategory[category.id] || [];
                 return (
-                  <section key={category.id}>
+                  <Reveal as="section" key={category.id} delay={Math.min(categoryIndex, 3) * 0.04}>
                     <div className="flex items-center gap-4">
                       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary/10 bg-accent text-primary"><Icon size={21} strokeWidth={1.8} /></span>
                       <div>
@@ -195,10 +196,10 @@ export default function AIGuide() {
                       <p className="mt-6 rounded-xl border border-dashed border-border bg-background/60 px-5 py-8 text-center text-sm text-muted-foreground">{text('guide_empty_course')}</p>
                     ) : (
                       <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                        {categoryCourses.map((course) => <CourseCard key={course.id} course={course} icon={Icon} text={text} />)}
+                        {categoryCourses.map((course, index) => <CourseCard key={course.id} course={course} icon={Icon} text={text} index={index} />)}
                       </div>
                     )}
-                  </section>
+                  </Reveal>
                 );
               })}
             </div>
