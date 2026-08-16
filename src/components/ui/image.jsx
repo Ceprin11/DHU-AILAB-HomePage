@@ -11,9 +11,6 @@ import {
   parseWixMediaUrl,
 } from "./image-helpers"
 
-const FALLBACK_IMAGE_URL =
-  "/image-placeholder.svg"
-
 const ImageWrapper = React.forwardRef(({ aspectRatio, className, style, children }, ref) => (
   <span
     ref={ref}
@@ -130,7 +127,7 @@ const Image = React.forwardRef(
     },
     ref
   ) => {
-    const parsedSource = src && src !== FALLBACK_IMAGE_URL ? parseWixMediaUrl(src) : null
+    const parsedSource = src ? parseWixMediaUrl(src) : null
     const initialMode = parsedSource ? IMAGE_LOAD_MODE.OPTIMIZED : IMAGE_LOAD_MODE.ORIGINAL
     const [loadState, setLoadState] = React.useState({ src, mode: initialMode })
     const mode = loadState.src === src ? loadState.mode : initialMode
@@ -151,23 +148,16 @@ const Image = React.forwardRef(
       onError: handleError,
     }
 
-    if (!src) {
-      // Renders as a real <img> (not a <div>) — the visual editor's
-      // click-to-edit toolbar keys its "Replace Image" action off the DOM
-      // tag being `img`, so a placeholder div would be unrecoverable in the
-      // editor. FALLBACK_IMAGE_URL doubles as the "no image chosen" graphic.
-      return <img ref={ref} src={FALLBACK_IMAGE_URL} {...imageProps} data-empty-image />
-    }
+    if (!src || mode === IMAGE_LOAD_MODE.FALLBACK) return null
 
     // A failed transform retries the underlying original as a plain image.
     // Only a failure of that original advances to the generic fallback.
     const parsed = mode === IMAGE_LOAD_MODE.OPTIMIZED ? parsedSource : null
 
     if (!parsed) {
-      const isErrorMode = mode === IMAGE_LOAD_MODE.FALLBACK
-      const imageSrc = isErrorMode ? FALLBACK_IMAGE_URL : getOriginalImageUrl(src, parsedSource)
+      const imageSrc = getOriginalImageUrl(src, parsedSource)
       return (
-        <img ref={ref} src={imageSrc} {...imageProps} data-error-image={isErrorMode || undefined} />
+        <img ref={ref} src={imageSrc} {...imageProps} />
       )
     }
 

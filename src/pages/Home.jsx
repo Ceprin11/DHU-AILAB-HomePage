@@ -7,19 +7,12 @@ import { Image } from '@/components/ui/image';
 import PhotoCarousel from '@/components/PhotoCarousel';
 import { splitTextLines, useSiteText } from '@/lib/siteText';
 
-const HERO_PHOTOS = [
-  '/hero/hero-1.jpg',
-  '/hero/hero-2.jpg',
-  '/hero/hero-3.jpg',
-  '/hero/hero-4.jpg',
-];
-
 export default function Home() {
   const settings = useSiteSettings();
   const text = useSiteText();
   const [notifs, setNotifs] = useState([]);
   const [awards, setAwards] = useState([]);
-  const [heroPhotos, setHeroPhotos] = useState(HERO_PHOTOS);
+  const [heroPhotos, setHeroPhotos] = useState([]);
   const [stats, setStats] = useState({ members: 0, awards: 0, activities: 0 });
 
   useEffect(() => {
@@ -28,7 +21,7 @@ export default function Home() {
     api.entities.HomeImage.list('order_index', 50)
       .then((rows) => {
         const photos = (rows || []).map((item) => item.image_url).filter(Boolean);
-        if (photos.length > 0) setHeroPhotos(photos);
+        setHeroPhotos(photos);
       })
       .catch(() => {});
     Promise.all([
@@ -58,8 +51,8 @@ export default function Home() {
         <div className="absolute inset-0 neural-grid opacity-30" />
         <div className="absolute -left-40 top-16 h-80 w-80 rounded-full bg-amber/20 blur-3xl" />
         <div className="relative mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16 lg:py-20">
-          <div className="grid items-center gap-10 lg:grid-cols-12 lg:gap-14">
-            <div className="lg:col-span-6">
+          <div className={`grid items-center gap-10 lg:gap-14 ${heroPhotos.length > 0 ? 'lg:grid-cols-12' : ''}`}>
+            <div className={heroPhotos.length > 0 ? 'lg:col-span-6' : 'max-w-3xl'}>
               <div className="flex items-center gap-3 text-amber-foreground">
                 <span className="h-px w-8 bg-amber-foreground/60" />
                 <span className="font-mono-date text-xs uppercase tracking-[0.22em]">{text('home_eyebrow')}</span>
@@ -92,10 +85,12 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="relative lg:col-span-6">
-              <div className="absolute inset-[8%] rounded-[2rem] bg-amber/15 blur-3xl" />
-              <PhotoCarousel photos={heroPhotos} className="aspect-[5/4]" />
-            </div>
+            {heroPhotos.length > 0 && (
+              <div className="relative lg:col-span-6">
+                <div className="absolute inset-[8%] rounded-[2rem] bg-amber/15 blur-3xl" />
+                <PhotoCarousel photos={heroPhotos} className="aspect-[5/4]" />
+              </div>
+            )}
           </div>
         </div>
       </section>

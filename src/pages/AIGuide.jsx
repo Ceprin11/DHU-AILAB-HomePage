@@ -90,6 +90,8 @@ export default function AIGuide() {
     grouped[course.category_id].push(course);
     return grouped;
   }, {}), [courses]);
+  const purposeImage = text('guide_purpose_image');
+  const aboutImage = text('guide_about_image');
 
   return (
     <div>
@@ -105,7 +107,7 @@ export default function AIGuide() {
       </section>
 
       <section id="guide-purpose" className="scroll-mt-24 bg-secondary/30">
-        <div className="mx-auto grid max-w-6xl gap-10 px-5 py-16 sm:px-8 sm:py-20 md:grid-cols-2 md:items-center">
+        <div className={`mx-auto grid max-w-6xl gap-10 px-5 py-16 sm:px-8 sm:py-20 md:items-center ${purposeImage ? 'md:grid-cols-2' : ''}`}>
           <div>
             <h2 className="font-display text-3xl font-bold tracking-tight text-foreground">{text('guide_purpose_title')}</h2>
             <p className="mt-5 text-base leading-8 text-muted-foreground">{text('guide_purpose_p1')}</p>
@@ -121,12 +123,14 @@ export default function AIGuide() {
               })}
             </div>
           </div>
-          <div className="relative">
-            <div className="absolute inset-[10%] rounded-[2rem] bg-primary/10 blur-3xl" />
-            <div className="photo-soft-edge relative flex aspect-[16/10] items-center justify-center overflow-hidden rounded-2xl bg-background">
-              <Image src={text('guide_purpose_image')} alt="AILAB 实验室学习与交流" fittingType="fit" className="h-full w-full object-contain" />
+          {purposeImage && (
+            <div className="relative">
+              <div className="absolute inset-[10%] rounded-[2rem] bg-primary/10 blur-3xl" />
+              <div className="photo-soft-edge relative flex aspect-[16/10] items-center justify-center overflow-hidden rounded-2xl bg-background">
+                <Image src={purposeImage} alt="AILAB 实验室学习与交流" fittingType="fit" className="h-full w-full object-contain" />
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </section>
 
@@ -214,12 +218,14 @@ export default function AIGuide() {
             </div>
           </div>
           <div>
-            <div className="relative">
-              <div className="absolute inset-[10%] rounded-[2rem] bg-primary/10 blur-3xl" />
-              <div className="photo-soft-edge relative flex aspect-[16/10] items-center justify-center overflow-hidden rounded-2xl bg-background">
-                <Image src={text('guide_about_image')} alt="AILAB 实验室活动" fittingType="fit" className="h-full w-full object-contain" />
+            {aboutImage && (
+              <div className="relative">
+                <div className="absolute inset-[10%] rounded-[2rem] bg-primary/10 blur-3xl" />
+                <div className="photo-soft-edge relative flex aspect-[16/10] items-center justify-center overflow-hidden rounded-2xl bg-background">
+                  <Image src={aboutImage} alt="AILAB 实验室活动" fittingType="fit" className="h-full w-full object-contain" />
+                </div>
               </div>
-            </div>
+            )}
             <div className="mt-5 rounded-xl border border-border bg-secondary/30 p-6">
               <h3 className="font-display text-lg font-semibold text-foreground">{text('guide_next_title')}</h3>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">{text('guide_next_description')}</p>
