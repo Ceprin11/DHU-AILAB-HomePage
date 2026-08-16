@@ -9,15 +9,17 @@ const VIDEO_RE = /\.(mp4|webm|ogg|mov|m4v)(\?|$)/i;
 
 export default function MediaUpload({ value, onChange, type = 'image', label }) {
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleFile = async (file) => {
     if (!file) return;
+    setError('');
     setUploading(true);
     try {
       const res = await api.upload(file);
       onChange(res.file_url);
     } catch (e) {
-      console.error(e);
+      setError(e instanceof Error ? e.message : '上传失败，请重试');
     } finally {
       setUploading(false);
     }
@@ -32,8 +34,8 @@ export default function MediaUpload({ value, onChange, type = 'image', label }) 
       {type === 'image' && (
         <div className="flex items-start gap-3">
           {value ? (
-            <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg border border-border">
-              <Image src={value} fittingType="fill" className="h-full w-full" />
+            <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg border border-border bg-secondary/40">
+              <Image src={value} fittingType="fit" className="h-full w-full object-contain" />
               <button type="button" onClick={() => onChange('')} className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-background/80 text-foreground shadow hover:bg-background">
                 <X size={12} />
               </button>
@@ -103,6 +105,8 @@ export default function MediaUpload({ value, onChange, type = 'image', label }) 
           </div>
         </div>
       )}
+
+      {error && <p role="alert" className="mt-2 text-sm text-destructive">{error}</p>}
     </div>
   );
 }

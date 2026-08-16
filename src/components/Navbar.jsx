@@ -3,99 +3,100 @@ import { Link, NavLink } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { cn } from '@/lib/utils';
+import { useSiteText } from '@/lib/siteText';
 
 const LOGO_URL = '/ailab-logo.png';
-
-const NAV = [
-  { to: '/', label: '首页', end: true },
-  { to: '/members', label: '团队' },
-  { to: '/notifications', label: '通知' },
-  { to: '/awards', label: '成果' },
-  { to: '/activities', label: '活动' },
-  { to: '/club-life', label: '社团生活' },
-  { to: '/videos', label: '视频' },
-  { to: '/resources', label: '资料' },
-  { to: '/qa', label: '问答' },
-];
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const { user } = useAuth();
+  const text = useSiteText();
+  const nav = [
+    { to: '/', label: text('nav_home'), end: true }, { to: '/members', label: text('nav_team') },
+    { to: '/ai-guide', label: text('nav_guide') }, { to: '/notifications', label: text('nav_notice') },
+    { to: '/awards', label: text('nav_awards') }, { to: '/activities', label: text('nav_activities') },
+    { to: '/club-life', label: text('nav_club_life') }, { to: '/videos', label: text('nav_videos') },
+    { to: '/resources', label: text('nav_resources') }, { to: '/qa', label: text('nav_qa') },
+  ];
 
   const linkClass = ({ isActive }) =>
     cn(
-      'relative px-1 py-1 text-sm font-medium transition-colors',
-      isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+      'relative px-1 py-5 text-sm font-medium transition-colors duration-200 after:absolute after:inset-x-1 after:bottom-3 after:h-0.5 after:origin-left after:rounded-full after:bg-primary after:transition-transform after:duration-200',
+      isActive
+        ? 'text-foreground after:scale-x-100'
+        : 'text-muted-foreground after:scale-x-0 hover:text-foreground hover:after:scale-x-100'
     );
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/60 glass">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-8">
-        <Link to="/" className="group flex items-center gap-2.5" onClick={() => setOpen(false)}>
+    <header className="sticky top-0 z-50 border-b border-border/75 glass">
+      <div className="page-shell flex h-16 items-center justify-between">
+        <Link to="/" className="group flex min-w-0 items-center gap-2.5 rounded-sm" onClick={() => setOpen(false)}>
           <span className="flex h-9 w-[84px] shrink-0 items-center justify-center overflow-hidden rounded-md">
             <img src={LOGO_URL} alt="AILab" className="h-full w-auto max-w-none scale-[2.35] object-contain" />
           </span>
           <span className="flex flex-col leading-tight">
-            <span className="font-display text-xs font-bold tracking-tight text-foreground sm:text-sm">东华大学人工智能创新实验室</span>
-            <span className="font-mono-date text-[9px] text-muted-foreground sm:text-[10px]">AI Innovation Laboratory · AILAB</span>
+            <span className="font-display text-xs font-bold tracking-tight text-foreground sm:text-sm">{text('lab_name_cn')}</span>
+            <span className="font-mono-date text-[9px] text-muted-foreground sm:text-[10px]">{text('lab_name_en')}</span>
           </span>
         </Link>
 
-        <nav className="hidden items-center gap-5 xl:gap-6 lg:flex">
-          {NAV.map((n) => (
+        <nav aria-label="主导航" className="hidden items-center gap-5 xl:flex">
+          {nav.map((n) => (
             <NavLink key={n.to} to={n.to} end={n.end} className={linkClass}>
               {n.label}
             </NavLink>
           ))}
         </nav>
 
-        <div className="hidden items-center gap-3 lg:flex">
+        <div className="hidden items-center gap-3 xl:flex">
           <NavLink to={user?.role === 'admin' ? '/admin' : '/admin-login'} className={({ isActive }) =>
-            cn('text-sm font-medium', isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')}>
-            管理
+            cn('interactive-link rounded-sm text-sm font-medium', isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}>
+            {text('nav_admin')}
           </NavLink>
           <Link
             to="/join"
-            className="inline-flex h-9 items-center rounded-full bg-amber px-5 text-sm font-semibold text-amber-foreground shadow-sm transition-transform hover:scale-[1.02]"
+            className="inline-flex h-9 items-center rounded-full bg-amber px-5 text-sm font-semibold text-amber-foreground shadow-[0_8px_22px_hsl(var(--amber)/0.16)] transition-[background-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:bg-amber/80 hover:shadow-[0_11px_26px_hsl(var(--primary)/0.14)] active:translate-y-px"
           >
-            加入我们
+            {text('nav_join')}
           </Link>
         </div>
 
         <button
-          className="flex h-9 w-9 items-center justify-center rounded-md text-foreground lg:hidden"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-foreground transition-colors duration-200 hover:bg-accent active:bg-accent/80 xl:hidden"
           onClick={() => setOpen((v) => !v)}
           aria-label="菜单"
+          aria-expanded={open}
+          aria-controls="mobile-navigation"
         >
           {open ? <X size={20} /> : <Menu size={20} />}
         </button>
       </div>
 
       {open && (
-        <div className="border-t border-border/60 bg-background lg:hidden">
-          <nav className="mx-auto grid max-w-7xl grid-cols-2 gap-x-4 px-5 py-3 sm:px-8 sm:grid-cols-3">
-            {NAV.map((n) => (
+        <div id="mobile-navigation" className="border-t border-border/75 bg-background/98 shadow-[0_16px_28px_hsl(var(--foreground)/0.06)] xl:hidden">
+          <nav aria-label="移动端导航" className="page-shell grid grid-cols-2 gap-1 py-4 sm:grid-cols-3">
+            {nav.map((n) => (
               <NavLink
                 key={n.to}
                 to={n.to}
                 end={n.end}
                 onClick={() => setOpen(false)}
                 className={({ isActive }) =>
-                  cn('border-l-2 py-2.5 pl-3 text-sm', isActive ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground')
+                  cn('rounded-lg px-3 py-2.5 text-sm transition-colors', isActive ? 'bg-accent text-primary' : 'text-muted-foreground hover:bg-secondary hover:text-foreground')
                 }
               >
                 {n.label}
               </NavLink>
             ))}
-            <NavLink to={user?.role === 'admin' ? '/admin' : '/admin-login'} onClick={() => setOpen(false)} className="border-l-2 border-transparent py-2.5 pl-3 text-sm text-muted-foreground">
-              管理后台
+            <NavLink to={user?.role === 'admin' ? '/admin' : '/admin-login'} onClick={() => setOpen(false)} className="rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
+              {text('footer_admin')}
             </NavLink>
             <Link
               to="/join"
               onClick={() => setOpen(false)}
-              className="col-span-2 mt-2 inline-flex h-10 items-center justify-center rounded-full bg-amber px-5 text-sm font-semibold text-amber-foreground sm:col-span-3"
+              className="col-span-2 mt-2 inline-flex h-10 items-center justify-center rounded-full bg-amber px-5 text-sm font-semibold text-amber-foreground transition-colors hover:bg-amber/80 sm:col-span-3"
             >
-              加入我们
+              {text('nav_join')}
             </Link>
           </nav>
         </div>

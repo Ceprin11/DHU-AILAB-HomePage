@@ -4,8 +4,8 @@ import { ArrowRight, ArrowUpRight, Bell, Trophy, Users, Camera, BookOpen } from 
 import { api } from '@/api/client';
 import { useSiteSettings, formatDate } from '@/lib/site';
 import { Image } from '@/components/ui/image';
-import SectionHeading from '@/components/SectionHeading';
 import PhotoCarousel from '@/components/PhotoCarousel';
+import { splitTextLines, useSiteText } from '@/lib/siteText';
 
 const HERO_PHOTOS = [
   '/hero/hero-1.jpg',
@@ -16,6 +16,7 @@ const HERO_PHOTOS = [
 
 export default function Home() {
   const settings = useSiteSettings();
+  const text = useSiteText();
   const [notifs, setNotifs] = useState([]);
   const [awards, setAwards] = useState([]);
   const [heroPhotos, setHeroPhotos] = useState(HERO_PHOTOS);
@@ -38,102 +39,127 @@ export default function Home() {
   }, []);
 
   const quickLinks = [
-    { to: '/members', label: '团队风采', desc: '认识实验室的核心团队', icon: Users },
-    { to: '/awards', label: '成果展示', desc: '竞赛获奖与科研成果', icon: Trophy },
-    { to: '/club-life', label: '社团生活', desc: '踏青、团建与日常点滴', icon: Camera },
-    { to: '/resources', label: '学习资料', desc: '精选 AI 学习资源库', icon: BookOpen },
+    { to: '/members', label: text('home_team_card_title'), desc: text('home_team_card_desc'), icon: Users },
+    { to: '/awards', label: text('home_awards_card_title'), desc: text('home_awards_card_desc'), icon: Trophy },
+    { to: '/club-life', label: text('home_life_card_title'), desc: text('home_life_card_desc'), icon: Camera },
+    { to: '/resources', label: text('home_resources_card_title'), desc: text('home_resources_card_desc'), icon: BookOpen },
+  ];
+
+  const statItems = [
+    { label: text('home_members_stat'), value: stats.members, unit: text('home_members_unit') },
+    { label: text('home_awards_stat'), value: stats.awards, unit: text('home_awards_unit') },
+    { label: text('home_activities_stat'), value: stats.activities, unit: text('home_activities_unit') },
   ];
 
   return (
-    <div>
+    <div className="overflow-hidden bg-background">
       {/* Hero */}
-      <section className="relative overflow-hidden border-b border-border">
-        <div className="absolute inset-0 neural-grid opacity-60" />
-        <div className="absolute -left-40 top-0 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
-        <div className="absolute -right-32 bottom-0 h-80 w-80 rounded-full bg-amber/10 blur-3xl" />
-        <div className="relative mx-auto max-w-7xl px-5 py-20 sm:px-8 sm:py-28">
-          <div className="grid items-center gap-12 lg:grid-cols-12">
-            <div className="lg:col-span-7">
-              <div className="flex items-center gap-2">
-                <span className="h-px w-8 bg-primary" />
-                <span className="font-mono-date text-xs uppercase tracking-[0.25em] text-primary">Donghua University · AILAB</span>
+      <section className="relative border-b border-border/80">
+        <div className="absolute inset-0 neural-grid opacity-30" />
+        <div className="absolute -left-40 top-16 h-80 w-80 rounded-full bg-amber/20 blur-3xl" />
+        <div className="relative mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16 lg:py-20">
+          <div className="grid items-center gap-10 lg:grid-cols-12 lg:gap-14">
+            <div className="lg:col-span-6">
+              <div className="flex items-center gap-3 text-amber-foreground">
+                <span className="h-px w-8 bg-amber-foreground/60" />
+                <span className="font-mono-date text-xs uppercase tracking-[0.22em]">{text('home_eyebrow')}</span>
               </div>
-              <h1 className="mt-5 font-display text-5xl font-bold leading-[1.05] tracking-tight text-foreground sm:text-6xl xl:text-7xl text-balance">
-                人工智能<br />创新实验室
+              <h1 className="mt-5 max-w-2xl font-display text-4xl font-bold leading-[1.08] tracking-[-0.035em] text-foreground sm:text-5xl xl:text-6xl text-balance">
+                {splitTextLines(text('home_title')).map((line, index) => <React.Fragment key={line}>{index > 0 && <br />}{line}</React.Fragment>)}
               </h1>
-              <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground text-balance">
-                {settings?.lab_intro || '探索智能前沿，编织学术未来。我们汇聚东华大学对人工智能充满热情的青年学者，以代码为梭，以算法为线，织就属于这个时代的智能图景。'}
+              <p className="mt-6 max-w-xl text-base leading-8 text-muted-foreground sm:text-lg">
+                {settings?.lab_intro || text('home_intro_default')}
               </p>
-              <div className="mt-9 flex flex-wrap gap-3">
-                <Link to="/join" className="inline-flex h-12 items-center gap-2 rounded-full bg-amber px-7 text-base font-semibold text-amber-foreground shadow-sm transition-transform hover:scale-[1.02]">
-                  加入我们 <ArrowRight size={18} />
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Link to="/join" className="inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-full bg-amber px-6 text-sm font-semibold text-amber-foreground shadow-[0_10px_30px_hsl(var(--amber)/0.22)] transition-transform hover:-translate-y-0.5 active:translate-y-0">
+                  {text('home_join_button')} <ArrowRight size={17} />
                 </Link>
-                <Link to="/members" className="inline-flex h-12 items-center gap-2 rounded-full border border-border bg-background px-7 text-base font-semibold text-foreground transition-colors hover:bg-accent">
-                  了解团队
+                <Link to="/members" className="inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-full border border-border bg-background/80 px-6 text-sm font-semibold text-foreground transition-colors hover:border-amber-foreground/30 hover:bg-amber/10 active:bg-amber/20">
+                  {text('home_team_button')}
                 </Link>
               </div>
-            </div>
-            <div className="lg:col-span-5">
-              <PhotoCarousel photos={heroPhotos} />
-            </div>
-          </div>
 
-          <div className="mt-16 grid grid-cols-3 gap-px overflow-hidden rounded-2xl border border-border bg-border">
-            {[
-              { label: '实验室成员', value: stats.members, unit: '人' },
-              { label: '成果数量', value: stats.awards, unit: '项' },
-              { label: '社团活动', value: stats.activities, unit: '场' },
-            ].map((s) => (
-              <div key={s.label} className="bg-background px-4 py-6 sm:px-6">
-                <p className="font-mono-date text-xs uppercase tracking-widest text-muted-foreground">{s.label}</p>
-                <p className="mt-2 font-display text-3xl font-bold text-foreground sm:text-4xl">
-                  {String(s.value).padStart(2, '0')}<span className="ml-1 text-base font-normal text-muted-foreground">{s.unit}</span>
-                </p>
+              <div className="mt-10 grid grid-cols-3 border-y border-border/80">
+                {statItems.map((stat, index) => (
+                  <div key={stat.label} className={index === 0 ? 'py-5 pr-3' : 'border-l border-border/80 px-3 py-5 sm:px-5'}>
+                    <p className="text-xs text-muted-foreground sm:text-sm">{stat.label}</p>
+                    <p className="mt-1.5 font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                      {String(stat.value).padStart(2, '0')}
+                      <span className="ml-1 text-xs font-medium text-muted-foreground sm:text-sm">{stat.unit}</span>
+                    </p>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+
+            <div className="relative lg:col-span-6">
+              <div className="absolute inset-[8%] rounded-[2rem] bg-amber/15 blur-3xl" />
+              <PhotoCarousel photos={heroPhotos} className="aspect-[5/4]" />
+            </div>
           </div>
         </div>
       </section>
 
       {/* Quick links */}
-      <section className="mx-auto max-w-7xl px-5 py-20 sm:px-8">
-        <SectionHeading eyebrow="Explore" title="走进实验室" description="从团队、成果到活动，全面了解 AILAB 的方方面面。" />
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {quickLinks.map((q) => (
-            <Link key={q.to} to={q.to} className="group relative overflow-hidden rounded-xl border border-border bg-card p-6 transition-all hover:border-primary/40 hover:shadow-md">
-              <div className="flex items-start justify-between">
-                <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-accent text-primary">
-                  <q.icon size={20} />
-                </div>
-                <ArrowUpRight size={18} className="text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-primary" />
-              </div>
-              <h3 className="mt-5 font-display text-lg font-semibold text-foreground">{q.label}</h3>
-              <p className="mt-1.5 text-sm text-muted-foreground">{q.desc}</p>
+      <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-20">
+        <div className="max-w-2xl">
+          <div className="flex items-center gap-2.5 text-amber-foreground">
+            <span className="h-px w-6 bg-amber-foreground/60" />
+            <span className="font-mono-date text-xs uppercase tracking-[0.2em]">{text('home_explore_eyebrow')}</span>
+          </div>
+          <h2 className="mt-3 font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">{text('home_explore_title')}</h2>
+          <p className="mt-4 text-base leading-7 text-muted-foreground">{text('home_explore_description')}</p>
+        </div>
+
+        <div className="mt-10 grid border-y border-border sm:grid-cols-2">
+          {quickLinks.map((item, index) => (
+            <Link
+              key={item.to}
+              to={item.to}
+              className={`group flex min-h-40 items-start gap-5 py-7 transition-colors hover:bg-amber/10 active:bg-amber/20 sm:px-7 ${index < 2 ? 'border-b border-border' : ''} ${index % 2 === 0 ? 'sm:border-r sm:pl-0' : 'sm:pr-0'}`}
+            >
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber/25 text-amber-foreground transition-transform group-hover:-translate-y-0.5">
+                <item.icon size={20} strokeWidth={1.8} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center justify-between gap-4">
+                  <span className="font-display text-lg font-semibold text-foreground">{item.label}</span>
+                  <ArrowUpRight size={18} className="shrink-0 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-amber-foreground" />
+                </span>
+                <span className="mt-2 block text-sm leading-6 text-muted-foreground">{item.desc}</span>
+              </span>
             </Link>
           ))}
         </div>
       </section>
 
       {/* Latest notifications */}
-      <section className="border-y border-border bg-secondary/30">
-        <div className="mx-auto max-w-7xl px-5 py-20 sm:px-8">
-          <div className="flex items-end justify-between">
-            <SectionHeading eyebrow="Latest" title="最新通知" />
-            <Link to="/notifications" className="hidden items-center gap-1.5 text-sm font-medium text-primary hover:underline sm:flex">查看全部 <ArrowRight size={15} /></Link>
+      <section className="border-y border-border bg-secondary/35">
+        <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-20">
+          <div className="flex items-end justify-between gap-6">
+            <div>
+              <h2 className="font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">{text('home_latest_title')}</h2>
+              <p className="mt-2 font-mono-date text-xs text-muted-foreground">{text('home_latest_eyebrow')}</p>
+            </div>
+            <Link to="/notifications" className="hidden items-center gap-2 whitespace-nowrap text-sm font-semibold text-amber-foreground transition-colors hover:text-foreground sm:flex">{text('home_view_all')} <ArrowRight size={15} /></Link>
           </div>
-          <div className="mt-10 space-y-3">
+
+          <div className="mt-8 border-y border-border">
             {notifs.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-muted-foreground">暂无通知</p>
-            ) : notifs.map((n) => (
-              <Link key={n.id} to="/notifications" className="group flex items-center gap-4 rounded-xl border border-border bg-background px-5 py-4 transition-colors hover:border-primary/40">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent text-primary"><Bell size={17} /></span>
+              <div className="flex items-center gap-4 py-10 text-sm text-muted-foreground">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber/20 text-amber-foreground"><Bell size={18} strokeWidth={1.8} /></span>
+                <p>{text('home_empty_notice')}</p>
+              </div>
+            ) : notifs.map((notification, index) => (
+              <Link key={notification.id} to="/notifications" className={`group flex items-center gap-4 py-5 transition-colors hover:text-amber-foreground ${index > 0 ? 'border-t border-border' : ''}`}>
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber/20 text-amber-foreground"><Bell size={17} strokeWidth={1.8} /></span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    {n.pinned && <span className="rounded bg-amber/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-foreground">置顶</span>}
-                    <p className="truncate font-medium text-foreground">{n.title}</p>
+                    {notification.pinned && <span className="rounded-md bg-amber/25 px-2 py-0.5 text-[10px] font-semibold text-amber-foreground">{text('home_pinned')}</span>}
+                    <p className="truncate font-medium text-foreground group-hover:text-amber-foreground">{notification.title}</p>
                   </div>
                 </div>
-                <span className="shrink-0 font-mono-date text-xs text-muted-foreground">{formatDate(n.date)}</span>
+                <span className="shrink-0 font-mono-date text-xs text-muted-foreground">{formatDate(notification.date)}</span>
               </Link>
             ))}
           </div>
@@ -141,44 +167,51 @@ export default function Home() {
       </section>
 
       {/* Featured achievements */}
-      <section className="mx-auto max-w-7xl px-5 py-20 sm:px-8">
-        <div className="flex items-end justify-between">
-          <SectionHeading eyebrow="Honors" title="成果展示" />
-          <Link to="/awards" className="hidden items-center gap-1.5 text-sm font-medium text-primary hover:underline sm:flex">查看全部 <ArrowRight size={15} /></Link>
+      <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-20">
+        <div className="flex items-end justify-between gap-6">
+          <div>
+            <h2 className="font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">{text('home_awards_title')}</h2>
+            <p className="mt-2 font-mono-date text-xs text-muted-foreground">{text('home_awards_eyebrow')}</p>
+          </div>
+          <Link to="/awards" className="hidden items-center gap-2 whitespace-nowrap text-sm font-semibold text-amber-foreground transition-colors hover:text-foreground sm:flex">{text('home_view_all')} <ArrowRight size={15} /></Link>
         </div>
-        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+
+        <div className="mt-8 border-y border-border">
           {awards.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-muted-foreground sm:col-span-3">暂无成果</p>
-          ) : awards.map((a) => (
-            <div key={a.id} className="overflow-hidden rounded-xl border border-border bg-card">
-              {a.image_url ? (
-                <div className="aspect-[16/10] overflow-hidden border-b border-border">
-                  <Image src={a.image_url} fittingType="fill" className="h-full w-full" />
+            <div className="flex items-center gap-4 py-10 text-sm text-muted-foreground">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber/20 text-amber-foreground"><Trophy size={19} strokeWidth={1.8} /></span>
+              <p>{text('home_empty_awards')}</p>
+            </div>
+          ) : awards.map((award, index) => (
+            <article key={award.id} className={`grid gap-5 py-6 sm:grid-cols-[12rem_1fr] sm:items-center ${index > 0 ? 'border-t border-border' : ''}`}>
+              {award.image_url ? (
+                <div className="aspect-[16/10] overflow-hidden rounded-xl bg-accent">
+                  <Image src={award.image_url} fittingType="fit" className="h-full w-full object-contain" />
                 </div>
               ) : (
-                <div className="flex aspect-[16/10] items-center justify-center border-b border-border bg-accent/40">
-                  <Trophy size={32} className="text-primary/50" />
+                <div className="flex aspect-[16/10] items-center justify-center rounded-xl bg-amber/15">
+                  <Trophy size={28} strokeWidth={1.6} className="text-amber-foreground/60" />
                 </div>
               )}
-              <div className="p-5">
-                <p className="font-mono-date text-xs text-muted-foreground">{formatDate(a.date)}</p>
-                <h3 className="mt-1.5 font-display text-base font-semibold leading-snug text-foreground">{a.title}</h3>
-                {a.recipient && <p className="mt-1 text-sm text-muted-foreground">{a.recipient}</p>}
+              <div>
+                <p className="font-mono-date text-xs text-muted-foreground">{formatDate(award.date)}</p>
+                <h3 className="mt-2 font-display text-lg font-semibold leading-snug text-foreground">{award.title}</h3>
+                {award.recipient && <p className="mt-2 text-sm text-muted-foreground">{award.recipient}</p>}
               </div>
-            </div>
+            </article>
           ))}
         </div>
       </section>
 
       {/* CTA */}
-      <section className="border-t border-border bg-primary text-primary-foreground">
-        <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-6 px-5 py-16 sm:px-8 sm:flex-row sm:items-center">
+      <section className="border-t border-border bg-amber/20">
+        <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-7 px-5 py-14 sm:px-8 md:flex-row md:items-center">
           <div>
-            <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">准备好加入我们了吗？</h2>
-            <p className="mt-3 max-w-lg text-primary-foreground/80">无论你是初学者还是资深研究者，AILAB 都欢迎你的到来。</p>
+            <h2 className="font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">{text('home_cta_title')}</h2>
+            <p className="mt-3 max-w-lg text-base leading-7 text-muted-foreground">{text('home_cta_description')}</p>
           </div>
-          <Link to="/join" className="inline-flex h-12 shrink-0 items-center gap-2 rounded-full bg-amber px-7 text-base font-semibold text-amber-foreground transition-transform hover:scale-[1.02]">
-            查看加入方式 <ArrowRight size={18} />
+          <Link to="/join" className="inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-amber px-6 text-sm font-semibold text-amber-foreground shadow-[0_10px_30px_hsl(var(--amber)/0.2)] transition-transform hover:-translate-y-0.5 active:translate-y-0">
+            {text('home_cta_button')} <ArrowRight size={17} />
           </Link>
         </div>
       </section>

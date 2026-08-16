@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, MapPin, Loader2, FileDown, ExternalLink } from 'lucide-react';
+import { Calendar, MapPin, FileDown, ExternalLink } from 'lucide-react';
 import { api } from '@/api/client';
-import { Image } from '@/components/ui/image';
 import SectionHeading from '@/components/SectionHeading';
 import { formatDate } from '@/lib/site';
+import { ContentLoading, EmptyState } from '@/components/ContentState';
+import { useSiteText } from '@/lib/siteText';
 
 export default function Activities() {
+  const text = useSiteText();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -16,57 +18,54 @@ export default function Activities() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-5xl px-5 py-16 sm:px-8 sm:py-24">
-      <SectionHeading eyebrow="Activities" title="社团活动" description="技术沙龙、项目实践与学术交流——记录实验室的每一次相聚。" />
+    <div className="page-shell page-section max-w-6xl">
+      <SectionHeading eyebrow={text('activities_eyebrow')} title={text('activities_title')} description={text('activities_description')} />
 
       {loading ? (
-        <div className="flex justify-center py-20 text-muted-foreground"><Loader2 className="animate-spin" /></div>
+        <ContentLoading />
       ) : items.length === 0 ? (
-        <p className="mt-10 rounded-lg border border-dashed border-border py-16 text-center text-sm text-muted-foreground">暂无活动</p>
+        <EmptyState title={text('activities_empty')} icon={Calendar} />
       ) : (
-        <div className="mt-12 space-y-8">
-          {items.map((a, i) => (
-            <div key={a.id} className="relative grid gap-6 sm:grid-cols-5">
-              <div className="hidden sm:flex sm:col-span-1">
-                <div className="flex w-full flex-col items-end pr-6 pt-1">
-                  <span className="font-mono-date text-sm font-semibold text-primary">{formatDate(a.date)}</span>
-                  {a.location && <span className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><MapPin size={11} /> {a.location}</span>}
-                  {i < items.length - 1 && <span className="thread-line mt-3 h-full w-px flex-1" />}
-                </div>
-              </div>
-              <div className="sm:col-span-4">
-                <div className="overflow-hidden rounded-xl border border-border bg-card transition-all hover:shadow-md">
-                  {a.image_url && (
-                    <div className="aspect-[16/9] overflow-hidden border-b border-border">
-                      <Image src={a.image_url} fittingType="fill" className="h-full w-full" />
+        <div className="mt-12 border-y border-border/75">
+          {items.map((a) => (
+            <article key={a.id} className="grid gap-5 border-b border-border/75 py-8 last:border-b-0 md:grid-cols-[7.5rem_minmax(0,1fr)] md:gap-7 sm:py-10">
+              <aside className="hidden pt-1 md:block">
+                <span className="font-mono-date text-xs font-semibold text-primary">{formatDate(a.date)}</span>
+                {a.location && <span className="mt-2 flex items-start gap-1.5 text-xs leading-5 text-muted-foreground"><MapPin size={12} strokeWidth={1.8} className="mt-0.5 shrink-0" /> {a.location}</span>}
+              </aside>
+              <div className={a.image_url ? 'grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,0.9fr)] lg:items-start lg:gap-8' : ''}>
+                {a.image_url && (
+                  <img
+                    src={a.image_url}
+                    alt={a.title || text('activities_title')}
+                    loading="lazy"
+                    className="block h-auto w-full rounded-xl border border-border/75 bg-secondary/40 shadow-[0_12px_30px_hsl(var(--foreground)/0.035)]"
+                  />
+                )}
+                <div className="min-w-0 lg:pt-1">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 md:hidden">
+                    <span className="flex items-center gap-1.5 font-mono-date text-xs text-primary"><Calendar size={13} strokeWidth={1.8} /> {formatDate(a.date)}</span>
+                    {a.location && <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><MapPin size={13} strokeWidth={1.8} /> {a.location}</span>}
+                  </div>
+                  <h3 className="font-display text-xl font-semibold leading-snug tracking-[-0.02em] text-foreground md:text-2xl">{a.title}</h3>
+                  {a.description && <p className="mt-3 whitespace-pre-line text-sm leading-7 text-foreground/90">{a.description}</p>}
+                  {(a.document_url || a.external_link) && (
+                    <div className="mt-5 flex flex-wrap gap-2.5">
+                      {a.document_url && (
+                        <a href={a.document_url} target="_blank" rel="noreferrer" download className="interactive-link inline-flex h-9 items-center gap-1.5 rounded-full border border-input bg-background px-4 text-sm font-medium hover:border-primary/30 hover:bg-accent">
+                          <FileDown size={14} strokeWidth={1.8} /> {text('activities_document')}
+                        </a>
+                      )}
+                      {a.external_link && (
+                        <a href={a.external_link} target="_blank" rel="noreferrer" className="interactive-link inline-flex h-9 items-center gap-1.5 rounded-full border border-input bg-background px-4 text-sm font-medium hover:border-primary/30 hover:bg-accent">
+                          <ExternalLink size={14} strokeWidth={1.8} /> {text('activities_detail')}
+                        </a>
+                      )}
                     </div>
                   )}
-                  <div className="p-5">
-                    <div className="flex items-center gap-2 sm:hidden">
-                      <Calendar size={13} className="text-primary" />
-                      <span className="font-mono-date text-xs text-muted-foreground">{formatDate(a.date)}</span>
-                    </div>
-                    <h3 className="font-display text-xl font-semibold text-foreground">{a.title}</h3>
-                    {a.location && <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground sm:hidden"><MapPin size={13} /> {a.location}</p>}
-                    {a.description && <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-foreground/90">{a.description}</p>}
-                    {(a.document_url || a.external_link) && (
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {a.document_url && (
-                          <a href={a.document_url} target="_blank" rel="noreferrer" download className="inline-flex h-8 items-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent">
-                            <FileDown size={14} /> 相关文档
-                          </a>
-                        )}
-                        {a.external_link && (
-                          <a href={a.external_link} target="_blank" rel="noreferrer" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent">
-                            <ExternalLink size={14} /> 详情链接
-                          </a>
-                        )}
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
-            </div>
+            </article>
           ))}
         </div>
       )}

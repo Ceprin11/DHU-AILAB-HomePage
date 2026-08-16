@@ -1,23 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, FileCode, Database, FileBox, Video, Download, Loader2 } from 'lucide-react';
+import { FileText, FileCode, Database, FileBox, Video, Download } from 'lucide-react';
 import { api } from '@/api/client';
 import SectionHeading from '@/components/SectionHeading';
 import { formatDate } from '@/lib/site';
 import { cn } from '@/lib/utils';
+import { ContentLoading, EmptyState } from '@/components/ContentState';
+import { useSiteText } from '@/lib/siteText';
 
 const TYPE_ICON = {
-  pdf: { icon: FileText, cls: 'bg-red-500/10 text-red-500' },
-  code: { icon: FileCode, cls: 'bg-primary/10 text-primary' },
-  data: { icon: Database, cls: 'bg-emerald-500/10 text-emerald-600' },
-  doc: { icon: FileBox, cls: 'bg-amber/15 text-amber-foreground' },
-  video: { icon: Video, cls: 'bg-primary/10 text-primary' },
-  other: { icon: FileBox, cls: 'bg-secondary text-secondary-foreground' },
+  pdf: { icon: FileText, cls: 'bg-accent text-primary' },
+  code: { icon: FileCode, cls: 'bg-accent text-primary' },
+  data: { icon: Database, cls: 'bg-accent text-primary' },
+  doc: { icon: FileBox, cls: 'bg-accent text-primary' },
+  video: { icon: Video, cls: 'bg-accent text-primary' },
+  other: { icon: FileBox, cls: 'bg-accent text-primary' },
 };
 
 export default function Resources() {
+  const text = useSiteText();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [cat, setCat] = useState('全部');
+  const [cat, setCat] = useState(null);
 
   useEffect(() => {
     api.entities.StudyMaterial.list('-date', 200)
@@ -25,15 +28,15 @@ export default function Resources() {
       .catch(() => setLoading(false));
   }, []);
 
-  const categories = ['全部', ...Array.from(new Set(items.map((i) => i.category).filter(Boolean)))];
-  const filtered = cat === '全部' ? items : items.filter((i) => i.category === cat);
+  const categories = [text('resources_all'), ...Array.from(new Set(items.map((i) => i.category).filter(Boolean)))];
+  const filtered = !cat || cat === text('resources_all') ? items : items.filter((i) => i.category === cat);
 
   return (
-    <div className="mx-auto max-w-5xl px-5 py-16 sm:px-8 sm:py-24">
-      <SectionHeading eyebrow="Knowledge Vault" title="学习资料" description="实验室精选的 AI 学习资源，涵盖论文、代码、数据集与视频。" />
+    <div className="page-shell page-section max-w-5xl">
+      <SectionHeading eyebrow={text('resources_eyebrow')} title={text('resources_title')} description={text('resources_description')} />
 
       {loading ? (
-        <div className="flex justify-center py-20 text-muted-foreground"><Loader2 className="animate-spin" /></div>
+        <ContentLoading />
       ) : (
         <>
           {categories.length > 1 && (
@@ -43,8 +46,8 @@ export default function Resources() {
                   key={c}
                   onClick={() => setCat(c)}
                   className={cn(
-                    'rounded-full px-4 py-1.5 text-sm font-medium transition-colors',
-                    cat === c ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-muted-foreground hover:text-foreground'
+                    'rounded-full px-4 py-2 text-sm font-medium transition-colors duration-200',
+                    (!cat && c === text('resources_all')) || cat === c ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-muted-foreground hover:text-foreground'
                   )}
                 >
                   {c}
@@ -54,22 +57,22 @@ export default function Resources() {
           )}
 
           {filtered.length === 0 ? (
-            <p className="mt-10 rounded-lg border border-dashed border-border py-16 text-center text-sm text-muted-foreground">暂无资料</p>
+            <EmptyState title={text('resources_empty')} icon={FileBox} />
           ) : (
-            <div className="mt-8 space-y-4">
+            <div className="mt-8 divide-y divide-border/75 border-y border-border/75">
               {filtered.map((m) => {
                 const t = TYPE_ICON[m.file_type] || TYPE_ICON.other;
                 const isVideo = m.file_type === 'video' && m.file_url;
                 return (
-                  <div key={m.id} className="overflow-hidden rounded-xl border border-border bg-card">
-                    <div className="flex items-center gap-4 px-5 py-4">
-                      <span className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-lg', t.cls)}>
-                        <t.icon size={20} />
+                  <article key={m.id} className="overflow-hidden transition-colors duration-200 hover:bg-secondary/25">
+                    <div className="flex items-center gap-4 px-3 py-5 sm:px-5 sm:py-6">
+                      <span className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-primary/10', t.cls)}>
+                        <t.icon size={19} strokeWidth={1.8} />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <h3 className="truncate font-medium text-foreground">{m.title}</h3>
-                        {m.description && <p className="mt-0.5 line-clamp-1 text-sm text-muted-foreground">{m.description}</p>}
-                        <div className="mt-1 flex items-center gap-2 font-mono-date text-xs text-muted-foreground">
+                        <h3 className="font-display font-semibold leading-6 text-foreground">{m.title}</h3>
+                        {m.description && <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">{m.description}</p>}
+                        <div className="mt-2 flex flex-wrap items-center gap-2 font-mono-date text-[11px] text-muted-foreground">
                           <span>{m.file_type?.toUpperCase()}</span>
                           <span>·</span>
                           <span>{formatDate(m.date)}</span>
@@ -77,17 +80,17 @@ export default function Resources() {
                         </div>
                       </div>
                       {m.file_url && !isVideo && (
-                        <a href={m.file_url} target="_blank" rel="noreferrer" download className="flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent">
-                          <Download size={14} /> 下载
+                        <a href={m.file_url} target="_blank" rel="noreferrer" download className="interactive-link flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-input bg-background px-3.5 text-sm font-medium hover:border-primary/30 hover:bg-accent">
+                          <Download size={14} strokeWidth={1.8} /> {text('resources_download')}
                         </a>
                       )}
                     </div>
                     {isVideo && (
-                      <div className="border-t border-border bg-black">
+                      <div className="border-t border-border/75 bg-foreground">
                         <video src={m.file_url} controls className="max-h-80 w-full" />
                       </div>
                     )}
-                  </div>
+                  </article>
                 );
               })}
             </div>

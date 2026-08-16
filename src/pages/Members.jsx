@@ -1,86 +1,199 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, X, Loader2, GraduationCap, Compass, Award, FlaskConical, UserCog } from 'lucide-react';
+import { Mail, X, GraduationCap, Compass, Award, FlaskConical, UserCog, MapPin, Heart, MessageCircle } from 'lucide-react';
 import { api } from '@/api/client';
 import { Image } from '@/components/ui/image';
 import SectionHeading from '@/components/SectionHeading';
+import { ContentLoading, EmptyState } from '@/components/ContentState';
+import { useSiteText } from '@/lib/siteText';
 
 const DEST_LABEL = { '保研': '保研', '留学': '留学', '就业': '就业', '其他': '其他' };
 
-function MemberCard({ m, onClick }) {
+const getDestinationDetails = (member, text) => {
+  const category = DEST_LABEL[member.destination] || member.destination;
+  const legacy = String(member.destination_detail || '').split(/\s*[·，|]\s*/, 2);
+  const organization = member.destination_organization || legacy[0] || '';
+  const isEmployment = member.destination === '就业';
+
+  return {
+    category,
+    organization,
+    detailLabel: isEmployment ? text('members_position') : ['保研', '留学'].includes(member.destination) ? text('members_specialty') : '',
+    detail: isEmployment
+      ? member.destination_position || legacy[1] || ''
+      : member.destination_specialty || legacy[1] || '',
+  };
+};
+
+function DestinationDetails({ member, text, compact = false }) {
+  const details = getDestinationDetails(member, text);
+  const rows = [
+    [text('members_destination_type'), details.category],
+    [text('members_organization'), details.organization],
+    [details.detailLabel, details.detail],
+  ].filter(([label, value]) => label && value);
+
   return (
-    <button onClick={() => onClick(m)} className="group overflow-hidden rounded-xl border border-border bg-card text-left transition-all hover:border-primary/40 hover:shadow-md">
-      <div className="relative aspect-[4/5] overflow-hidden bg-accent/40">
+    <div className={compact ? 'mt-3 border-l-2 border-primary/25 pl-3' : 'mt-6 border-t border-border/80 pt-5'}>
+      {!compact && <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground"><Compass size={14} strokeWidth={1.8} className="text-primary" /> {text('members_destination')}</p>}
+      <dl className={`${compact ? 'grid-cols-[3.5rem_minmax(0,1fr)] text-xs' : 'mt-3 grid-cols-[4.5rem_minmax(0,1fr)] text-sm'} grid gap-x-3 gap-y-1.5 leading-5`}>
+        {rows.map(([label, value]) => (
+          <React.Fragment key={label}>
+            <dt className="whitespace-nowrap text-muted-foreground">{label}</dt>
+            <dd className={compact ? 'min-w-0 break-words text-primary' : 'min-w-0 break-words text-foreground/90'}>{value}</dd>
+          </React.Fragment>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+function PortraitMedia({ src, alt }) {
+  return (
+    <div className="relative h-full w-full overflow-hidden bg-secondary/70">
+      <Image
+        src={src}
+        alt=""
+        aria-hidden="true"
+        fittingType="fill"
+        className="absolute inset-0 h-full w-full scale-110 object-cover opacity-20 blur-2xl"
+      />
+      <div className="absolute inset-0 bg-gradient-to-b from-background/5 to-background/25" />
+      <Image
+        src={src}
+        alt={alt}
+        fittingType="fit"
+        className="relative h-full w-full object-contain"
+      />
+    </div>
+  );
+}
+
+function MemberCard({ m, onClick, text }) {
+  return (
+    <button
+      onClick={() => onClick(m)}
+      className="group min-w-0 rounded-xl text-left focus-visible:outline-offset-4"
+      aria-label={`查看${m.name || '成员'}详情`}
+    >
+      <div className="aspect-[3/4] overflow-hidden rounded-xl border border-border/75 bg-secondary/60 shadow-[0_12px_30px_hsl(var(--foreground)/0.035)] transition-[border-color,box-shadow,transform] duration-200 group-hover:-translate-y-0.5 group-hover:border-primary/30 group-hover:shadow-[0_18px_36px_hsl(var(--primary)/0.09)] group-active:translate-y-px">
         {m.photo_url ? (
-          <Image src={m.photo_url} fittingType="fill" className="h-full w-full grayscale transition-all duration-500 group-hover:grayscale-0" />
+          <PortraitMedia src={m.photo_url} alt={`${m.name || '成员'}照片`} />
         ) : (
-          <div className="flex h-full items-center justify-center font-display text-4xl font-bold text-primary/30">{m.name?.[0] || '?'}</div>
-        )}
-        {m.graduated && (
-          <span className="absolute right-3 top-3 rounded-full bg-foreground/70 px-2 py-0.5 text-[10px] font-semibold text-background backdrop-blur">已毕业</span>
-        )}
-        {m.grade && (
-          <span className="absolute left-3 top-3 rounded-full bg-background/80 px-2 py-0.5 font-mono-date text-[10px] text-foreground backdrop-blur">{m.grade}级</span>
+          <div className="flex h-full items-center justify-center bg-accent/50 font-display text-5xl font-bold text-primary/25">{m.name?.[0] || '?'}</div>
         )}
       </div>
-      <div className="p-4">
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="font-display text-base font-semibold text-foreground">{m.name}</h3>
-          {m.title && <span className="shrink-0 rounded bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{m.title}</span>}
+      <div className="pt-4">
+        <div className="flex items-start justify-between gap-3 border-t border-border/75 pt-3">
+          <h3 className="font-display text-lg font-semibold leading-tight text-foreground transition-colors group-hover:text-primary">{m.name}</h3>
+          {m.title && <span className="max-w-[8rem] shrink-0 text-right text-xs leading-5 text-primary">{m.title}</span>}
         </div>
-        {m.research_interests && <p className="mt-1.5 line-clamp-1 text-sm text-muted-foreground">{m.research_interests}</p>}
+        {(m.grade || m.graduated) && (
+          <p className="mt-1.5 font-mono-date text-[11px] text-muted-foreground">
+            {[m.grade && `${m.grade}${text('members_grade_suffix')}`, m.graduated && text('members_graduated_badge')].filter(Boolean).join(' / ')}
+          </p>
+        )}
         {m.graduated && m.destination && (
-          <p className="mt-1.5 flex items-center gap-1 text-xs text-primary"><Compass size={12} /> 去向：{DEST_LABEL[m.destination] || m.destination}</p>
+          <DestinationDetails member={m} text={text} compact />
         )}
       </div>
     </button>
   );
 }
 
-function FocusPanel({ member, onClose }) {
+function FocusPanel({ member, onClose, text }) {
+  useEffect(() => {
+    if (!member) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') onClose();
+    };
+
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [member, onClose]);
+
   if (!member) return null;
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-foreground/40" onClick={onClose}>
-      <div className="h-full w-full max-w-md overflow-y-auto bg-background shadow-2xl animate-fade-in" onClick={(e) => e.stopPropagation()}>
-        <div className="relative aspect-[4/3] bg-accent/40">
-          {member.photo_url && <Image src={member.photo_url} fittingType="fill" className="h-full w-full" />}
-          <button onClick={onClose} className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-background/80 text-foreground shadow"><X size={16} /></button>
+    <div className="fixed inset-0 z-50 flex justify-end bg-foreground/30 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+      <div
+        className="h-full w-full max-w-lg overflow-y-auto border-l border-border/75 bg-background shadow-[0_0_60px_hsl(var(--foreground)/0.12)]"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="member-detail-title"
+      >
+        <div className="relative aspect-[5/4] overflow-hidden bg-secondary/60">
+          {member.photo_url ? (
+            <PortraitMedia src={member.photo_url} alt={`${member.name || '成员'}照片`} />
+          ) : (
+            <div className="flex h-full items-center justify-center font-display text-7xl font-bold text-primary/20">{member.name?.[0] || '?'}</div>
+          )}
+          <button onClick={onClose} aria-label="关闭成员详情" className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full border border-border/75 bg-background/90 text-foreground shadow-sm transition-[background-color,transform] duration-200 hover:bg-accent active:translate-y-px"><X size={17} /></button>
         </div>
-        <div className="p-6">
-          <div className="flex items-center gap-2">
-            {member.grade && <span className="font-mono-date text-xs text-muted-foreground">{member.grade}级</span>}
-            {member.graduated && <span className="rounded bg-foreground/70 px-2 py-0.5 text-[10px] font-semibold text-background">已毕业</span>}
+        <div className="p-6 sm:p-8">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono-date text-xs text-muted-foreground">
+            {member.grade && <span>{member.grade}{text('members_grade_suffix')}</span>}
+            {member.graduated && <span>{text('members_graduated_badge')}</span>}
           </div>
-          <h2 className="mt-2 font-display text-2xl font-bold text-foreground">{member.name}</h2>
+          <h2 id="member-detail-title" className="mt-3 font-display text-3xl font-bold tracking-tight text-foreground">{member.name}</h2>
           {member.title && <p className="mt-1 text-primary">{member.title}</p>}
           {member.graduated && member.destination && (
-            <p className="mt-2 flex items-center gap-1.5 text-sm text-primary"><Compass size={14} /> 去向：{DEST_LABEL[member.destination] || member.destination}</p>
+            <DestinationDetails member={member} text={text} />
+          )}
+          {(member.hometown || member.hobbies) && (
+            <div className="mt-7 grid gap-5 border-y border-border/80 py-5 sm:grid-cols-2">
+              {member.hometown && (
+                <div>
+                  <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground"><MapPin size={14} strokeWidth={1.8} className="text-primary" /> {text('members_from')}</p>
+                  <p className="mt-1.5 text-sm leading-relaxed text-foreground/90">{member.hometown}</p>
+                </div>
+              )}
+              {member.hobbies && (
+                <div>
+                  <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground"><Heart size={14} strokeWidth={1.8} className="text-primary" /> {text('members_hobbies')}</p>
+                  <p className="mt-1.5 text-sm leading-relaxed text-foreground/90">{member.hobbies}</p>
+                </div>
+              )}
+            </div>
           )}
           {member.research_interests && (
-            <div className="mt-5">
-              <p className="font-mono-date text-xs uppercase tracking-widest text-muted-foreground">研究方向</p>
+            <div className={`${member.hometown || member.hobbies ? 'mt-5' : 'mt-7'} border-t border-border/80 pt-5`}>
+              <p className="text-sm font-semibold text-foreground">{text('members_research')}</p>
               <p className="mt-1.5 text-sm leading-relaxed text-foreground/90">{member.research_interests}</p>
             </div>
           )}
           {member.bio && (
-            <div className="mt-5">
-              <p className="font-mono-date text-xs uppercase tracking-widest text-muted-foreground">个人简介</p>
+            <div className="mt-5 border-t border-border/80 pt-5">
+              <p className="text-sm font-semibold text-foreground">{text('members_bio')}</p>
               <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-foreground/90">{member.bio}</p>
             </div>
           )}
           {member.competition_awards && (
-            <div className="mt-5">
-              <p className="flex items-center gap-1.5 font-mono-date text-xs uppercase tracking-widest text-muted-foreground"><Award size={12} /> 竞赛获奖</p>
+            <div className="mt-5 border-t border-border/80 pt-5">
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground"><Award size={14} strokeWidth={1.8} className="text-primary" /> {text('members_competition')}</p>
               <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-foreground/90">{member.competition_awards}</p>
             </div>
           )}
           {member.research_achievements && (
-            <div className="mt-5">
-              <p className="flex items-center gap-1.5 font-mono-date text-xs uppercase tracking-widest text-muted-foreground"><FlaskConical size={12} /> 科研成果</p>
+            <div className="mt-5 border-t border-border/80 pt-5">
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground"><FlaskConical size={14} strokeWidth={1.8} className="text-primary" /> {text('members_achievements')}</p>
               <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-foreground/90">{member.research_achievements}</p>
             </div>
           )}
+          {member.graduated && member.message_to_juniors && (
+            <div className="mt-5 border-t border-border/80 pt-5">
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground"><MessageCircle size={14} strokeWidth={1.8} className="text-primary" /> {text('members_message')}</p>
+              <blockquote className="mt-2 border-l-2 border-primary/30 pl-4 text-sm leading-relaxed text-foreground/90">{member.message_to_juniors}</blockquote>
+            </div>
+          )}
           {member.email && (
-            <a href={`mailto:${member.email}`} className="mt-6 flex items-center gap-2 text-sm text-primary hover:underline"><Mail size={15} /> {member.email}</a>
+            <a href={`mailto:${member.email}`} className="mt-6 inline-flex items-center gap-2 rounded-sm text-sm text-primary hover:underline"><Mail size={15} /> {member.email}</a>
           )}
         </div>
       </div>
@@ -89,6 +202,7 @@ function FocusPanel({ member, onClose }) {
 }
 
 export default function Members() {
+  const text = useSiteText();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [focus, setFocus] = useState(null);
@@ -105,40 +219,40 @@ export default function Members() {
   const graduated = sorted.filter((m) => m.category !== 'advisor' && m.graduated);
 
   return (
-    <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-24">
-      <SectionHeading eyebrow="Our Team" title="团队" description="汇聚东华大学对人工智能充满热忱的青年学者与指导老师。" />
+    <div className="page-shell page-section">
+      <SectionHeading eyebrow={text('members_eyebrow')} title={text('members_title')} description={text('members_description')} />
 
       {loading ? (
-        <div className="flex justify-center py-20 text-muted-foreground"><Loader2 className="animate-spin" /></div>
+        <ContentLoading variant="grid" count={4} className="lg:grid-cols-4" />
       ) : (
         <>
           {/* Advisor */}
           {advisor && (
-            <div className="mt-12">
-              <div className="flex items-center gap-2">
-                <UserCog size={18} className="text-primary" />
-                <h3 className="font-display text-xl font-semibold text-foreground">指导老师</h3>
-              </div>
-              <div className="mt-5 flex flex-col gap-6 rounded-2xl border border-border bg-card p-6 sm:flex-row sm:p-8">
-                <div className="mx-auto h-40 w-40 shrink-0 overflow-hidden rounded-xl bg-accent/40 sm:mx-0">
+            <section className="mt-14 overflow-hidden border-y border-border/75 bg-secondary/30">
+              <div className="grid md:grid-cols-[17rem_1fr]">
+                <div className="aspect-[4/5] overflow-hidden bg-accent/40 md:aspect-auto md:min-h-[21rem]">
                   {advisor.photo_url ? (
-                    <Image src={advisor.photo_url} fittingType="fill" className="h-full w-full" />
+                    <PortraitMedia src={advisor.photo_url} alt={`${advisor.name || '指导老师'}照片`} />
                   ) : (
-                    <div className="flex h-full items-center justify-center font-display text-5xl font-bold text-primary/30">{advisor.name?.[0] || '?'}</div>
+                    <div className="flex h-full items-center justify-center font-display text-7xl font-bold text-primary/25">{advisor.name?.[0] || '?'}</div>
                   )}
                 </div>
-                <div className="flex-1">
-                  <h4 className="font-display text-2xl font-bold text-foreground">{advisor.name}</h4>
+                <div className="p-6 sm:p-8 md:p-10">
+                  <div className="flex items-center gap-2 text-primary">
+                    <UserCog size={17} strokeWidth={1.8} />
+                    <p className="text-sm font-semibold">{text('members_advisor')}</p>
+                  </div>
+                  <h3 className="mt-5 font-display text-3xl font-bold tracking-tight text-foreground">{advisor.name}</h3>
                   {advisor.title && <p className="mt-1 text-primary">{advisor.title}</p>}
                   {advisor.research_interests && (
-                    <div className="mt-4">
-                      <p className="font-mono-date text-xs uppercase tracking-widest text-muted-foreground">研究方向</p>
+                    <div className="mt-6 border-t border-border/80 pt-5">
+                      <p className="text-sm font-semibold text-foreground">{text('members_research')}</p>
                       <p className="mt-1.5 text-sm leading-relaxed text-foreground/90">{advisor.research_interests}</p>
                     </div>
                   )}
                   {advisor.bio && (
-                    <div className="mt-4">
-                      <p className="font-mono-date text-xs uppercase tracking-widest text-muted-foreground">简介</p>
+                    <div className="mt-5 border-t border-border/80 pt-5">
+                      <p className="text-sm font-semibold text-foreground">{text('members_advisor_bio')}</p>
                       <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-foreground/90">{advisor.bio}</p>
                     </div>
                   )}
@@ -147,40 +261,46 @@ export default function Members() {
                   )}
                 </div>
               </div>
-            </div>
+            </section>
           )}
 
           {/* In-school members */}
-          <div className="mt-14">
-            <div className="flex items-center gap-2">
-              <GraduationCap size={18} className="text-primary" />
-              <h3 className="font-display text-xl font-semibold text-foreground">在校成员</h3>
+          <section className="mt-16">
+            <div className="flex items-end justify-between gap-4 border-b border-border/75 pb-4">
+              <div className="flex items-center gap-2">
+                <GraduationCap size={18} strokeWidth={1.8} className="text-primary" />
+                <h3 className="font-display text-2xl font-semibold tracking-tight text-foreground">{text('members_current')}</h3>
+              </div>
+              <span className="font-mono-date text-xs text-muted-foreground">{String(inSchool.length).padStart(2, '0')} {text('members_count_unit')}</span>
             </div>
             {inSchool.length === 0 ? (
-              <p className="mt-5 rounded-lg border border-dashed border-border py-10 text-center text-sm text-muted-foreground">暂无在校成员</p>
+              <EmptyState title={text('members_empty_current')} icon={GraduationCap} compact className="mt-5" />
             ) : (
-              <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                {inSchool.map((m) => <MemberCard key={m.id} m={m} onClick={setFocus} />)}
+              <div className="mt-7 grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {inSchool.map((m) => <MemberCard key={m.id} m={m} onClick={setFocus} text={text} />)}
               </div>
             )}
-          </div>
+          </section>
 
           {/* Graduated members */}
           {graduated.length > 0 && (
-            <div className="mt-14">
-              <div className="flex items-center gap-2">
-                <Compass size={18} className="text-primary" />
-                <h3 className="font-display text-xl font-semibold text-foreground">已毕业成员</h3>
+            <section className="mt-16">
+              <div className="flex items-end justify-between gap-4 border-b border-border/75 pb-4">
+                <div className="flex items-center gap-2">
+                  <Compass size={18} strokeWidth={1.8} className="text-primary" />
+                  <h3 className="font-display text-2xl font-semibold tracking-tight text-foreground">{text('members_graduated')}</h3>
+                </div>
+                <span className="font-mono-date text-xs text-muted-foreground">{String(graduated.length).padStart(2, '0')} {text('members_count_unit')}</span>
               </div>
-              <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                {graduated.map((m) => <MemberCard key={m.id} m={m} onClick={setFocus} />)}
+              <div className="mt-7 grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {graduated.map((m) => <MemberCard key={m.id} m={m} onClick={setFocus} text={text} />)}
               </div>
-            </div>
+            </section>
           )}
         </>
       )}
 
-      <FocusPanel member={focus} onClose={() => setFocus(null)} />
+      <FocusPanel member={focus} onClose={() => setFocus(null)} text={text} />
     </div>
   );
 }

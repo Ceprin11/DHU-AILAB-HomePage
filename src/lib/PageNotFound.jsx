@@ -1,41 +1,40 @@
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { Home } from 'lucide-react';
+import { useSiteText } from '@/lib/siteText';
 
 
 export default function PageNotFound() {
     const location = useLocation();
+    const text = useSiteText();
     const pageName = location.pathname.substring(1);
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50">
-            <div className="max-w-md w-full">
-                <div className="text-center space-y-6">
-                    {/* 404 Error Code */}
-                    <div className="space-y-2">
-                        <h1 className="text-7xl font-light text-slate-300">404</h1>
-                        <div className="h-0.5 w-16 bg-slate-200 mx-auto"></div>
-                    </div>
-                    
-                    {/* Main Message */}
+        <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-background p-6">
+            <div className="absolute inset-0 neural-grid opacity-40" />
+            <div className="relative w-full max-w-md">
+                <div className="space-y-7 text-center">
                     <div className="space-y-3">
-                        <h2 className="text-2xl font-medium text-slate-800">
-                            Page Not Found
+                        <h1 className="font-mono-date text-7xl font-light tracking-[-0.05em] text-primary/20">404</h1>
+                        <div className="mx-auto h-px w-14 bg-primary/25" />
+                    </div>
+
+                    <div className="space-y-3">
+                        <h2 className="font-display text-2xl font-bold tracking-tight text-foreground">
+                            {text('not_found_title')}
                         </h2>
-                        <p className="text-slate-600 leading-relaxed">
-                            The page <span className="font-medium text-slate-700">&ldquo;{pageName}&rdquo;</span> could not be found in this application.
+                        <p className="leading-7 text-muted-foreground">
+                            {text('not_found_description')} <span className="font-medium text-foreground/80">&ldquo;{pageName}&rdquo;</span>
                         </p>
                     </div>
-                    
-                    {/* Action Button */}
-                    <div className="pt-6">
-                        <button 
-                            onClick={() => window.location.href = '/'} 
-                            className="inline-flex items-center px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500"
+
+                    <div className="pt-4">
+                        <Link
+                            to="/"
+                            className="inline-flex h-10 items-center gap-2 rounded-full bg-amber px-5 text-sm font-semibold text-amber-foreground shadow-[0_8px_24px_hsl(var(--amber)/0.16)] transition-[background-color,transform] duration-200 hover:-translate-y-0.5 hover:bg-amber/80 active:translate-y-px"
                         >
-                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                            </svg>
-                            Go Home
-                        </button>
+                            <Home size={15} strokeWidth={1.8} />
+                            {text('not_found_button')}
+                        </Link>
                     </div>
                 </div>
             </div>

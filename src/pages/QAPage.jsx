@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, Loader2 } from 'lucide-react';
+import { ChevronDown, CircleHelp } from 'lucide-react';
 import { api } from '@/api/client';
 import SectionHeading from '@/components/SectionHeading';
 import { cn } from '@/lib/utils';
+import { ContentLoading, EmptyState } from '@/components/ContentState';
+import { useSiteText } from '@/lib/siteText';
 
 export default function QAPage() {
+  const text = useSiteText();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(null);
@@ -18,31 +21,33 @@ export default function QAPage() {
   const sorted = [...items].sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
 
   return (
-    <div className="mx-auto max-w-3xl px-5 py-16 sm:px-8 sm:py-24">
-      <SectionHeading eyebrow="Q & A" title="常见问题" description="关于实验室、加入方式与日常活动的常见疑问解答。" />
+    <div className="page-shell page-section max-w-3xl">
+      <SectionHeading eyebrow={text('qa_eyebrow')} title={text('qa_title')} description={text('qa_description')} />
 
       {loading ? (
-        <div className="flex justify-center py-20 text-muted-foreground"><Loader2 className="animate-spin" /></div>
+        <ContentLoading />
       ) : sorted.length === 0 ? (
-        <p className="mt-10 rounded-lg border border-dashed border-border py-16 text-center text-sm text-muted-foreground">暂无问答</p>
+        <EmptyState title={text('qa_empty')} icon={CircleHelp} />
       ) : (
-        <div className="mt-10 space-y-3">
+        <div className="mt-10 divide-y divide-border/75 border-y border-border/75">
           {sorted.map((q, i) => {
             const isOpen = open === q.id;
             return (
-              <div key={q.id} className={cn('overflow-hidden rounded-xl border bg-card transition-colors', isOpen ? 'border-primary/40' : 'border-border')}>
+              <div key={q.id} className={cn('overflow-hidden transition-colors duration-200', isOpen ? 'bg-secondary/35' : 'hover:bg-secondary/20')}>
                 <button
                   onClick={() => setOpen(isOpen ? null : q.id)}
-                  className="flex w-full items-center gap-4 px-5 py-4 text-left"
+                  className="flex w-full items-center gap-4 px-3 py-5 text-left sm:px-5 sm:py-6"
+                  aria-expanded={isOpen}
+                  aria-controls={`qa-answer-${q.id}`}
                 >
-                  <span className="font-mono-date text-sm font-semibold text-primary">{String(i + 1).padStart(2, '0')}</span>
-                  <span className="flex-1 font-medium text-foreground">{q.question}</span>
-                  <ChevronDown size={18} className={cn('shrink-0 text-muted-foreground transition-transform', isOpen && 'rotate-180 text-primary')} />
+                  <span className="font-mono-date text-xs font-semibold text-primary">{String(i + 1).padStart(2, '0')}</span>
+                  <span className="flex-1 font-display text-base font-semibold leading-6 text-foreground sm:text-lg">{q.question}</span>
+                  <ChevronDown size={18} strokeWidth={1.8} className={cn('shrink-0 text-muted-foreground transition-transform duration-200', isOpen && 'rotate-180 text-primary')} />
                 </button>
                 <div className={cn('grid transition-all', isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
-                  <div className="overflow-hidden">
-                    <div className="border-t border-border px-5 py-4 pl-14">
-                      <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{q.answer}</p>
+                  <div id={`qa-answer-${q.id}`} className="overflow-hidden">
+                    <div className="border-t border-border/70 px-3 py-5 pl-12 sm:px-5 sm:py-6 sm:pl-[4.25rem]">
+                      <p className="max-w-[65ch] whitespace-pre-line text-sm leading-7 text-muted-foreground">{q.answer}</p>
                     </div>
                   </div>
                 </div>

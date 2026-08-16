@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import EntityManager from '@/components/admin/EntityManager';
+import GuideAdmin from '@/components/admin/GuideAdmin';
+import PageTextAdmin from '@/components/admin/PageTextAdmin';
 
 const memberFields = [
   { key: 'name', label: '姓名', type: 'text', required: true },
@@ -16,9 +18,15 @@ const memberFields = [
   { key: 'category', label: '类别', type: 'select', options: [
     { value: 'advisor', label: '指导老师' }, { value: 'president', label: '社长' }, { value: 'core', label: '核心成员' }, { value: 'member', label: '成员' }] },
   { key: 'grade', label: '年级（如 2023，已毕业填毕业年份）', type: 'text' },
+  { key: 'hometown', label: '来自', type: 'text', placeholder: '如：四川成都', showWhen: (member) => member.category !== 'advisor' },
+  { key: 'hobbies', label: '兴趣爱好', type: 'textarea', rows: 2, placeholder: '如：摄影、羽毛球、阅读', showWhen: (member) => member.category !== 'advisor' },
   { key: 'graduated', label: '是否已毕业', type: 'boolean' },
   { key: 'destination', label: '去向（仅已毕业）', type: 'select', options: [
-    { value: '保研', label: '保研' }, { value: '留学', label: '留学' }, { value: '就业', label: '就业' }, { value: '其他', label: '其他' }] },
+    { value: '保研', label: '保研' }, { value: '留学', label: '留学' }, { value: '就业', label: '就业' }, { value: '其他', label: '其他' }], showWhen: (member) => !!member.graduated },
+  { key: 'destination_organization', label: '单位', type: 'text', placeholder: '如：浙江大学、腾讯、CMU', helper: '填写学校、公司或其他接收单位。', showWhen: (member) => !!member.graduated && !!member.destination },
+  { key: 'destination_specialty', label: '专业方向', type: 'text', placeholder: '如：计算机科学与技术、AI4S', showWhen: (member) => !!member.graduated && ['保研', '留学'].includes(member.destination) },
+  { key: 'destination_position', label: '岗位', type: 'text', placeholder: '如：算法工程师', showWhen: (member) => !!member.graduated && member.destination === '就业' },
+  { key: 'message_to_juniors', label: '写给学弟学妹的话', type: 'textarea', rows: 4, placeholder: '分享经验、建议或祝福', showWhen: (member) => !!member.graduated },
   { key: 'photo_url', label: '照片', type: 'image' },
   { key: 'email', label: '邮箱', type: 'text' },
   { key: 'research_interests', label: '研究方向', type: 'textarea', rows: 2 },
@@ -211,6 +219,7 @@ export default function Admin() {
       <Tabs defaultValue="members" className="mt-8">
         <TabsList className="flex w-full flex-wrap justify-start gap-1 h-auto bg-secondary/50 p-1">
           <TabsTrigger value="members">团队成员</TabsTrigger>
+          <TabsTrigger value="ai-guide">AI入门</TabsTrigger>
           <TabsTrigger value="notifications">通知</TabsTrigger>
           <TabsTrigger value="awards">成果展示</TabsTrigger>
           <TabsTrigger value="activities">活动</TabsTrigger>
@@ -220,9 +229,11 @@ export default function Admin() {
           <TabsTrigger value="materials">资料</TabsTrigger>
           <TabsTrigger value="qa">问答</TabsTrigger>
           <TabsTrigger value="settings">设置</TabsTrigger>
+          <TabsTrigger value="page-text">页面文案</TabsTrigger>
         </TabsList>
 
         <TabsContent value="members" className="mt-6"><EntityManager entityName="Member" label="成员" fields={memberFields} sort="order_index" itemTitle={(it) => it.name} /></TabsContent>
+        <TabsContent value="ai-guide" className="mt-6"><GuideAdmin /></TabsContent>
         <TabsContent value="notifications" className="mt-6"><EntityManager entityName="Notification" label="通知" fields={notifFields} itemTitle={(it) => it.title} /></TabsContent>
         <TabsContent value="awards" className="mt-6"><EntityManager entityName="Award" label="成果" fields={awardFields} itemTitle={(it) => it.title} /></TabsContent>
         <TabsContent value="activities" className="mt-6"><EntityManager entityName="Activity" label="活动" fields={activityFields} itemTitle={(it) => it.title} /></TabsContent>
@@ -232,6 +243,7 @@ export default function Admin() {
         <TabsContent value="materials" className="mt-6"><EntityManager entityName="StudyMaterial" label="学习资料" fields={materialFields} itemTitle={(it) => it.title} /></TabsContent>
         <TabsContent value="qa" className="mt-6"><EntityManager entityName="QA" label="问答" fields={qaFields} sort="order_index" itemTitle={(it) => it.question} /></TabsContent>
         <TabsContent value="settings" className="mt-6"><SiteSettingsTab /></TabsContent>
+        <TabsContent value="page-text" className="mt-6"><PageTextAdmin /></TabsContent>
       </Tabs>
     </div>
   );

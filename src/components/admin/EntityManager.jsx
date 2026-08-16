@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Pencil, Trash2, Loader2, X } from 'lucide-react';
 import { api } from '@/api/client';
 import { Button } from '@/components/ui/button';
@@ -9,21 +9,26 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import MediaUpload from '@/components/admin/MediaUpload';
 
-export default function EntityManager({ entityName, label, fields, itemTitle, sort = '-created_date' }) {
+export default function EntityManager({ entityName, label, fields, itemTitle, sort = '-created_date', onItemsChange = undefined }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null); // null closed; {} new; record edit
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
-  const load = () => {
+  const load = useCallback(() => {
     setLoading(true);
     api.entities[entityName].list(sort, 200)
-      .then((r) => { setItems(r || []); setLoading(false); })
+      .then((r) => {
+        const nextItems = r || [];
+        setItems(nextItems);
+        onItemsChange?.(nextItems);
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
-  };
+  }, [entityName, onItemsChange, sort]);
 
-  useEffect(() => { load(); }, [entityName]);
+  useEffect(() => { load(); }, [load]);
 
   const openNew = () => {
     const blank = {};
@@ -116,7 +121,7 @@ export default function EntityManager({ entityName, label, fields, itemTitle, so
               <button onClick={() => setEditing(null)} className="text-muted-foreground hover:text-foreground"><X size={18} /></button>
             </div>
             <div className="max-h-[70vh] space-y-4 overflow-y-auto px-5 py-5">
-              {fields.map((f) => (
+              {fields.filter((f) => !f.showWhen || f.showWhen(editing)).map((f) => (
                 <div key={f.key}>
                   {f.type !== 'boolean' && <Label className="mb-1.5 block text-sm font-medium">{f.label}{f.required && <span className="text-destructive"> *</span>}</Label>}
                   {f.type === 'text' && <Input value={editing[f.key] || ''} onChange={(e) => setField(f.key, e.target.value)} placeholder={f.placeholder} />}
@@ -137,9 +142,10 @@ export default function EntityManager({ entityName, label, fields, itemTitle, so
                       <span className="text-sm text-muted-foreground">{f.label}</span>
                     </div>
                   )}
-                  {f.type === 'image' && <MediaUpload value={editing[f.key] || ''} onChange={(v) => setField(f.key, v)} type="image" />}
-                  {f.type === 'file' && <MediaUpload value={editing[f.key] || ''} onChange={(v) => setField(f.key, v)} type="file" />}
-                  {f.type === 'video' && <MediaUpload value={editing[f.key] || ''} onChange={(v) => setField(f.key, v)} type="video" />}
+                  {f.type === 'image' && <MediaUpload label={f.label} value={editing[f.key] || ''} onChange={(v) => setField(f.key, v)} type="image" />}
+                  {f.type === 'file' && <MediaUpload label={f.label} value={editing[f.key] || ''} onChange={(v) => setField(f.key, v)} type="file" />}
+                  {f.type === 'video' && <MediaUpload label={f.label} value={editing[f.key] || ''} onChange={(v) => setField(f.key, v)} type="video" />}
+                  {f.helper && <p className="mt-1.5 text-xs leading-5 text-muted-foreground">{f.helper}</p>}
                 </div>
               ))}
             </div>

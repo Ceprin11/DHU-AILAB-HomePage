@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Loader2, Pin } from 'lucide-react';
+import { ArrowLeft, Bell, ChevronRight, Pin } from 'lucide-react';
 import { api } from '@/api/client';
 import SectionHeading from '@/components/SectionHeading';
 import { formatDate } from '@/lib/site';
 import { cn } from '@/lib/utils';
-
-const CATEGORY = { notice: '通知', news: '新闻', event: '活动' };
+import { ContentLoading, EmptyState } from '@/components/ContentState';
+import { useSiteText } from '@/lib/siteText';
 
 export default function Notifications() {
+  const text = useSiteText();
+  const categories = { notice: text('notice_category_notice'), news: text('notice_category_news'), event: text('notice_category_event') };
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState(null);
@@ -23,51 +25,52 @@ export default function Notifications() {
   const list = [...pinned, ...rest];
 
   return (
-    <div className="mx-auto max-w-4xl px-5 py-16 sm:px-8 sm:py-24">
-      <SectionHeading eyebrow="Notice" title="通知公告" description="实验室最新动态、新闻与活动通知。" />
+    <div className="page-shell page-section max-w-5xl">
+      <SectionHeading eyebrow={text('notice_eyebrow')} title={text('notice_title')} description={text('notice_description')} />
 
       {loading ? (
-        <div className="flex justify-center py-20 text-muted-foreground"><Loader2 className="animate-spin" /></div>
+        <ContentLoading />
       ) : list.length === 0 ? (
-        <p className="mt-10 rounded-lg border border-dashed border-border py-16 text-center text-sm text-muted-foreground">暂无通知</p>
+        <EmptyState title={text('notice_empty')} icon={Bell} />
       ) : (
         <div className="mt-10">
           {active ? (
             <div>
-              <button onClick={() => setActive(null)} className="mb-6 text-sm text-primary hover:underline">← 返回列表</button>
-              <article className="rounded-xl border border-border bg-card p-6 sm:p-8">
+              <button onClick={() => setActive(null)} className="interactive-link mb-7 inline-flex items-center gap-2 rounded-sm text-sm font-medium text-primary hover:text-foreground"><ArrowLeft size={15} strokeWidth={1.8} /> {text('notice_back')}</button>
+              <article className="border-y border-border/75 py-7 sm:py-9">
                 <div className="flex items-center gap-2">
-                  {active.pinned && <span className="flex items-center gap-1 rounded bg-amber/15 px-2 py-0.5 text-xs font-semibold text-amber-foreground"><Pin size={11} /> 置顶</span>}
-                  <span className="rounded bg-accent px-2 py-0.5 text-xs font-medium text-primary">{CATEGORY[active.category] || '通知'}</span>
+                  {active.pinned && <span className="flex items-center gap-1.5 rounded-md bg-amber/20 px-2.5 py-1 text-xs font-semibold text-amber-foreground"><Pin size={11} strokeWidth={1.8} /> {text('notice_pinned')}</span>}
+                  <span className="rounded-md bg-accent px-2.5 py-1 text-xs font-medium text-primary">{categories[active.category] || text('notice_category_notice')}</span>
                 </div>
-                <h1 className="mt-4 font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{active.title}</h1>
-                <p className="mt-2 font-mono-date text-sm text-muted-foreground">{formatDate(active.date)}</p>
-                <div className="mt-6 whitespace-pre-line text-base leading-relaxed text-foreground/90">{active.content}</div>
+                <h1 className="mt-5 max-w-3xl font-display text-3xl font-bold leading-tight tracking-[-0.025em] text-foreground sm:text-4xl">{active.title}</h1>
+                <p className="mt-3 font-mono-date text-xs text-muted-foreground">{formatDate(active.date)}</p>
+                <div className="mt-8 max-w-[70ch] whitespace-pre-line text-base leading-8 text-foreground/90">{active.content}</div>
               </article>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="divide-y divide-border/75 border-y border-border/75">
               {list.map((n) => (
                 <button
                   key={n.id}
                   onClick={() => setActive(n)}
                   className={cn(
-                    'flex w-full items-center gap-4 rounded-xl border bg-card px-5 py-4 text-left transition-colors hover:border-primary/40',
-                    n.pinned ? 'border-amber/40' : 'border-border'
+                    'group grid w-full gap-3 px-4 py-5 text-left transition-[background-color,transform] duration-200 sm:grid-cols-[6.5rem_minmax(0,1fr)_6rem_1.25rem] sm:items-center sm:gap-5 sm:px-5 sm:py-6',
+                    n.pinned ? 'bg-secondary/45 hover:bg-secondary/65' : 'hover:bg-secondary/30'
                   )}
                 >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent text-primary"><Bell size={17} /></span>
+                  <div className="flex items-center gap-2 sm:block">
+                    <p className="font-mono-date text-xs text-muted-foreground">{formatDate(n.date)}</p>
+                    <p className="text-xs text-primary sm:mt-1.5">{categories[n.category] || text('notice_category_notice')}</p>
+                  </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      {n.pinned && <Pin size={12} className="shrink-0 text-amber" />}
-                      <p className="truncate font-medium text-foreground">{n.title}</p>
+                      {n.pinned && <Pin size={13} strokeWidth={1.8} className="shrink-0 text-primary" />}
+                      <p className="font-display text-base font-semibold leading-6 text-foreground transition-colors group-hover:text-primary sm:text-lg">{n.title}</p>
                     </div>
-                    <p className="mt-0.5 line-clamp-1 text-sm text-muted-foreground">{n.content}</p>
+                    <p className="mt-1.5 line-clamp-2 text-sm leading-6 text-muted-foreground">{n.content}</p>
                   </div>
-                  <div className="hidden shrink-0 text-right sm:block">
-                    <p className="font-mono-date text-xs text-muted-foreground">{formatDate(n.date)}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{CATEGORY[n.category] || '通知'}</p>
-                  </div>
+                  <span className="hidden justify-self-end text-xs font-medium text-muted-foreground sm:block">{n.pinned ? text('notice_pinned') : ''}</span>
+                  <ChevronRight size={17} strokeWidth={1.8} className="hidden text-muted-foreground transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-primary sm:block" aria-hidden="true" />
                 </button>
               ))}
             </div>

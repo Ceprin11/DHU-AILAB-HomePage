@@ -18,6 +18,8 @@ import Resources from '@/pages/Resources';
 import Admin from '@/pages/Admin';
 import AdminLogin from '@/pages/AdminLogin';
 import ClubLife from '@/pages/ClubLife';
+import AIGuide from '@/pages/AIGuide';
+import { Skeleton } from '@/components/ui/skeleton';
 // Add page imports here
 
 const AuthenticatedApp = () => {
@@ -26,8 +28,13 @@ const AuthenticatedApp = () => {
   // Show loading spinner while checking app public settings or auth
   if (isLoadingAuth) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
+      <div className="fixed inset-0 flex min-h-[100dvh] items-center justify-center bg-background" role="status" aria-live="polite">
+        <div className="w-full max-w-xs space-y-4 px-8">
+          <span className="sr-only">网站加载中</span>
+          <Skeleton className="mx-auto h-10 w-28 rounded-xl" />
+          <Skeleton className="mx-auto h-3 w-48" />
+          <Skeleton className="mx-auto h-3 w-36" />
+        </div>
       </div>
     );
   }
@@ -38,6 +45,7 @@ const AuthenticatedApp = () => {
       <Route element={<Layout />}>
         <Route path="/" element={<Home />} />
         <Route path="/members" element={<Members />} />
+        <Route path="/ai-guide" element={<AIGuide />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/awards" element={<Awards />} />
         <Route path="/activities" element={<Activities />} />
