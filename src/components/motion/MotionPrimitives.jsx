@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { animate, m, useMotionValue, useReducedMotion, useTransform } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
-export const MOTION_EASE = [0.16, 1, 0.3, 1];
+const MOTION_EASE = [0.16, 1, 0.3, 1];
 
 export function PageMotion({ children, className }) {
   const reduceMotion = useReducedMotion();
