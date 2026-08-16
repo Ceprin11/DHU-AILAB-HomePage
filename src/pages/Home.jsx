@@ -46,11 +46,12 @@ export default function Home() {
   ];
 
   return (
-    <div className="overflow-hidden bg-background">
+    <div className="overflow-hidden bg-transparent">
       {/* Hero */}
-      <section className="relative border-b border-border/80">
-        <div className="absolute inset-0 neural-grid opacity-30" />
+      <section className="home-hero-atmosphere relative border-b border-border/80">
+        <div className="absolute inset-0 neural-grid opacity-20" />
         <div className="absolute -left-40 top-16 h-80 w-80 rounded-full bg-amber/20 blur-3xl" />
+        <div className="absolute -right-32 bottom-0 h-72 w-72 rounded-full bg-primary/10 blur-3xl" />
         <div className="relative mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16 lg:py-20">
           <div className={`grid items-center gap-10 lg:gap-14 ${heroPhotos.length > 0 ? 'lg:grid-cols-12' : ''}`}>
             <Reveal className={heroPhotos.length > 0 ? 'lg:col-span-6' : 'max-w-3xl'} amount={0.05}>
@@ -97,7 +98,7 @@ export default function Home() {
       </section>
 
       {/* Quick links */}
-      <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-20">
+      <section className="section-clear mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-20">
         <div className="max-w-2xl">
           <div className="flex items-center gap-2.5 text-amber-foreground">
             <span className="h-px w-6 bg-amber-foreground/60" />
@@ -131,7 +132,7 @@ export default function Home() {
       </section>
 
       {/* Latest notifications */}
-      <section className="border-y border-border bg-secondary/35">
+      <section className="section-tint border-y border-border">
         <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-20">
           <div className="flex items-end justify-between gap-6">
             <div>
@@ -164,7 +165,7 @@ export default function Home() {
       </section>
 
       {/* Featured achievements */}
-      <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-20">
+      <section className="section-clear mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-20">
         <div className="flex items-end justify-between gap-6">
           <div>
             <h2 className="font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">{text('home_awards_title')}</h2>
@@ -201,7 +202,7 @@ export default function Home() {
       </section>
 
       {/* CTA */}
-      <section className="border-t border-border bg-amber/20">
+      <section className="section-accent border-t border-border">
         <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-7 px-5 py-14 sm:px-8 md:flex-row md:items-center">
           <div>
             <h2 className="font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">{text('home_cta_title')}</h2>

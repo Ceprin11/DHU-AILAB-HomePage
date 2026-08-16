@@ -9,7 +9,7 @@ import { PageMotion } from '@/components/motion/MotionPrimitives';
 export default function Layout() {
   const location = useLocation();
   return (
-    <div className="flex min-h-[100dvh] flex-col bg-background">
+    <div className="site-canvas flex min-h-[100dvh] flex-col">
       <ScrollToTop />
       <Navbar />
       <main className="flex-1 overflow-x-clip">

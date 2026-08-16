@@ -5,8 +5,7 @@ import { Menu, X } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { cn } from '@/lib/utils';
 import { useSiteText } from '@/lib/siteText';
-
-const LOGO_URL = '/ailab-logo.png';
+import BrandMarks from '@/components/BrandMarks';
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
@@ -33,9 +32,7 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 border-b border-border/75 glass">
       <div className="page-shell flex h-16 items-center justify-between">
         <Link to="/" className="group flex min-w-0 items-center gap-2.5 rounded-sm" onClick={() => setOpen(false)}>
-          <span className="flex h-9 w-[84px] shrink-0 items-center justify-center overflow-hidden rounded-md">
-            <img src={LOGO_URL} alt="AILab" className="h-full w-auto max-w-none scale-[2.35] object-contain" />
-          </span>
+          <BrandMarks />
           <span className="flex flex-col leading-tight">
             <span className="font-display text-xs font-bold tracking-tight text-foreground sm:text-sm">{text('lab_name_cn')}</span>
             <span className="font-mono-date text-[9px] text-muted-foreground sm:text-[10px]">{text('lab_name_en')}</span>

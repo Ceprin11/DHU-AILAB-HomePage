@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    --background: 204 33% 99%;
+    --background: 204 48% 95%;
     --foreground: 210 24% 12%;
     --card: 0 0% 100%;
     --card-foreground: 210 24% 12%;
@@ -12,16 +12,16 @@
     --popover-foreground: 210 24% 12%;
     --primary: 194 64% 34%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 198 38% 96%;
+    --secondary: 198 40% 94%;
     --secondary-foreground: 198 46% 23%;
-    --muted: 204 28% 96%;
+    --muted: 204 30% 94%;
     --muted-foreground: 210 10% 42%;
-    --accent: 191 55% 93%;
+    --accent: 191 55% 90%;
     --accent-foreground: 196 52% 25%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 203 22% 89%;
-    --input: 203 22% 89%;
+    --border: 203 24% 85%;
+    --input: 203 24% 85%;
     --ring: 194 64% 34%;
     --amber: 190 65% 72%;
     --amber-foreground: 199 55% 20%;
@@ -139,6 +139,51 @@
     @apply py-16 sm:py-24;
   }
 
+  .site-canvas {
+    position: relative;
+    isolation: isolate;
+    background:
+      radial-gradient(ellipse 58% 37% at 3% 5%, hsl(var(--primary) / 0.16), transparent 68%),
+      radial-gradient(ellipse 52% 32% at 100% 42%, hsl(var(--amber) / 0.22), transparent 70%),
+      radial-gradient(ellipse 44% 25% at 18% 88%, hsl(var(--accent) / 0.8), transparent 74%),
+      hsl(var(--background));
+  }
+
+  .site-canvas::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      linear-gradient(112deg, transparent 0 19%, hsl(var(--card) / 0.42) 34%, transparent 52%),
+      linear-gradient(68deg, transparent 0 61%, hsl(var(--primary) / 0.025) 78%, transparent 94%);
+    opacity: 0.92;
+  }
+
+  .home-hero-atmosphere {
+    background:
+      radial-gradient(ellipse 58% 86% at 2% 44%, hsl(var(--accent) / 0.98), transparent 70%),
+      radial-gradient(ellipse 45% 76% at 100% 58%, hsl(var(--primary) / 0.15), transparent 68%),
+      linear-gradient(104deg, hsl(var(--background) / 0.34), hsl(var(--card) / 0.84));
+  }
+
+  .section-clear {
+    background: hsl(var(--card) / 0.72);
+    box-shadow: 0 0 0 100vmax hsl(var(--card) / 0.72);
+    clip-path: inset(0 -100vmax);
+  }
+
+  .section-tint {
+    background:
+      linear-gradient(90deg, hsl(var(--accent) / 0.72), hsl(var(--secondary)) 50%, hsl(var(--accent) / 0.72));
+  }
+
+  .section-accent {
+    background:
+      linear-gradient(118deg, hsl(var(--amber) / 0.34), hsl(var(--accent) / 0.92) 54%, hsl(var(--background) / 0.88));
+  }
+
   .interactive-link {
     transition-property: color, background-color, border-color, transform;
     transition-duration: 200ms;
@@ -171,6 +216,16 @@
     background: hsl(var(--background));
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
+  }
+
+  .section-tint,
+  .section-accent,
+  .section-clear {
+    background: hsl(var(--secondary));
+  }
+
+  .section-clear {
+    box-shadow: 0 0 0 100vmax hsl(var(--secondary));
   }
 }
 

@@ -5,8 +5,7 @@ import { useSiteSettings } from '@/lib/site';
 import { useAuth } from '@/lib/AuthContext';
 import { api } from '@/api/client';
 import { useSiteText } from '@/lib/siteText';
-
-const LOGO_URL = '/ailab-logo.png';
+import BrandMarks from '@/components/BrandMarks';
 
 export default function Footer() {
   const settings = useSiteSettings();
@@ -28,9 +27,7 @@ export default function Footer() {
         <div className="grid gap-12 md:grid-cols-12 md:gap-8">
           <div className="md:col-span-5">
             <div className="flex items-center gap-2.5">
-              <span className="flex h-9 w-[84px] items-center justify-center overflow-hidden rounded-md">
-                <img src={LOGO_URL} alt="AILab" className="h-full w-auto max-w-none scale-[2.35] object-contain" />
-              </span>
+              <BrandMarks />
               <span className="flex flex-col leading-tight">
                 <span className="font-display text-sm font-bold tracking-tight">{text('lab_name_cn')}</span>
                 <span className="font-mono-date text-[10px] text-muted-foreground">{text('lab_name_en')}</span>
