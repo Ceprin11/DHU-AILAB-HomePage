@@ -63,13 +63,13 @@ export default function Resources() {
           ) : (
             <m.div layout={!reduceMotion} className="mt-8 divide-y divide-border/75 border-y border-border/75">
               <AnimatePresence mode="popLayout" initial={false}>
-              {filtered.map((m) => {
-                const t = TYPE_ICON[m.file_type] || TYPE_ICON.other;
-                const isVideo = m.file_type === 'video' && m.file_url;
+              {filtered.map((item) => {
+                const t = TYPE_ICON[item.file_type] || TYPE_ICON.other;
+                const isVideo = item.file_type === 'video' && item.file_url;
                 return (
                   <m.article
                     layout={!reduceMotion}
-                    key={m.id}
+                    key={item.id}
                     initial={reduceMotion ? false : { opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={reduceMotion ? undefined : { opacity: 0, y: -8 }}
@@ -81,24 +81,24 @@ export default function Resources() {
                         <t.icon size={19} strokeWidth={1.8} />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-display font-semibold leading-6 text-foreground">{m.title}</h3>
-                        {m.description && <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">{m.description}</p>}
+                        <h3 className="font-display font-semibold leading-6 text-foreground">{item.title}</h3>
+                        {item.description && <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">{item.description}</p>}
                         <div className="mt-2 flex flex-wrap items-center gap-2 font-mono-date text-[11px] text-muted-foreground">
-                          <span>{m.file_type?.toUpperCase()}</span>
+                          <span>{item.file_type?.toUpperCase()}</span>
                           <span>·</span>
-                          <span>{formatDate(m.date)}</span>
-                          {m.category && <><span>·</span><span>{m.category}</span></>}
+                          <span>{formatDate(item.date)}</span>
+                          {item.category && <><span>·</span><span>{item.category}</span></>}
                         </div>
                       </div>
-                      {m.file_url && !isVideo && (
-                        <a href={m.file_url} target="_blank" rel="noreferrer" download className="interactive-link flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-input bg-background px-3.5 text-sm font-medium hover:border-primary/30 hover:bg-accent">
+                      {item.file_url && !isVideo && (
+                        <a href={item.file_url} target="_blank" rel="noreferrer" download className="interactive-link flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-input bg-background px-3.5 text-sm font-medium hover:border-primary/30 hover:bg-accent">
                           <Download size={14} strokeWidth={1.8} /> {text('resources_download')}
                         </a>
                       )}
                     </div>
                     {isVideo && (
                       <div className="border-t border-border/75 bg-foreground">
-                        <video src={m.file_url} controls className="max-h-80 w-full" />
+                        <video src={item.file_url} controls className="max-h-80 w-full" />
                       </div>
                     )}
                   </m.article>

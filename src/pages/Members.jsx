@@ -70,37 +70,37 @@ function PortraitMedia({ src, alt }) {
   );
 }
 
-function MemberCard({ m, onClick, text, index = 0 }) {
+function MemberCard({ member, onClick, text, index = 0 }) {
   const reduceMotion = useReducedMotion();
   return (
     <m.button
-      onClick={() => onClick(m)}
+      onClick={() => onClick(member)}
       initial={reduceMotion ? false : { opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.15 }}
       transition={{ duration: reduceMotion ? 0 : 0.46, delay: reduceMotion ? 0 : Math.min(index, 6) * 0.055, ease: [0.16, 1, 0.3, 1] }}
       className="group min-w-0 rounded-xl text-left focus-visible:outline-offset-4"
-      aria-label={`查看${m.name || '成员'}详情`}
+      aria-label={`查看${member.name || '成员'}详情`}
     >
       <div className="aspect-[3/4] overflow-hidden rounded-xl border border-border/75 bg-secondary/60 shadow-[0_12px_30px_hsl(var(--foreground)/0.035)] transition-[border-color,box-shadow,transform] duration-200 group-hover:-translate-y-0.5 group-hover:border-primary/30 group-hover:shadow-[0_18px_36px_hsl(var(--primary)/0.09)] group-active:translate-y-px">
-        {m.photo_url ? (
-          <PortraitMedia src={m.photo_url} alt={`${m.name || '成员'}照片`} />
+        {member.photo_url ? (
+          <PortraitMedia src={member.photo_url} alt={`${member.name || '成员'}照片`} />
         ) : (
-          <div className="flex h-full items-center justify-center bg-accent/50 font-display text-5xl font-bold text-primary/25">{m.name?.[0] || '?'}</div>
+          <div className="flex h-full items-center justify-center bg-accent/50 font-display text-5xl font-bold text-primary/25">{member.name?.[0] || '?'}</div>
         )}
       </div>
       <div className="pt-4">
         <div className="flex items-start justify-between gap-3 border-t border-border/75 pt-3">
-          <h3 className="font-display text-lg font-semibold leading-tight text-foreground transition-colors group-hover:text-primary">{m.name}</h3>
-          {m.title && <span className="max-w-[8rem] shrink-0 text-right text-xs leading-5 text-primary">{m.title}</span>}
+          <h3 className="font-display text-lg font-semibold leading-tight text-foreground transition-colors group-hover:text-primary">{member.name}</h3>
+          {member.title && <span className="max-w-[8rem] shrink-0 text-right text-xs leading-5 text-primary">{member.title}</span>}
         </div>
-        {(m.grade || m.graduated) && (
+        {(member.grade || member.graduated) && (
           <p className="mt-1.5 font-mono-date text-[11px] text-muted-foreground">
-            {[m.grade && `${m.grade}${text('members_grade_suffix')}`, m.graduated && text('members_graduated_badge')].filter(Boolean).join(' / ')}
+            {[member.grade && `${member.grade}${text('members_grade_suffix')}`, member.graduated && text('members_graduated_badge')].filter(Boolean).join(' / ')}
           </p>
         )}
-        {m.graduated && m.destination && (
-          <DestinationDetails member={m} text={text} compact />
+        {member.graduated && member.destination && (
+          <DestinationDetails member={member} text={text} compact />
         )}
       </div>
     </m.button>
@@ -299,7 +299,7 @@ export default function Members() {
               <EmptyState title={text('members_empty_current')} icon={GraduationCap} compact className="mt-5" />
             ) : (
               <div className="mt-7 grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {inSchool.map((m, index) => <MemberCard key={m.id} m={m} onClick={setFocus} text={text} index={index} />)}
+                {inSchool.map((member, index) => <MemberCard key={member.id} member={member} onClick={setFocus} text={text} index={index} />)}
               </div>
             )}
           </section>
@@ -315,7 +315,7 @@ export default function Members() {
                 <span className="font-mono-date text-xs text-muted-foreground">{String(graduated.length).padStart(2, '0')} {text('members_count_unit')}</span>
               </div>
               <div className="mt-7 grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {graduated.map((m, index) => <MemberCard key={m.id} m={m} onClick={setFocus} text={text} index={index} />)}
+                {graduated.map((member, index) => <MemberCard key={member.id} member={member} onClick={setFocus} text={text} index={index} />)}
               </div>
             </section>
           )}
