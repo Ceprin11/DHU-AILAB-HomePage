@@ -1,0 +1,37 @@
+services:
+  ailab-homepage:
+    build: .
+    ports:
+      - 3001:3000
+    volumes:
+      - ./data:/app/data
+    environment:
+      TZ: Asia/Shanghai
+      NODE_ENV: production
+      PORT: 3000
+      ADMIN_ACCOUNT: AILAB
+      ADMIN_PASSWORD: ai_lab_nb!!!!
+      SESSION_SECRET: G3UVD8l13ea0Je6QgghWfTxokb/X73NCEHacIZ1cWhw=
+      DATA_DIR: data
+      COOKIE_SECURE: true
+      TRUST_PROXY: true
+    # depends_on:
+    #   - traefik
+    # restart: unless-stopped
+    # labels:
+    #   # homepage router
+    #   - "traefik.enable=true"
+    #   - "traefik.http.routers.homepage.entrypoints=web,websecure"
+    #   - "traefik.http.routers.homepage.rule=Host(`www.dhuailab.com`)"
+    #   - "traefik.http.routers.homepage.tls.certresolver=le"
+
+    #   # Rate Limit
+    #   - "traefik.http.middlewares.homepage-ratelimit.ratelimit.average=30"
+    #   - "traefik.http.middlewares.homepage-ratelimit.ratelimit.period=1s"
+    #   - "traefik.http.middlewares.homepage-ratelimit.ratelimit.burst=50"
+
+    #   # Inflight Req
+    #   - "traefik.http.middlewares.homepage-inflightreq.inflightreq.amount=5"
+
+    #   # mount middlewares
+    #   - "traefik.http.routers.homepage.middlewares=homepage-ratelimit,homepage-inflightreq"

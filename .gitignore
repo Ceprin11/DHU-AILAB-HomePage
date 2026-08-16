@@ -36,3 +36,5 @@ base44/.app.jsonc
 # Local agent tooling
 .agents/
 skills-lock.json
+
+deploy
