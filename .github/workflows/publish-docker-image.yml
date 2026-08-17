@@ -55,6 +55,6 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             cd /data/compose/ailab
-            docker login -u ${{ secrets.ALIYUN_REGISTRY_USERNAME }} -p ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
+            docker login -u ${{ secrets.ALIYUN_REGISTRY_USERNAME }} -p ${{ secrets.ALIYUN_REGISTRY_PASSWORD }} ${{ secrets.ALIYUN_REGISTRY_HOST }}
             docker pull ${{ env.IMAGE_NAME }}:latest
             docker compose up -d
