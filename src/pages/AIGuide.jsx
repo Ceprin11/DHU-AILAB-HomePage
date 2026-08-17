@@ -40,7 +40,7 @@ function CourseCard({ course, icon: Icon, text, index = 0 }) {
   const coverUrl = course.image_url || getAutomaticResourceThumbnail(course.primary_url) || getAutomaticResourceThumbnail(course.secondary_url);
 
   return (
-    <MotionItem as="article" index={index} className={`group relative overflow-hidden rounded-xl border border-border/75 bg-card shadow-[0_10px_26px_hsl(var(--foreground)/0.03)] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_16px_32px_hsl(var(--primary)/0.08)] focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/20 ${mainLink ? 'cursor-pointer' : ''}`}>
+    <MotionItem as="article" index={index} className={`group relative flex h-full flex-col overflow-hidden rounded-xl border border-border/75 bg-card shadow-[0_10px_26px_hsl(var(--foreground)/0.03)] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_16px_32px_hsl(var(--primary)/0.08)] focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/20 ${mainLink ? 'cursor-pointer' : ''}`}>
       {mainLink && (
         <a
           href={mainLink[1]}
@@ -50,18 +50,18 @@ function CourseCard({ course, icon: Icon, text, index = 0 }) {
           className="absolute inset-0 z-10 rounded-xl focus-visible:outline-none"
         />
       )}
-      <div className="flex aspect-[16/9] items-center justify-center overflow-hidden bg-secondary/50">
+      <div className="flex aspect-[16/9] shrink-0 items-center justify-center overflow-hidden bg-secondary/50">
         {coverUrl ? (
           <Image src={getResourceThumbnailSource(coverUrl)} alt={`${course.title}封面`} fittingType="fit" className="h-full w-full object-contain" />
         ) : (
           <Icon size={38} strokeWidth={1.4} className="text-primary/35" />
         )}
       </div>
-      <div className="p-5">
+      <div className="flex flex-1 flex-col p-5">
         <h4 className="line-clamp-2 font-display text-lg font-semibold leading-snug text-foreground">{course.title}</h4>
         {course.description && <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">{course.description}</p>}
         {mainLink && (
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-4">
             <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
               {mainLink[0]} <ArrowRight size={13} className="transition-transform duration-200 group-hover:translate-x-0.5" />
             </span>
