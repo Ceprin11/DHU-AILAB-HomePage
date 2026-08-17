@@ -1,4 +1,4 @@
-name: Publish Docker image
+name: auto Build and Deploy on main branch push
 
 on:
   push:
@@ -14,8 +14,8 @@ env:
   IMAGE_NAME: crpi-o9yt3hdv6ozp2o64.cn-heyuan.personal.cr.aliyuncs.com/dhu-ailab/ailab-homepage
 
 jobs:
-  build-and-push:
-    name: Build and push linux/amd64 image
+  build-and-deploy:
+    name: Build linux/amd64 image and Deploy via SSH
     runs-on: ubuntu-latest
 
     steps:
@@ -46,3 +46,14 @@ jobs:
             ${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            cd /data/compose/ailab
+            docker pull ${{ env.IMAGE_NAME }}:latest
+            docker compose up -d
