@@ -26,6 +26,7 @@ const MEMBER_FIELD_LIMITS = {
   destination_specialty: 200,
   destination_position: 200,
   destination_detail: 300,
+  personal_homepage: 500,
   message_to_juniors: 2000,
 };
 
@@ -48,6 +49,7 @@ const normalizeMember = (member) => {
     normalized.destination_organization = '';
     normalized.destination_specialty = '';
     normalized.destination_position = '';
+    normalized.personal_homepage = '';
   } else if (normalized.destination === '就业') {
     normalized.destination_specialty = '';
   } else if (normalized.destination === '保研' || normalized.destination === '留学') {
@@ -142,6 +144,17 @@ export function createStore(dataDirectory) {
         }
         if (typeof value === 'string' && value.length > maxLength) {
           const error = new Error(`${field} is too long`);
+          error.status = 400;
+          throw error;
+        }
+      }
+
+      if (record.personal_homepage) {
+        try {
+          const homepage = new URL(record.personal_homepage);
+          if (!['http:', 'https:'].includes(homepage.protocol)) throw new Error('unsupported protocol');
+        } catch {
+          const error = new Error('personal_homepage must be a valid http/https URL');
           error.status = 400;
           throw error;
         }

@@ -26,6 +26,7 @@ const memberFields = [
   { key: 'destination_organization', label: '单位', type: 'text', placeholder: '如：浙江大学、腾讯、CMU', helper: '填写学校、公司或其他接收单位。', showWhen: (member) => !!member.graduated && !!member.destination },
   { key: 'destination_specialty', label: '专业方向', type: 'text', placeholder: '如：计算机科学与技术、AI4S', showWhen: (member) => !!member.graduated && ['保研', '留学'].includes(member.destination) },
   { key: 'destination_position', label: '岗位', type: 'text', placeholder: '如：算法工程师', showWhen: (member) => !!member.graduated && member.destination === '就业' },
+  { key: 'personal_homepage', label: '个人主页（仅已毕业）', type: 'text', placeholder: 'https://...', helper: '支持个人网站、GitHub Pages 等公开主页。', showWhen: (member) => !!member.graduated },
   { key: 'message_to_juniors', label: '写给学弟学妹的话', type: 'textarea', rows: 4, placeholder: '分享经验、建议或祝福', showWhen: (member) => !!member.graduated },
   { key: 'photo_url', label: '照片', type: 'image' },
   { key: 'email', label: '邮箱', type: 'text' },

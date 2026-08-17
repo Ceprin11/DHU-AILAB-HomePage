@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, m, useReducedMotion } from 'framer-motion';
-import { Mail, X, GraduationCap, Compass, Award, FlaskConical, UserCog, MapPin, Heart, MessageCircle } from 'lucide-react';
+import { Mail, X, GraduationCap, Compass, Award, FlaskConical, UserCog, MapPin, Heart, MessageCircle, ExternalLink } from 'lucide-react';
 import { api } from '@/api/client';
 import { Image } from '@/components/ui/image';
 import SectionHeading from '@/components/SectionHeading';
@@ -9,6 +9,15 @@ import { useSiteText } from '@/lib/siteText';
 import { Reveal } from '@/components/motion/MotionPrimitives';
 
 const DEST_LABEL = { '保研': '保研', '留学': '留学', '就业': '就业', '其他': '其他' };
+
+const normalizeHomepageUrl = (value = '') => {
+  try {
+    const url = new URL(value);
+    return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+  } catch {
+    return '';
+  }
+};
 
 const normalizeGrade = (grade) => {
   const value = String(grade || '').trim().replace(/[级届]$/, '');
@@ -152,6 +161,7 @@ function MemberCard({ member, onClick, text, index = 0 }) {
 
 function FocusPanel({ member, onClose, text }) {
   const reduceMotion = useReducedMotion();
+  const homepageUrl = member?.graduated ? normalizeHomepageUrl(member.personal_homepage) : '';
   useEffect(() => {
     if (!member) return undefined;
 
@@ -261,8 +271,11 @@ function FocusPanel({ member, onClose, text }) {
               <blockquote className="mt-2 border-l-2 border-primary/30 pl-4 text-sm leading-relaxed text-foreground/90">{member.message_to_juniors}</blockquote>
             </div>
           )}
-          {member.email && (
-            <a href={`mailto:${member.email}`} className="mt-6 inline-flex items-center gap-2 rounded-sm text-sm text-primary hover:underline"><Mail size={15} /> {member.email}</a>
+          {(member.email || homepageUrl) && (
+            <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
+              {member.email && <a href={`mailto:${member.email}`} className="inline-flex items-center gap-2 rounded-sm text-sm text-primary hover:underline"><Mail size={15} /> {member.email}</a>}
+              {homepageUrl && <a href={homepageUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-sm text-sm text-primary hover:underline"><ExternalLink size={15} /> {text('members_homepage')}</a>}
+            </div>
           )}
         </div>
       </m.div>

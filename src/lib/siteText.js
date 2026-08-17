@@ -54,7 +54,7 @@ export const SITE_TEXT_GROUPS = [
       ['members_achievements', '科研成果标签', '科研成果'], ['members_message', '寄语标签', '写给学弟学妹的话'],
       ['members_destination', '毕业去向标题', '毕业去向'], ['members_destination_type', '去向标签', '去向'], ['members_organization', '单位标签', '单位'],
       ['members_specialty', '专业方向标签', '专业方向'], ['members_position', '岗位标签', '岗位'], ['members_graduated_badge', '毕业状态文字', '已毕业'],
-      ['members_grade_suffix', '年级后缀', '级'], ['members_grade_unassigned', '未填写年级分组', '未填写年级'], ['members_count_unit', '成员数量单位', '人'],
+      ['members_grade_suffix', '年级后缀', '级'], ['members_grade_unassigned', '未填写年级分组', '未填写年级'], ['members_count_unit', '成员数量单位', '人'], ['members_homepage', '个人主页标签', '个人主页'],
     ],
   },
   {
