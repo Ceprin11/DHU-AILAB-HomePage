@@ -41,7 +41,10 @@ export const getResourceThumbnailSource = (value = '') => {
   try {
     const url = new URL(value);
     const host = url.hostname.toLowerCase();
-    if (host === 'opengraph.githubassets.com' || host === 'i.ytimg.com' || host === 'img.youtube.com' || host.endsWith('.hdslb.com') || host.endsWith('.biliimg.com')) {
+    if (host.endsWith('.hdslb.com') || host.endsWith('.biliimg.com')) {
+      return `/api/bilibili/cover?${new URLSearchParams({ url: url.href })}`;
+    }
+    if (host === 'opengraph.githubassets.com' || host === 'i.ytimg.com' || host === 'img.youtube.com') {
       return `/api/resource/cover?${new URLSearchParams({ url: url.href })}`;
     }
   } catch { /* Local upload paths are intentionally returned unchanged. */ }
