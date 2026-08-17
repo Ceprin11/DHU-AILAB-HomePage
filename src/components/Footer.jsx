@@ -84,9 +84,18 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-border/80 pt-6 text-xs text-muted-foreground sm:flex-row">
-          <p className="font-mono-date">© {new Date().getFullYear()} {text('footer_copyright_name')}</p>
-          <Link to={user?.role === 'admin' ? '/admin' : '/admin-login'} className="interactive-link rounded-sm hover:text-primary">{text('footer_admin')}</Link>
+        <div className="mt-12 grid grid-cols-1 items-center gap-3 border-t border-border/80 pt-6 text-center text-xs text-muted-foreground sm:grid-cols-3">
+          <p className="font-mono-date sm:text-left">© {new Date().getFullYear()} {text('footer_copyright_name')}</p>
+          <a
+            href="https://beian.miit.gov.cn/"
+            target="_blank"
+            rel="noreferrer"
+            className="interactive-link justify-self-center rounded-sm hover:text-primary"
+            aria-label={`${text('footer_icp_number')}，前往工业和信息化部备案系统查询`}
+          >
+            {text('footer_icp_number')}
+          </a>
+          <Link to={user?.role === 'admin' ? '/admin' : '/admin-login'} className="interactive-link justify-self-center rounded-sm hover:text-primary sm:justify-self-end">{text('footer_admin')}</Link>
         </div>
       </div>
     </footer>

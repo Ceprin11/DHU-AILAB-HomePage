@@ -16,7 +16,7 @@ export const SITE_TEXT_GROUPS = [
       ['footer_nav_title', '页脚导航标题', '导航'], ['footer_contact_title', '页脚联系方式标题', '联系方式'],
       ['footer_members_label', '页脚成员统计', '成员'], ['footer_awards_label', '页脚成果统计', '成果'], ['footer_activities_label', '页脚活动统计', '活动'],
       ['footer_bilibili_default', '页脚B站默认名称', 'B站主页'], ['footer_qq_prefix', '页脚QQ群前缀', 'QQ群：'],
-      ['footer_copyright_name', '版权名称', '东华大学人工智能创新实验室 AILAB'], ['footer_admin', '页脚管理入口', '管理后台'],
+      ['footer_copyright_name', '版权名称', '东华大学人工智能创新实验室 AILAB'], ['footer_icp_number', 'ICP备案号', '蜀ICP备2026014434号-1'], ['footer_admin', '页脚管理入口', '管理后台'],
     ],
   },
   {
