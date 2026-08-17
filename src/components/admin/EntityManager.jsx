@@ -143,7 +143,7 @@ export default function EntityManager({ entityName, label, fields, itemTitle, so
                     </div>
                   )}
                   {f.type === 'image' && <MediaUpload label={f.label} value={editing[f.key] || ''} onChange={(v) => setField(f.key, v)} type="image" />}
-                  {f.type === 'file' && <MediaUpload label={f.label} value={editing[f.key] || ''} onChange={(v) => setField(f.key, v)} type="file" />}
+                  {f.type === 'file' && <MediaUpload label={f.label} value={editing[f.key] || ''} onChange={(v) => setField(f.key, v)} onUploaded={(result) => result.thumbnail_url && setField('thumbnail_url', result.thumbnail_url)} type="file" />}
                   {f.type === 'video' && <MediaUpload label={f.label} value={editing[f.key] || ''} onChange={(v) => setField(f.key, v)} type="video" />}
                   {f.helper && <p className="mt-1.5 text-xs leading-5 text-muted-foreground">{f.helper}</p>}
                 </div>

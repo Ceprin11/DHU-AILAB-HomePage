@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 
 const VIDEO_RE = /\.(mp4|webm|ogg|mov|m4v)(\?|$)/i;
 
-export default function MediaUpload({ value, onChange, type = 'image', label }) {
+export default function MediaUpload({ value, onChange, onUploaded, type = 'image', label }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
 
@@ -18,6 +18,7 @@ export default function MediaUpload({ value, onChange, type = 'image', label }) 
     try {
       const res = await api.upload(file);
       onChange(res.file_url);
+      onUploaded?.(res);
     } catch (e) {
       setError(e instanceof Error ? e.message : '上传失败，请重试');
     } finally {

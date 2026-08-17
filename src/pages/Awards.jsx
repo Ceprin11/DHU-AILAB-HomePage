@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, FlaskConical, FileText } from 'lucide-react';
+import { Trophy, FlaskConical, FileText, ExternalLink } from 'lucide-react';
 import { api } from '@/api/client';
 import { Image } from '@/components/ui/image';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -17,11 +17,19 @@ const LEVEL = {
   other: { textKey: 'awards_level_other', cls: 'bg-muted text-muted-foreground' },
 };
 
+const normalizeDoiUrl = (value = '') => {
+  const input = String(value).trim();
+  if (!input) return '';
+  const doi = input.replace(/^https?:\/\/(?:dx\.)?doi\.org\//i, '').replace(/^doi:\s*/i, '');
+  return /^10\.\d{4,9}\/\S+$/i.test(doi) ? `https://doi.org/${doi}` : '';
+};
+
 function AwardEntry({ a, text, index = 0 }) {
   const isResearch = a.type === 'research';
   const level = LEVEL[a.level] || LEVEL.other;
-  return (
-    <MotionItem as="article" index={index} className="group grid gap-5 border-t border-border/75 py-7 first:border-t-0 first:pt-0 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-7 sm:py-8">
+  const doiUrl = isResearch ? normalizeDoiUrl(a.doi_url) : '';
+  const content = (
+    <>
       <div>
         {a.image_url ? (
           <div className="aspect-[4/3] overflow-hidden rounded-xl border border-border/75 bg-secondary/45 shadow-[0_10px_26px_hsl(var(--foreground)/0.03)]">
@@ -38,16 +46,22 @@ function AwardEntry({ a, text, index = 0 }) {
           {!isResearch && a.level && <span className={cn('rounded-md px-2.5 py-1 text-xs font-semibold', level.cls)}>{text(level.textKey)}</span>}
           {isResearch && a.ccf_level && <span className="rounded-md bg-amber/30 px-2.5 py-1 text-xs font-semibold text-primary">{a.ccf_level}</span>}
           <span className="font-mono-date text-xs text-muted-foreground">{formatDate(a.date)}</span>
+          {doiUrl && <span className="ml-auto flex items-center gap-1 text-xs font-medium text-primary">DOI <ExternalLink size={12} /></span>}
         </div>
         <h3 className="mt-4 font-display text-xl font-semibold leading-snug tracking-[-0.02em] text-foreground sm:text-2xl">{a.title}</h3>
         {a.recipient && <p className="mt-1.5 text-sm font-medium text-primary">{a.recipient}</p>}
         {a.description && <p className="mt-3 max-w-[65ch] text-sm leading-7 text-muted-foreground">{a.description}</p>}
-        {a.notes && (
-          <p className="mt-4 flex items-start gap-2 border-l-2 border-primary/30 pl-3 text-xs leading-5 text-muted-foreground">
-            <FileText size={13} strokeWidth={1.8} className="mt-0.5 shrink-0 text-primary" /> {a.notes}
-          </p>
-        )}
+        {a.notes && <p className="mt-4 flex items-start gap-2 border-l-2 border-primary/30 pl-3 text-xs leading-5 text-muted-foreground"><FileText size={13} strokeWidth={1.8} className="mt-0.5 shrink-0 text-primary" /> {a.notes}</p>}
       </div>
+    </>
+  );
+  return (
+    <MotionItem as="article" index={index} className="border-t border-border/75 first:border-t-0 first:pt-0">
+      {doiUrl ? (
+        <a href={doiUrl} target="_blank" rel="noreferrer" aria-label={`${a.title}，访问 DOI`} className="group grid gap-5 rounded-xl py-7 transition-colors hover:bg-secondary/25 focus-visible:outline-offset-4 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-7 sm:px-3 sm:py-8">{content}</a>
+      ) : (
+        <div className="group grid gap-5 py-7 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-7 sm:py-8">{content}</div>
+      )}
     </MotionItem>
   );
 }

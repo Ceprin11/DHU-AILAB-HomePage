@@ -1,11 +1,13 @@
 import crypto from 'node:crypto';
 import { Buffer } from 'node:buffer';
+import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import { createServer as createHttpServer } from 'node:http';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import 'dotenv/config';
 import compression from 'compression';
 import express from 'express';
@@ -27,6 +29,7 @@ const adminPassword = process.env.ADMIN_PASSWORD || 'AILAB123';
 const sessionSecret = process.env.SESSION_SECRET || 'change-this-session-secret-before-production';
 const sessionCookie = 'ailab_admin_session';
 const cookieSecure = isProduction && process.env.COOKIE_SECURE !== 'false';
+const execFileAsync = promisify(execFile);
 
 if (isProduction) {
   const configurationErrors = [];
@@ -61,6 +64,7 @@ const bilibiliMetadataCache = new Map();
 const bilibiliCoverCache = new Map();
 const bilibiliCacheTtlMs = 12 * 60 * 60 * 1000;
 const bilibiliCoverMaxBytes = 10 * 1024 * 1024;
+const resourceCoverCache = new Map();
 const imageVariantWidths = [320, 640, 960, 1440, 1920];
 const imageVariantJobs = new Map();
 const imageVariantExtensions = new Set(['.png', '.jpg', '.jpeg', '.webp', '.avif']);
@@ -238,6 +242,75 @@ const shouldRefreshBilibiliThumbnail = (thumbnailUrl = '') => {
   }
 };
 
+const getYouTubeId = (value = '') => {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase().replace(/^www\./, '');
+    if (host === 'youtu.be') return url.pathname.split('/').filter(Boolean)[0] || '';
+    if (host !== 'youtube.com' && host !== 'm.youtube.com') return '';
+    if (url.pathname === '/watch') return url.searchParams.get('v') || '';
+    return url.pathname.match(/^\/(?:shorts|embed)\/([^/]+)/)?.[1] || '';
+  } catch { return ''; }
+};
+
+const getGitHubRepository = (value = '') => {
+  try {
+    const url = new URL(value);
+    if (url.hostname.toLowerCase() !== 'github.com') return null;
+    const [owner, repository] = url.pathname.split('/').filter(Boolean);
+    if (!owner || !repository) return null;
+    return { owner, repository: repository.replace(/\.git$/i, '') };
+  } catch { return null; }
+};
+
+const getAutomaticResourceThumbnail = (value = '') => {
+  const youtubeId = getYouTubeId(value);
+  if (youtubeId && /^[\w-]{6,20}$/.test(youtubeId)) return `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg`;
+  const github = getGitHubRepository(value);
+  if (github) return `https://opengraph.githubassets.com/1/${encodeURIComponent(github.owner)}/${encodeURIComponent(github.repository)}`;
+  return '';
+};
+
+const normalizeResourceCoverUrl = (value = '') => {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase();
+    const allowed = host === 'opengraph.githubassets.com' || host === 'i.ytimg.com' || host === 'img.youtube.com' || host.endsWith('.hdslb.com') || host.endsWith('.biliimg.com');
+    if (!allowed || !['http:', 'https:'].includes(url.protocol)) return '';
+    url.protocol = 'https:';
+    return url.href;
+  } catch { return ''; }
+};
+
+const fetchResourceCover = async (value) => {
+  const imageUrl = normalizeResourceCoverUrl(value);
+  if (!imageUrl) {
+    const error = new Error('不支持该封面地址');
+    error.status = 400;
+    throw error;
+  }
+  const cached = resourceCoverCache.get(imageUrl);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 7000);
+  try {
+    const response = await fetch(imageUrl, { signal: controller.signal, headers: { Referer: 'https://www.dhuailab.com/', 'User-Agent': 'DHU-AILAB-Homepage/1.0' } });
+    const contentType = response.headers.get('content-type') || '';
+    const contentLength = Number(response.headers.get('content-length') || 0);
+    if (!response.ok || !contentType.startsWith('image/') || contentLength > bilibiliCoverMaxBytes) throw new Error('Cover unavailable');
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (!buffer.length || buffer.length > bilibiliCoverMaxBytes) throw new Error('Cover too large');
+    const cover = { buffer, contentType };
+    if (resourceCoverCache.size >= 150) resourceCoverCache.delete(resourceCoverCache.keys().next().value);
+    resourceCoverCache.set(imageUrl, { value: cover, expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000 });
+    return cover;
+  } catch (cause) {
+    const error = new Error(cause?.name === 'AbortError' ? '获取封面超时' : '暂时无法加载封面');
+    error.status = 502;
+    throw error;
+  } finally { clearTimeout(timeout); }
+};
+
 const enrichEntityPayload = async (entityName, payload) => {
   if (entityName === 'VideoLink' && payload?.bilibili_url && shouldRefreshBilibiliThumbnail(payload.thumbnail_url)) {
     try {
@@ -253,21 +326,15 @@ const enrichEntityPayload = async (entityName, payload) => {
     }
   }
 
-  if (
-    entityName === 'StudyMaterial'
-    && payload?.file_type === 'video'
-    && getBilibiliId(payload.file_url)
-    && shouldRefreshBilibiliThumbnail(payload.thumbnail_url)
-  ) {
-    try {
-      const metadata = await fetchBilibiliMetadata(payload.file_url);
-      return {
-        ...payload,
-        thumbnail_url: metadata.thumbnail_url,
-      };
-    } catch {
-      return payload;
+  if (entityName === 'StudyMaterial' && payload?.file_url && !payload.thumbnail_url) {
+    if (getBilibiliId(payload.file_url)) {
+      try {
+        const metadata = await fetchBilibiliMetadata(payload.file_url);
+        return { ...payload, thumbnail_url: metadata.thumbnail_url };
+      } catch { return payload; }
     }
+    const thumbnailUrl = getAutomaticResourceThumbnail(payload.file_url);
+    if (thumbnailUrl) return { ...payload, thumbnail_url: thumbnailUrl };
   }
 
   if (entityName !== 'GuideCourse' || !shouldRefreshBilibiliThumbnail(payload?.image_url)) return payload;
@@ -455,6 +522,14 @@ app.get('/api/bilibili/cover', async (req, res, next) => {
   }
 });
 
+app.get('/api/resource/cover', async (req, res, next) => {
+  try {
+    const cover = await fetchResourceCover(req.query.url);
+    res.setHeader('Cache-Control', 'public, max-age=604800');
+    res.type(cover.contentType).send(cover.buffer);
+  } catch (error) { next(error); }
+});
+
 const optimizableImageExtensions = new Set(['.png', '.jpg', '.jpeg', '.webp', '.avif']);
 
 const persistUpload = async (file) => {
@@ -464,7 +539,22 @@ const persistUpload = async (file) => {
 
   if (!isOptimizableImage) {
     const filename = `${basename}${extension}`;
-    await writeFile(path.join(uploadsDirectory, filename), file.buffer);
+    const filePath = path.join(uploadsDirectory, filename);
+    await writeFile(filePath, file.buffer);
+    if (extension === '.pdf') {
+      const previewPrefix = path.join(uploadsDirectory, `${basename}-preview`);
+      const previewPng = `${previewPrefix}.png`;
+      const coverFilename = `${basename}-cover.webp`;
+      try {
+        await execFileAsync('pdftoppm', ['-f', '1', '-singlefile', '-scale-to-x', '1280', '-scale-to-y', '-1', '-png', filePath, previewPrefix], { timeout: 15000, maxBuffer: 1024 * 1024 });
+        await sharp(previewPng).webp({ quality: 84, effort: 4 }).toFile(path.join(uploadsDirectory, coverFilename));
+        return { file_url: `/uploads/${filename}`, thumbnail_url: `/uploads/${coverFilename}` };
+      } catch (error) {
+        console.warn('PDF preview generation skipped:', error.message);
+      } finally {
+        await rm(previewPng, { force: true }).catch(() => {});
+      }
+    }
     return { file_url: `/uploads/${filename}` };
   }
 

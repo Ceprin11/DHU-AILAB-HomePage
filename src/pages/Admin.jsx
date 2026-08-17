@@ -54,6 +54,7 @@ const awardFields = [
   { key: 'level', label: '竞赛级别（仅竞赛获奖）', type: 'select', options: [
     { value: 'national', label: '国家级' }, { value: 'provincial', label: '省级' }, { value: 'university', label: '校级' }, { value: 'other', label: '其他' }] },
   { key: 'ccf_level', label: 'CCF等级/会议（如 CCF-A、CVPR、ACL）', type: 'text' },
+  { key: 'doi_url', label: 'DOI链接（仅科研成果）', type: 'text', placeholder: 'https://doi.org/10.xxxx/... 或 10.xxxx/...', helper: '填写后，访客可点击整张科研成果卡片访问论文。', showWhen: (award) => award.type === 'research' },
   { key: 'description', label: '详细描述', type: 'textarea', rows: 4 },
   { key: 'notes', label: '其他备注', type: 'textarea', rows: 2 },
   { key: 'image_url', label: '图片', type: 'image' },
@@ -82,7 +83,8 @@ const materialFields = [
   { key: 'category', label: '分类', type: 'text', placeholder: '如：论文、教程、数据集' },
   { key: 'file_type', label: '文件类型', type: 'select', options: [
     { value: 'pdf', label: 'PDF' }, { value: 'code', label: '代码' }, { value: 'data', label: '数据' }, { value: 'doc', label: '文档' }, { value: 'video', label: '视频' }, { value: 'other', label: '其他' }] },
-  { key: 'file_url', label: '文件（视频将自动预览）', type: 'file' },
+  { key: 'file_url', label: '文件或链接', type: 'file', helper: '支持上传 PDF、Word、压缩包等文件，或粘贴 B站、YouTube、GitHub 等链接。' },
+  { key: 'thumbnail_url', label: '封面图（留空则自动获取）', type: 'image', helper: '手动上传的封面优先于系统自动生成的封面。' },
   { key: 'date', label: '上传日期', type: 'date' },
   { key: 'description', label: '资料描述', type: 'textarea', rows: 3 },
 ];
