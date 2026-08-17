@@ -1,5 +1,6 @@
 services:
   ailab-homepage:
+    image: crpi-o9yt3hdv6ozp2o64.cn-heyuan.personal.cr.aliyuncs.com/dhu-ailab/ailab-homepage:latest
     build: .
     ports:
       - 3001:3000
