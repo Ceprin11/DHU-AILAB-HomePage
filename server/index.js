@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { Buffer } from 'node:buffer';
 import { existsSync } from 'node:fs';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import { createServer as createHttpServer } from 'node:http';
 import path from 'node:path';
 import process from 'node:process';
@@ -17,6 +17,7 @@ const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)),
 const dataDirectory = path.resolve(rootDirectory, process.env.DATA_DIR || 'data');
 const uploadsDirectory = path.join(dataDirectory, 'uploads');
 const originalUploadsDirectory = path.join(uploadsDirectory, 'originals');
+const imageVariantsDirectory = path.join(uploadsDirectory, 'variants');
 const distDirectory = path.join(rootDirectory, 'dist');
 const isDevelopment = process.argv.includes('--dev');
 const isProduction = process.env.NODE_ENV === 'production';
@@ -40,6 +41,7 @@ if (isProduction) {
 await Promise.all([
   mkdir(uploadsDirectory, { recursive: true }),
   mkdir(originalUploadsDirectory, { recursive: true }),
+  mkdir(imageVariantsDirectory, { recursive: true }),
 ]);
 const store = createStore(dataDirectory);
 const app = express();
@@ -59,6 +61,61 @@ const bilibiliMetadataCache = new Map();
 const bilibiliCoverCache = new Map();
 const bilibiliCacheTtlMs = 12 * 60 * 60 * 1000;
 const bilibiliCoverMaxBytes = 10 * 1024 * 1024;
+const imageVariantWidths = [320, 640, 960, 1440, 1920];
+const imageVariantJobs = new Map();
+const imageVariantExtensions = new Set(['.png', '.jpg', '.jpeg', '.webp', '.avif']);
+
+const normalizeVariantWidth = (value) => {
+  const requested = Number(value);
+  if (!Number.isFinite(requested) || requested <= 0) return 960;
+  return imageVariantWidths.find((width) => requested <= width) || imageVariantWidths.at(-1);
+};
+
+const getImageVariantPaths = (filename, width) => {
+  if (!filename || path.basename(filename) !== filename || !imageVariantExtensions.has(path.extname(filename).toLowerCase())) {
+    return null;
+  }
+  const sourcePath = path.join(uploadsDirectory, filename);
+  const digest = crypto.createHash('sha256').update(filename).digest('hex').slice(0, 20);
+  return {
+    sourcePath,
+    variantPath: path.join(imageVariantsDirectory, `${digest}-w${width}-q84.webp`),
+  };
+};
+
+const ensureImageVariant = async (filename, width) => {
+  const paths = getImageVariantPaths(filename, width);
+  if (!paths || !existsSync(paths.sourcePath)) {
+    const error = new Error('图片不存在');
+    error.status = 404;
+    throw error;
+  }
+  if (existsSync(paths.variantPath)) return paths.variantPath;
+
+  const jobKey = `${filename}:${width}`;
+  if (imageVariantJobs.has(jobKey)) return imageVariantJobs.get(jobKey);
+
+  const job = (async () => {
+    const temporaryPath = `${paths.variantPath}.${crypto.randomUUID()}.tmp`;
+    try {
+      await sharp(paths.sourcePath)
+        .rotate()
+        .resize({ width, height: width, fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 84, effort: 4, smartSubsample: true })
+        .toFile(temporaryPath);
+      await rename(temporaryPath, paths.variantPath);
+      return paths.variantPath;
+    } catch (error) {
+      await rm(temporaryPath, { force: true }).catch(() => {});
+      throw error;
+    } finally {
+      imageVariantJobs.delete(jobKey);
+    }
+  })();
+
+  imageVariantJobs.set(jobKey, job);
+  return job;
+};
 
 const getBilibiliId = (value = '') => {
   const input = String(value).trim();
@@ -220,6 +277,17 @@ app.use((_req, res, next) => {
 });
 app.use(compression({ threshold: 1024 }));
 app.use(express.json({ limit: '1mb' }));
+app.get('/media/image/:filename', async (req, res, next) => {
+  try {
+    const width = normalizeVariantWidth(req.query.w);
+    const variantPath = await ensureImageVariant(req.params.filename, width);
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.setHeader('Content-Type', 'image/webp');
+    res.sendFile(path.basename(variantPath), { root: imageVariantsDirectory });
+  } catch (error) {
+    next(error);
+  }
+});
 app.use('/uploads', express.static(uploadsDirectory, {
   fallthrough: false,
   immutable: true,

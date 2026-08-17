@@ -31,21 +31,46 @@ async function request(url, options = {}) {
   return data;
 }
 
+const entityListCache = new Map();
+const entityListCacheTtlMs = 30 * 1000;
+
+function invalidateEntityLists(entityName) {
+  const prefix = `${entityName}:`;
+  for (const key of entityListCache.keys()) {
+    if (key.startsWith(prefix)) entityListCache.delete(key);
+  }
+}
+
 function entityClient(entityName) {
   const basePath = `/api/entities/${encodeURIComponent(entityName)}`;
   return {
     list(sort = '-created_date', limit = 200) {
       const query = new URLSearchParams({ sort: sort || '', limit: String(limit || 200) });
-      return request(`${basePath}?${query}`);
+      const cacheKey = `${entityName}:${query}`;
+      const cached = entityListCache.get(cacheKey);
+      if (cached && cached.expiresAt > Date.now()) return cached.promise;
+
+      const promise = request(`${basePath}?${query}`).catch((error) => {
+        entityListCache.delete(cacheKey);
+        throw error;
+      });
+      entityListCache.set(cacheKey, { promise, expiresAt: Date.now() + entityListCacheTtlMs });
+      return promise;
     },
-    create(payload) {
-      return request(basePath, { method: 'POST', body: JSON.stringify(payload) });
+    async create(payload) {
+      const result = await request(basePath, { method: 'POST', body: JSON.stringify(payload) });
+      invalidateEntityLists(entityName);
+      return result;
     },
-    update(id, payload) {
-      return request(`${basePath}/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(payload) });
+    async update(id, payload) {
+      const result = await request(`${basePath}/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(payload) });
+      invalidateEntityLists(entityName);
+      return result;
     },
-    delete(id) {
-      return request(`${basePath}/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    async delete(id) {
+      const result = await request(`${basePath}/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      invalidateEntityLists(entityName);
+      return result;
     },
   };
 }

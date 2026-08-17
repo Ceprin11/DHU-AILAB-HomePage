@@ -11,6 +11,182 @@ import {
   parseWixMediaUrl,
 } from "./image-helpers"
 
+const LOCAL_IMAGE_WIDTHS = [320, 640, 960, 1440, 1920]
+const MAX_CONCURRENT_IMAGE_LOADS = 2
+const imageLoadQueue = []
+let activeImageLoads = 0
+let imageLoadSequence = 0
+
+const priorityValue = { low: 0, auto: 1, high: 2 }
+
+function pumpImageLoadQueue() {
+  imageLoadQueue.sort((left, right) => right.priority - left.priority || left.sequence - right.sequence)
+  while (activeImageLoads < MAX_CONCURRENT_IMAGE_LOADS && imageLoadQueue.length) {
+    const task = imageLoadQueue.shift()
+    if (task.cancelled) continue
+
+    activeImageLoads += 1
+    task.started = true
+    let released = false
+    task.release = () => {
+      if (released) return
+      released = true
+      activeImageLoads = Math.max(0, activeImageLoads - 1)
+      pumpImageLoadQueue()
+    }
+    task.start(task.release)
+  }
+}
+
+function scheduleImageLoad(priority, start) {
+  const task = {
+    cancelled: false,
+    priority: priorityValue[priority] ?? priorityValue.auto,
+    sequence: imageLoadSequence += 1,
+    start,
+    started: false,
+    release: null,
+  }
+  imageLoadQueue.push(task)
+  pumpImageLoadQueue()
+
+  return () => {
+    task.cancelled = true
+    if (task.started) task.release?.()
+  }
+}
+
+function getLocalUploadFilename(src) {
+  if (typeof src !== "string" || !src.startsWith("/uploads/") || src.startsWith("/uploads/originals/") || src.startsWith("/uploads/variants/")) return null
+  const pathname = src.split(/[?#]/, 1)[0]
+  const filename = pathname.slice("/uploads/".length)
+  if (!filename || filename.includes("/") || !/\.(?:png|jpe?g|webp|avif)$/i.test(filename)) return null
+  try {
+    return decodeURIComponent(filename)
+  } catch {
+    return null
+  }
+}
+
+function buildLocalVariantUrl(filename, width) {
+  return `/media/image/${encodeURIComponent(filename)}?w=${width}`
+}
+
+function getPlainImageSources(src, preferredWidth, responsive) {
+  const filename = getLocalUploadFilename(src)
+  if (!filename) return { src, srcSet: undefined }
+  const width = LOCAL_IMAGE_WIDTHS.find((candidate) => preferredWidth <= candidate) || LOCAL_IMAGE_WIDTHS.at(-1)
+  return {
+    src: buildLocalVariantUrl(filename, width),
+    srcSet: responsive
+      ? LOCAL_IMAGE_WIDTHS.map((candidate) => `${buildLocalVariantUrl(filename, candidate)} ${candidate}w`).join(", ")
+      : undefined,
+  }
+}
+
+const QueuedPlainImage = React.forwardRef(({
+  src,
+  srcSet,
+  sizes,
+  loading = "lazy",
+  loadPriority = "auto",
+  alt = "",
+  onLoad,
+  onError,
+  ...props
+}, ref) => {
+  const imgRef = React.useRef(null)
+  const releaseRef = React.useRef(null)
+  const retryTimerRef = React.useRef(null)
+  const retryAttemptRef = React.useRef(0)
+  const [nearViewport, setNearViewport] = React.useState(loading === "eager" || loadPriority === "high")
+  const [requestVersion, setRequestVersion] = React.useState(0)
+  const [started, setStarted] = React.useState(false)
+
+  React.useImperativeHandle(ref, () => imgRef.current)
+
+  React.useEffect(() => {
+    retryAttemptRef.current = 0
+    setStarted(false)
+    setRequestVersion((current) => current + 1)
+  }, [src, srcSet])
+
+  React.useEffect(() => {
+    if (nearViewport) return undefined
+    const element = imgRef.current
+    if (!element || typeof IntersectionObserver === "undefined") {
+      setNearViewport(true)
+      return undefined
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return
+      setNearViewport(true)
+      observer.disconnect()
+    }, { rootMargin: "300px 0px", threshold: 0.01 })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [nearViewport])
+
+  React.useEffect(() => {
+    if (!nearViewport || !src) return undefined
+    setStarted(false)
+    const cancel = scheduleImageLoad(loadPriority, (release) => {
+      releaseRef.current = release
+      setStarted(true)
+    })
+    return () => {
+      cancel()
+      releaseRef.current = null
+    }
+  }, [loadPriority, nearViewport, requestVersion, src])
+
+  React.useEffect(() => () => {
+    if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current)
+    releaseRef.current?.()
+  }, [])
+
+  const releaseSlot = () => {
+    releaseRef.current?.()
+    releaseRef.current = null
+  }
+
+  const handleLoad = (event) => {
+    retryAttemptRef.current = 0
+    releaseSlot()
+    onLoad?.(event)
+  }
+
+  const handleError = (event) => {
+    releaseSlot()
+    if (retryAttemptRef.current < 3) {
+      const delay = 700 * (2 ** retryAttemptRef.current)
+      retryAttemptRef.current += 1
+      setStarted(false)
+      retryTimerRef.current = window.setTimeout(() => {
+        setRequestVersion((current) => current + 1)
+      }, delay)
+      return
+    }
+    onError?.(event)
+  }
+
+  return (
+    <img
+      ref={imgRef}
+      src={started ? src : undefined}
+      srcSet={started ? srcSet : undefined}
+      sizes={started ? sizes : undefined}
+      loading={started ? "eager" : undefined}
+      decoding="async"
+      alt={started ? alt : ""}
+      onLoad={handleLoad}
+      onError={handleError}
+      {...props}
+    />
+  )
+})
+QueuedPlainImage.displayName = "QueuedPlainImage"
+
 const ImageWrapper = React.forwardRef(({ aspectRatio, className, style, children }, ref) => (
   <span
     ref={ref}
@@ -123,6 +299,10 @@ const Image = React.forwardRef(
       focalPointX,
       focalPointY,
       quality = 90,
+      imageWidth = 960,
+      imageSizes,
+      responsive = true,
+      loadPriority = "auto",
       onError,
       ...props
     },
@@ -157,8 +337,16 @@ const Image = React.forwardRef(
 
     if (!parsed) {
       const imageSrc = getOriginalImageUrl(src, parsedSource)
+      const sources = getPlainImageSources(imageSrc, imageWidth, responsive)
       return (
-        <img ref={ref} src={imageSrc} loading="lazy" decoding="async" {...imageProps} />
+        <QueuedPlainImage
+          ref={ref}
+          src={sources.src}
+          srcSet={sources.srcSet}
+          sizes={imageSizes || `${imageWidth}px`}
+          loadPriority={loadPriority}
+          {...imageProps}
+        />
       )
     }
 

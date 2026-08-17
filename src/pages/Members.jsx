@@ -23,7 +23,7 @@ const formatGrade = (grade, text) => {
   return normalized ? `${normalized.label}${text('members_grade_suffix')}` : '';
 };
 
-const groupByGrade = (members) => {
+const groupByGrade = (members, ascending = false) => {
   const groups = new Map();
   members.forEach((member) => {
     const normalized = normalizeGrade(member.grade);
@@ -34,8 +34,12 @@ const groupByGrade = (members) => {
   return [...groups.values()].sort((left, right) => {
     if (left.key === 'unassigned') return 1;
     if (right.key === 'unassigned') return -1;
-    if (typeof left.key === 'number' && typeof right.key === 'number') return right.key - left.key;
-    return String(right.key).localeCompare(String(left.key), 'zh-CN');
+    if (typeof left.key === 'number' && typeof right.key === 'number') {
+      return ascending ? left.key - right.key : right.key - left.key;
+    }
+    return ascending
+      ? String(left.key).localeCompare(String(right.key), 'zh-CN')
+      : String(right.key).localeCompare(String(left.key), 'zh-CN');
   });
 };
 
@@ -78,7 +82,7 @@ function DestinationDetails({ member, text, compact = false }) {
   );
 }
 
-function PortraitMedia({ src, alt }) {
+function PortraitMedia({ src, alt, imageWidth = 960, imageSizes = '100vw', loadPriority = 'auto' }) {
   return (
     <div className="relative h-full w-full overflow-hidden bg-secondary/70">
       <Image
@@ -86,6 +90,9 @@ function PortraitMedia({ src, alt }) {
         alt=""
         aria-hidden="true"
         fittingType="fill"
+        imageWidth={320}
+        responsive={false}
+        loadPriority="low"
         className="absolute inset-0 h-full w-full scale-110 object-cover opacity-20 blur-2xl"
       />
       <div className="absolute inset-0 bg-gradient-to-b from-background/5 to-background/25" />
@@ -93,6 +100,9 @@ function PortraitMedia({ src, alt }) {
         src={src}
         alt={alt}
         fittingType="fit"
+        imageWidth={imageWidth}
+        imageSizes={imageSizes}
+        loadPriority={loadPriority}
         className="relative h-full w-full object-contain"
       />
     </div>
@@ -113,7 +123,11 @@ function MemberCard({ member, onClick, text, index = 0 }) {
     >
       <div className="aspect-[3/4] overflow-hidden rounded-xl border border-border/75 bg-secondary/60 shadow-[0_12px_30px_hsl(var(--foreground)/0.035)] transition-[border-color,box-shadow,transform] duration-200 group-hover:-translate-y-0.5 group-hover:border-primary/30 group-hover:shadow-[0_18px_36px_hsl(var(--primary)/0.09)] group-active:translate-y-px">
         {member.photo_url ? (
-          <PortraitMedia src={member.photo_url} alt={`${member.name || '成员'}照片`} />
+          <PortraitMedia
+            src={member.photo_url}
+            alt={`${member.name || '成员'}照片`}
+            imageSizes="(min-width: 1280px) 260px, (min-width: 1024px) 30vw, (min-width: 640px) 45vw, 90vw"
+          />
         ) : (
           <div className="flex h-full items-center justify-center bg-accent/50 font-display text-5xl font-bold text-primary/25">{member.name?.[0] || '?'}</div>
         )}
@@ -179,7 +193,13 @@ function FocusPanel({ member, onClose, text }) {
       >
         <div className="relative aspect-[5/4] overflow-hidden bg-secondary/60">
           {member.photo_url ? (
-            <PortraitMedia src={member.photo_url} alt={`${member.name || '成员'}照片`} />
+            <PortraitMedia
+              src={member.photo_url}
+              alt={`${member.name || '成员'}照片`}
+              imageWidth={1440}
+              imageSizes="(min-width: 512px) 512px, 100vw"
+              loadPriority="high"
+            />
           ) : (
             <div className="flex h-full items-center justify-center font-display text-7xl font-bold text-primary/20">{member.name?.[0] || '?'}</div>
           )}
@@ -252,10 +272,10 @@ function FocusPanel({ member, onClose, text }) {
   );
 }
 
-function MemberGradeGroups({ members, onClick, text }) {
+function MemberGradeGroups({ members, onClick, text, ascending = false }) {
   return (
     <div className="mt-8 space-y-12">
-      {groupByGrade(members).map((group) => (
+      {groupByGrade(members, ascending).map((group) => (
         <section key={group.key} aria-labelledby={`member-grade-${group.key}`}>
           <div className="flex items-center justify-between gap-4 border-b border-border/65 pb-3">
             <h4 id={`member-grade-${group.key}`} className="font-display text-lg font-semibold tracking-tight text-foreground">
@@ -307,7 +327,12 @@ export default function Members() {
               <div className="grid md:grid-cols-[17rem_1fr]">
                 <div className="aspect-[4/5] overflow-hidden bg-accent/40 md:aspect-auto md:min-h-[21rem]">
                   {advisor.photo_url ? (
-                    <PortraitMedia src={advisor.photo_url} alt={`${advisor.name || '指导老师'}照片`} />
+                    <PortraitMedia
+                      src={advisor.photo_url}
+                      alt={`${advisor.name || '指导老师'}照片`}
+                      imageSizes="(min-width: 768px) 272px, 100vw"
+                      loadPriority="high"
+                    />
                   ) : (
                     <div className="flex h-full items-center justify-center font-display text-7xl font-bold text-primary/25">{advisor.name?.[0] || '?'}</div>
                   )}
@@ -351,7 +376,7 @@ export default function Members() {
             {inSchool.length === 0 ? (
               <EmptyState title={text('members_empty_current')} icon={GraduationCap} compact className="mt-5" />
             ) : (
-              <MemberGradeGroups members={inSchool} onClick={setFocus} text={text} />
+              <MemberGradeGroups members={inSchool} onClick={setFocus} text={text} ascending />
             )}
           </section>
 
