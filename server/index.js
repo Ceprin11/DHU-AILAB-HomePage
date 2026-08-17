@@ -263,8 +263,6 @@ const enrichEntityPayload = async (entityName, payload) => {
       const metadata = await fetchBilibiliMetadata(payload.file_url);
       return {
         ...payload,
-        title: payload.title || metadata.title,
-        description: payload.description || metadata.description,
         thumbnail_url: metadata.thumbnail_url,
       };
     } catch {
