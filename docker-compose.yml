@@ -26,13 +26,13 @@ services:
     #   - "traefik.http.routers.homepage.rule=Host(`www.dhuailab.com`)"
     #   - "traefik.http.routers.homepage.tls.certresolver=le"
 
-    #   # Rate Limit
-    #   - "traefik.http.middlewares.homepage-ratelimit.ratelimit.average=30"
+    #   # Rate Limit (starting point for a public site; tune from production logs)
+    #   - "traefik.http.middlewares.homepage-ratelimit.ratelimit.average=100"
     #   - "traefik.http.middlewares.homepage-ratelimit.ratelimit.period=1s"
-    #   - "traefik.http.middlewares.homepage-ratelimit.ratelimit.burst=50"
+    #   - "traefik.http.middlewares.homepage-ratelimit.ratelimit.burst=200"
 
     #   # Inflight Req
-    #   - "traefik.http.middlewares.homepage-inflightreq.inflightreq.amount=5"
+    #   - "traefik.http.middlewares.homepage-inflightreq.inflightreq.amount=50"
 
     #   # mount middlewares
     #   - "traefik.http.routers.homepage.middlewares=homepage-ratelimit,homepage-inflightreq"

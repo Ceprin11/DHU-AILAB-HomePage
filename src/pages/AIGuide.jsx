@@ -15,6 +15,7 @@ import {
 import { api } from '@/api/client';
 import { Image } from '@/components/ui/image';
 import { ContentLoading, EmptyState } from '@/components/ContentState';
+import { findBilibiliVideoUrl, getBilibiliThumbnailSource } from '@/lib/bilibili';
 import { splitTextLines, useSiteText } from '@/lib/siteText';
 import { MotionItem, Reveal } from '@/components/motion/MotionPrimitives';
 
@@ -33,23 +34,37 @@ function CourseCard({ course, icon: Icon, text, index = 0 }) {
     [course.primary_link_label || text('guide_primary_link_default'), course.primary_url],
     [course.secondary_link_label || text('guide_secondary_link_default'), course.secondary_url],
   ].filter(([, url]) => url);
+  const mainLink = links[0];
+  const secondaryLinks = links.slice(1);
 
   return (
-    <MotionItem as="article" index={index} className="overflow-hidden rounded-xl border border-border/75 bg-card shadow-[0_10px_26px_hsl(var(--foreground)/0.03)] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_16px_32px_hsl(var(--primary)/0.08)]">
+    <MotionItem as="article" index={index} className={`group relative overflow-hidden rounded-xl border border-border/75 bg-card shadow-[0_10px_26px_hsl(var(--foreground)/0.03)] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_16px_32px_hsl(var(--primary)/0.08)] focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/20 ${mainLink ? 'cursor-pointer' : ''}`}>
+      {mainLink && (
+        <a
+          href={mainLink[1]}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={`${mainLink[0]}：${course.title}`}
+          className="absolute inset-0 z-10 rounded-xl focus-visible:outline-none"
+        />
+      )}
       <div className="flex aspect-[16/9] items-center justify-center overflow-hidden bg-secondary/50">
         {course.image_url ? (
-          <Image src={course.image_url} alt={`${course.title}封面`} fittingType="fit" className="h-full w-full object-contain" />
+          <Image src={getBilibiliThumbnailSource(course.image_url)} alt={`${course.title}封面`} fittingType="fit" className="h-full w-full object-contain" />
         ) : (
           <Icon size={38} strokeWidth={1.4} className="text-primary/35" />
         )}
       </div>
       <div className="p-5">
-        <h4 className="font-display text-lg font-semibold leading-snug text-foreground">{course.title}</h4>
-        {course.description && <p className="mt-2 text-sm leading-6 text-muted-foreground">{course.description}</p>}
-        {links.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {links.map(([label, url]) => (
-              <a key={`${label}-${url}`} href={url} target="_blank" rel="noreferrer" className="interactive-link inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3.5 py-2 text-xs font-medium text-foreground hover:border-primary/35 hover:bg-accent hover:text-primary">
+        <h4 className="line-clamp-2 font-display text-lg font-semibold leading-snug text-foreground">{course.title}</h4>
+        {course.description && <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">{course.description}</p>}
+        {mainLink && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
+              {mainLink[0]} <ArrowRight size={13} className="transition-transform duration-200 group-hover:translate-x-0.5" />
+            </span>
+            {secondaryLinks.map(([label, url]) => (
+              <a key={`${label}-${url}`} href={url} target="_blank" rel="noreferrer" className="interactive-link relative z-20 inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3.5 py-2 text-xs font-medium text-foreground hover:border-primary/35 hover:bg-accent hover:text-primary">
                 {label} <ExternalLink size={12} />
               </a>
             ))}
@@ -73,10 +88,28 @@ export default function AIGuide() {
       api.entities.GuideCategory.list('order_index', 100),
       api.entities.GuideCourse.list('order_index', 300),
     ])
-      .then(([stageRows, categoryRows, courseRows]) => {
+      .then(async ([stageRows, categoryRows, courseRows]) => {
         setStages(stageRows || []);
         setCategories(categoryRows || []);
-        setCourses(courseRows || []);
+        const rows = courseRows || [];
+        setCourses(rows);
+        const enrichedCourses = await Promise.all(rows.map(async (course) => {
+          if (course.image_url) return course;
+          const bilibiliUrl = findBilibiliVideoUrl(course.primary_url, course.secondary_url);
+          if (!bilibiliUrl) return course;
+          try {
+            const metadata = await api.bilibili.preview(bilibiliUrl);
+            return {
+              ...course,
+              title: course.title || metadata.title,
+              description: course.description || metadata.description,
+              image_url: metadata.thumbnail_url,
+            };
+          } catch {
+            return course;
+          }
+        }));
+        setCourses(enrichedCourses);
       })
       .catch(() => {
         setStages([]);

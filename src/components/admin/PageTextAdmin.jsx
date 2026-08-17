@@ -6,12 +6,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import MediaUpload from '@/components/admin/MediaUpload';
 
 export default function PageTextAdmin() {
   const [record, setRecord] = useState(null);
   const [values, setValues] = useState({});
   const [saving, setSaving] = useState(false);
+  const [activeGroupId, setActiveGroupId] = useState(SITE_TEXT_GROUPS[0].id);
+  const activeGroup = SITE_TEXT_GROUPS.find((group) => group.id === activeGroupId) || SITE_TEXT_GROUPS[0];
 
   useEffect(() => {
     api.entities.SiteSettings.list()
@@ -43,13 +46,31 @@ export default function PageTextAdmin() {
   if (!record) return <div className="flex justify-center py-10 text-muted-foreground"><Loader2 className="animate-spin" /></div>;
 
   return (
-    <div className="max-w-3xl space-y-8">
-      <p className="text-sm leading-6 text-muted-foreground">未填写的项目会继续使用网站当前默认文字。修改后保存并刷新对应页面即可查看效果。</p>
-      {SITE_TEXT_GROUPS.map((group) => (
-        <section key={group.id} className="rounded-xl border border-border bg-card p-5 sm:p-6">
-          <h2 className="font-display text-lg font-semibold text-foreground">{group.label}</h2>
+    <div className="max-w-3xl space-y-6">
+      <div className="rounded-xl border border-border bg-card p-5 sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <Label className="mb-1.5 block text-sm font-medium">选择要编辑的页面</Label>
+            <p className="text-xs leading-5 text-muted-foreground">每次只显示一个页面的文案，保存时仍会统一保存全部修改。</p>
+          </div>
+          <Select value={activeGroupId} onValueChange={setActiveGroupId}>
+            <SelectTrigger className="w-full sm:w-56" aria-label="选择要编辑的页面">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SITE_TEXT_GROUPS.map((group) => <SelectItem key={group.id} value={group.id}>{group.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <section key={activeGroup.id} className="rounded-xl border border-border bg-card p-5 sm:p-6">
+          <div className="flex items-center justify-between gap-4 border-b border-border/70 pb-4">
+            <h2 className="font-display text-lg font-semibold text-foreground">{activeGroup.label}</h2>
+            <span className="font-mono-date text-xs text-muted-foreground">{activeGroup.fields.length} 项</span>
+          </div>
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
-            {group.fields.map(([key, label, defaultValue, type = 'text']) => (
+            {activeGroup.fields.map(([key, label, defaultValue, type = 'text']) => (
               <div key={key} className={type === 'textarea' || type === 'image' ? 'sm:col-span-2' : undefined}>
                 <Label className="mb-1.5 block text-sm font-medium">{label}</Label>
                 {type === 'image' ? (
@@ -62,8 +83,7 @@ export default function PageTextAdmin() {
               </div>
             ))}
           </div>
-        </section>
-      ))}
+      </section>
       <Button onClick={save} disabled={saving} className="gap-1.5">
         {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} 保存全部页面文案
       </Button>

@@ -30,7 +30,7 @@ export default function GuideAdmin() {
   );
   const courseFields = useMemo(() => [
     { key: 'category_id', label: '所属资源板块', type: 'select', required: true, options: categoryOptions, helper: categoryOptions.length ? '课程会显示在所选板块中。' : '请先新增一个资源板块。' },
-    { key: 'title', label: '课程名称', type: 'text', required: true },
+    { key: 'title', label: '课程名称', type: 'text', helper: 'B站视频课程可以留空，将自动获取视频标题。其他资料请填写名称。' },
     { key: 'description', label: '课程简介', type: 'textarea', rows: 4 },
     { key: 'image_url', label: '课程封面', type: 'image' },
     { key: 'primary_link_label', label: '主要链接名称', type: 'text', placeholder: '如：访问课程' },

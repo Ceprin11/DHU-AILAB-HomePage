@@ -10,6 +10,7 @@
     "lint": "eslint . --quiet",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",
+    "optimize:uploads": "node server/optimize-uploads.js",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -49,6 +50,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
+    "compression": "^1.8.1",
     "date-fns": "^3.6.0",
     "dotenv": "^16.6.1",
     "embla-carousel-react": "^8.5.2",
@@ -73,6 +75,7 @@
     "react-resizable-panels": "^2.1.7",
     "react-router-dom": "^6.26.0",
     "recharts": "^2.15.4",
+    "sharp": "^0.35.3",
     "sonner": "^2.0.1",
     "tailwind-merge": "^3.0.2",
     "tailwindcss-animate": "^1.0.7",
