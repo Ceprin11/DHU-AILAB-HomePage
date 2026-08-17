@@ -78,8 +78,7 @@ export default function Resources() {
                       {item.description && <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">{item.description}</p>}
                       <div className="mt-2 flex flex-wrap items-center gap-2 font-mono-date text-[11px] text-muted-foreground">
                         <span>{item.file_type?.toUpperCase()}</span>
-                        <span>·</span>
-                        <span>{formatDate(item.date)}</span>
+                        {item.date && <><span>·</span><span>{formatDate(item.date)}</span></>}
                         {item.category && <><span>·</span><span>{item.category}</span></>}
                       </div>
                     </div>
