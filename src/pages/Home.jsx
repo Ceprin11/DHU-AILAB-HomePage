@@ -7,6 +7,7 @@ import { Image } from '@/components/ui/image';
 import PhotoCarousel from '@/components/PhotoCarousel';
 import { splitTextLines, useSiteText } from '@/lib/siteText';
 import { AnimatedNumber, MotionItem, Reveal } from '@/components/motion/MotionPrimitives';
+import { useEntityStats } from '@/hooks/use-entity-stats';
 
 export default function Home() {
   const settings = useSiteSettings();
@@ -14,7 +15,7 @@ export default function Home() {
   const [notifs, setNotifs] = useState([]);
   const [awards, setAwards] = useState([]);
   const [heroPhotos, setHeroPhotos] = useState([]);
-  const [stats, setStats] = useState({ members: 0, awards: 0, activities: 0 });
+  const stats = useEntityStats();
 
   useEffect(() => {
     api.entities.Notification.list('-date', 3).then(setNotifs).catch(() => {});
@@ -25,11 +26,6 @@ export default function Home() {
         setHeroPhotos(photos);
       })
       .catch(() => {});
-    Promise.all([
-      api.entities.Member.list().then((r) => r.length).catch(() => 0),
-      api.entities.Award.list().then((r) => r.length).catch(() => 0),
-      api.entities.Activity.list().then((r) => r.length).catch(() => 0),
-    ]).then(([m, a, act]) => setStats({ members: m, awards: a, activities: act }));
   }, []);
 
   const quickLinks = [

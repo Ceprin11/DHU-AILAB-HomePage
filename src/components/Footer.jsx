@@ -1,25 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, MessageCircle, Play } from 'lucide-react';
 import { useSiteSettings } from '@/lib/site';
 import { useAuth } from '@/lib/AuthContext';
-import { api } from '@/api/client';
 import { useSiteText } from '@/lib/siteText';
 import BrandMarks from '@/components/BrandMarks';
+import { useEntityStats } from '@/hooks/use-entity-stats';
 
 export default function Footer() {
   const settings = useSiteSettings();
   const text = useSiteText();
   const { user } = useAuth();
-  const [stats, setStats] = useState({ members: 0, awards: 0, activities: 0 });
-
-  useEffect(() => {
-    Promise.all([
-      api.entities.Member.list().then((r) => r.length).catch(() => 0),
-      api.entities.Award.list().then((r) => r.length).catch(() => 0),
-      api.entities.Activity.list().then((r) => r.length).catch(() => 0),
-    ]).then(([m, a, act]) => setStats({ members: m, awards: a, activities: act }));
-  }, []);
+  const stats = useEntityStats();
 
   return (
     <footer className="border-t border-border/75 bg-secondary/35">

@@ -41,6 +41,10 @@ function invalidateEntityLists(entityName) {
   }
 }
 
+function notifyEntityChange(entityName) {
+  window.dispatchEvent(new CustomEvent('ailab:entity-change', { detail: { entityName } }));
+}
+
 function entityClient(entityName) {
   const basePath = `/api/entities/${encodeURIComponent(entityName)}`;
   return {
@@ -60,16 +64,19 @@ function entityClient(entityName) {
     async create(payload) {
       const result = await request(basePath, { method: 'POST', body: JSON.stringify(payload) });
       invalidateEntityLists(entityName);
+      notifyEntityChange(entityName);
       return result;
     },
     async update(id, payload) {
       const result = await request(`${basePath}/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(payload) });
       invalidateEntityLists(entityName);
+      notifyEntityChange(entityName);
       return result;
     },
     async delete(id) {
       const result = await request(`${basePath}/${encodeURIComponent(id)}`, { method: 'DELETE' });
       invalidateEntityLists(entityName);
+      notifyEntityChange(entityName);
       return result;
     },
   };
