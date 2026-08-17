@@ -15,7 +15,8 @@ import {
 import { api } from '@/api/client';
 import { Image } from '@/components/ui/image';
 import { ContentLoading, EmptyState } from '@/components/ContentState';
-import { findBilibiliVideoUrl, getBilibiliThumbnailSource } from '@/lib/bilibili';
+import { findBilibiliVideoUrl } from '@/lib/bilibili';
+import { getAutomaticResourceThumbnail, getResourceThumbnailSource } from '@/lib/resourceLinks';
 import { splitTextLines, useSiteText } from '@/lib/siteText';
 import { MotionItem, Reveal } from '@/components/motion/MotionPrimitives';
 
@@ -36,6 +37,7 @@ function CourseCard({ course, icon: Icon, text, index = 0 }) {
   ].filter(([, url]) => url);
   const mainLink = links[0];
   const secondaryLinks = links.slice(1);
+  const coverUrl = course.image_url || getAutomaticResourceThumbnail(course.primary_url) || getAutomaticResourceThumbnail(course.secondary_url);
 
   return (
     <MotionItem as="article" index={index} className={`group relative overflow-hidden rounded-xl border border-border/75 bg-card shadow-[0_10px_26px_hsl(var(--foreground)/0.03)] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_16px_32px_hsl(var(--primary)/0.08)] focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/20 ${mainLink ? 'cursor-pointer' : ''}`}>
@@ -49,8 +51,8 @@ function CourseCard({ course, icon: Icon, text, index = 0 }) {
         />
       )}
       <div className="flex aspect-[16/9] items-center justify-center overflow-hidden bg-secondary/50">
-        {course.image_url ? (
-          <Image src={getBilibiliThumbnailSource(course.image_url)} alt={`${course.title}封面`} fittingType="fit" className="h-full w-full object-contain" />
+        {coverUrl ? (
+          <Image src={getResourceThumbnailSource(coverUrl)} alt={`${course.title}封面`} fittingType="fit" className="h-full w-full object-contain" />
         ) : (
           <Icon size={38} strokeWidth={1.4} className="text-primary/35" />
         )}

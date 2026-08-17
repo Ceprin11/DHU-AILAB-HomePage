@@ -337,20 +337,22 @@ const enrichEntityPayload = async (entityName, payload) => {
     if (thumbnailUrl) return { ...payload, thumbnail_url: thumbnailUrl };
   }
 
-  if (entityName !== 'GuideCourse' || !shouldRefreshBilibiliThumbnail(payload?.image_url)) return payload;
-  const bilibiliUrl = [payload.primary_url, payload.secondary_url].find((value) => getBilibiliId(value));
-  if (!bilibiliUrl) return payload;
-  try {
-    const metadata = await fetchBilibiliMetadata(bilibiliUrl);
-    return {
-      ...payload,
-      title: payload.title || metadata.title,
-      description: payload.description || metadata.description,
-      image_url: metadata.thumbnail_url,
-    };
-  } catch {
-    return payload;
+  if (entityName !== 'GuideCourse' || payload?.image_url) return payload;
+  const courseUrls = [payload.primary_url, payload.secondary_url].filter(Boolean);
+  const bilibiliUrl = courseUrls.find((value) => getBilibiliId(value));
+  if (bilibiliUrl) {
+    try {
+      const metadata = await fetchBilibiliMetadata(bilibiliUrl);
+      return {
+        ...payload,
+        title: payload.title || metadata.title,
+        description: payload.description || metadata.description,
+        image_url: metadata.thumbnail_url,
+      };
+    } catch { return payload; }
   }
+  const thumbnailUrl = courseUrls.map(getAutomaticResourceThumbnail).find(Boolean);
+  return thumbnailUrl ? { ...payload, image_url: thumbnailUrl } : payload;
 };
 
 app.disable('x-powered-by');

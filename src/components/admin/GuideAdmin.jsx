@@ -32,7 +32,7 @@ export default function GuideAdmin() {
     { key: 'category_id', label: '所属资源板块', type: 'select', required: true, options: categoryOptions, helper: categoryOptions.length ? '课程会显示在所选板块中。' : '请先新增一个资源板块。' },
     { key: 'title', label: '课程名称', type: 'text', helper: 'B站视频课程可以留空，将自动获取视频标题。其他资料请填写名称。' },
     { key: 'description', label: '课程简介', type: 'textarea', rows: 4 },
-    { key: 'image_url', label: '课程封面', type: 'image' },
+    { key: 'image_url', label: '课程封面（留空则自动获取）', type: 'image', helper: '支持从 B站、YouTube 和 GitHub 链接自动获取；手动上传的封面优先。' },
     { key: 'primary_link_label', label: '主要链接名称', type: 'text', placeholder: '如：访问课程' },
     { key: 'primary_url', label: '主要链接', type: 'text', placeholder: 'https://...' },
     { key: 'secondary_link_label', label: '第二链接名称', type: 'text', placeholder: '如：课程讲义' },
