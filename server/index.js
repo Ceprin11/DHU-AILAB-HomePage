@@ -253,6 +253,25 @@ const enrichEntityPayload = async (entityName, payload) => {
     }
   }
 
+  if (
+    entityName === 'StudyMaterial'
+    && payload?.file_type === 'video'
+    && getBilibiliId(payload.file_url)
+    && shouldRefreshBilibiliThumbnail(payload.thumbnail_url)
+  ) {
+    try {
+      const metadata = await fetchBilibiliMetadata(payload.file_url);
+      return {
+        ...payload,
+        title: payload.title || metadata.title,
+        description: payload.description || metadata.description,
+        thumbnail_url: metadata.thumbnail_url,
+      };
+    } catch {
+      return payload;
+    }
+  }
+
   if (entityName !== 'GuideCourse' || !shouldRefreshBilibiliThumbnail(payload?.image_url)) return payload;
   const bilibiliUrl = [payload.primary_url, payload.secondary_url].find((value) => getBilibiliId(value));
   if (!bilibiliUrl) return payload;

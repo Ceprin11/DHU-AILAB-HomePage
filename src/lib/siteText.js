@@ -111,7 +111,7 @@ export const SITE_TEXT_GROUPS = [
   },
   {
     id: 'resources', label: '学习资料', fields: [
-      ['resources_eyebrow', '资料英文小字', 'Knowledge Vault'], ['resources_title', '资料标题', '学习资料'], ['resources_description', '资料说明', '实验室精选的 AI 学习资源，涵盖论文、代码、数据集与视频。', 'textarea'], ['resources_all', '全部分类标签', '全部'], ['resources_empty', '无资料提示', '暂无资料'], ['resources_download', '下载按钮', '下载'], ['resources_view', 'B站资料按钮', '观看'],
+      ['resources_eyebrow', '资料英文小字', 'Knowledge Vault'], ['resources_title', '资料标题', '学习资料'], ['resources_description', '资料说明', '实验室精选的 AI 学习资源，涵盖论文、代码、数据集与视频。', 'textarea'], ['resources_all', '全部分类标签', '全部'], ['resources_empty', '无资料提示', '暂无资料'], ['resources_download', '下载按钮', '下载'],
     ],
   },
   {
