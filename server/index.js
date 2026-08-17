@@ -291,10 +291,14 @@ const fetchResourceCover = async (value) => {
   }
   const cached = resourceCoverCache.get(imageUrl);
   if (cached && cached.expiresAt > Date.now()) return cached.value;
+  const imageHost = new URL(imageUrl).hostname.toLowerCase();
+  const fetchUrl = imageHost === 'i.ytimg.com' || imageHost === 'img.youtube.com'
+    ? `https://wsrv.nl/?${new URLSearchParams({ url: imageUrl, output: 'webp' })}`
+    : imageUrl;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 7000);
   try {
-    const response = await fetch(imageUrl, { signal: controller.signal, headers: { Referer: 'https://www.dhuailab.com/', 'User-Agent': 'DHU-AILAB-Homepage/1.0' } });
+    const response = await fetch(fetchUrl, { signal: controller.signal, headers: { Referer: 'https://www.dhuailab.com/', 'User-Agent': 'DHU-AILAB-Homepage/1.0' } });
     const contentType = response.headers.get('content-type') || '';
     const contentLength = Number(response.headers.get('content-length') || 0);
     if (!response.ok || !contentType.startsWith('image/') || contentLength > bilibiliCoverMaxBytes) throw new Error('Cover unavailable');
