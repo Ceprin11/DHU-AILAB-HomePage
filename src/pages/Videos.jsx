@@ -6,6 +6,7 @@ import SectionHeading from '@/components/SectionHeading';
 import { formatDate } from '@/lib/site';
 import { ContentLoading, EmptyState } from '@/components/ContentState';
 import { useSiteText } from '@/lib/siteText';
+import { getBilibiliThumbnailSource, hasBilibiliVideoId } from '@/lib/bilibili';
 import { MotionItem } from '@/components/motion/MotionPrimitives';
 
 export default function Videos() {
@@ -15,7 +16,21 @@ export default function Videos() {
 
   useEffect(() => {
     api.entities.VideoLink.list('-date', 200)
-      .then((r) => { setItems(r || []); setLoading(false); })
+      .then(async (r) => {
+        const rows = r || [];
+        setItems(rows);
+        setLoading(false);
+        const enriched = await Promise.all(rows.map(async (video) => {
+          if (video.thumbnail_url || !hasBilibiliVideoId(video.bilibili_url)) return video;
+          try {
+            const metadata = await api.bilibili.preview(video.bilibili_url);
+            return { ...video, thumbnail_url: metadata.thumbnail_url };
+          } catch {
+            return video;
+          }
+        }));
+        setItems(enriched);
+      })
       .catch(() => setLoading(false));
   }, []);
 
@@ -34,7 +49,7 @@ export default function Videos() {
             <a href={v.bilibili_url} target="_blank" rel="noreferrer" className="group block overflow-hidden rounded-xl border border-border/75 bg-card shadow-[0_10px_26px_hsl(var(--foreground)/0.03)] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_16px_32px_hsl(var(--primary)/0.08)] focus-visible:outline-offset-4">
               <div className="relative aspect-video overflow-hidden border-b border-border/70 bg-accent/35">
                 {v.thumbnail_url ? (
-                  <Image src={v.thumbnail_url} fittingType="fit" className="h-full w-full object-contain" />
+                  <Image src={getBilibiliThumbnailSource(v.thumbnail_url)} fittingType="fit" className="h-full w-full object-contain" />
                 ) : (
                   <div className="flex h-full items-center justify-center bg-gradient-to-br from-primary/10 to-amber/10">
                     <Play size={36} className="text-primary/50" />

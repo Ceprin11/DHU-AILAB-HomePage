@@ -1,19 +1,22 @@
 import crypto from 'node:crypto';
 import { Buffer } from 'node:buffer';
 import { existsSync } from 'node:fs';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { createServer as createHttpServer } from 'node:http';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import 'dotenv/config';
+import compression from 'compression';
 import express from 'express';
 import multer from 'multer';
+import sharp from 'sharp';
 import { createStore } from './store.js';
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDirectory = path.resolve(rootDirectory, process.env.DATA_DIR || 'data');
 const uploadsDirectory = path.join(dataDirectory, 'uploads');
+const originalUploadsDirectory = path.join(uploadsDirectory, 'originals');
 const distDirectory = path.join(rootDirectory, 'dist');
 const isDevelopment = process.argv.includes('--dev');
 const isProduction = process.env.NODE_ENV === 'production';
@@ -34,7 +37,10 @@ if (isProduction) {
   if (!cookieSecure) console.warn('COOKIE_SECURE=false: administrator cookies will not require HTTPS.');
 }
 
-await mkdir(uploadsDirectory, { recursive: true });
+await Promise.all([
+  mkdir(uploadsDirectory, { recursive: true }),
+  mkdir(originalUploadsDirectory, { recursive: true }),
+]);
 const store = createStore(dataDirectory);
 const app = express();
 const httpServer = createHttpServer(app);
@@ -49,6 +55,162 @@ const allowedUploadExtensions = new Set([
   '.py', '.ipynb', '.js', '.jsx', '.ts', '.tsx', '.css',
 ]);
 const blockedUploadMimeTypes = new Set(['text/html', 'application/xhtml+xml', 'image/svg+xml', 'application/xml', 'text/xml']);
+const bilibiliMetadataCache = new Map();
+const bilibiliCoverCache = new Map();
+const bilibiliCacheTtlMs = 12 * 60 * 60 * 1000;
+const bilibiliCoverMaxBytes = 10 * 1024 * 1024;
+
+const getBilibiliId = (value = '') => {
+  const input = String(value).trim();
+  const match = input.match(/BV[0-9A-Za-z]{10}/i);
+  if (!match) return '';
+  try {
+    const url = new URL(input);
+    const hostname = url.hostname.toLowerCase();
+    if (hostname !== 'bilibili.com' && !hostname.endsWith('.bilibili.com')) return '';
+  } catch {
+    if (input !== match[0]) return '';
+  }
+  return `BV${match[0].slice(2)}`;
+};
+
+const normalizeBilibiliImage = (value) => {
+  if (!value) return '';
+  const normalized = value.startsWith('//') ? `https:${value}` : value;
+  try {
+    const url = new URL(normalized);
+    const hostname = url.hostname.toLowerCase();
+    if (!['http:', 'https:'].includes(url.protocol) || (!hostname.endsWith('.hdslb.com') && !hostname.endsWith('.biliimg.com'))) return '';
+    url.protocol = 'https:';
+    return url.href;
+  } catch {
+    return '';
+  }
+};
+
+const fetchBilibiliMetadata = async (value) => {
+  const bvid = getBilibiliId(value);
+  if (!bvid) {
+    const error = new Error('无法识别该 B 站视频链接');
+    error.status = 400;
+    throw error;
+  }
+
+  const cached = bilibiliMetadataCache.get(bvid);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 6000);
+  try {
+    const response = await fetch(`https://api.bilibili.com/x/web-interface/view?bvid=${encodeURIComponent(bvid)}`, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'DHU-AILAB-Homepage/1.0' },
+    });
+    if (!response.ok) throw new Error(`Bilibili responded with ${response.status}`);
+    const payload = await response.json();
+    const thumbnailUrl = normalizeBilibiliImage(payload?.data?.pic);
+    if (payload?.code !== 0 || !thumbnailUrl) throw new Error('Bilibili metadata is unavailable');
+
+    const metadataValue = {
+      bvid,
+      title: String(payload.data.title || ''),
+      description: String(payload.data.desc || ''),
+      thumbnail_url: thumbnailUrl,
+    };
+    if (bilibiliMetadataCache.size >= 200) bilibiliMetadataCache.delete(bilibiliMetadataCache.keys().next().value);
+    bilibiliMetadataCache.set(bvid, { value: metadataValue, expiresAt: Date.now() + bilibiliCacheTtlMs });
+    return metadataValue;
+  } catch (cause) {
+    const error = new Error(cause?.name === 'AbortError' ? '获取 B 站封面超时' : '暂时无法获取 B 站视频封面');
+    error.status = 502;
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
+const fetchBilibiliCover = async (value) => {
+  const imageUrl = normalizeBilibiliImage(value);
+  if (!imageUrl) {
+    const error = new Error('无法识别该 B 站封面地址');
+    error.status = 400;
+    throw error;
+  }
+
+  const cached = bilibiliCoverCache.get(imageUrl);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 6000);
+  try {
+    const response = await fetch(imageUrl, {
+      signal: controller.signal,
+      headers: {
+        Referer: 'https://www.bilibili.com/',
+        'User-Agent': 'DHU-AILAB-Homepage/1.0',
+      },
+    });
+    const contentType = response.headers.get('content-type') || '';
+    const contentLength = Number(response.headers.get('content-length') || 0);
+    if (!response.ok || !contentType.startsWith('image/') || contentLength > bilibiliCoverMaxBytes) {
+      throw new Error('Bilibili cover is unavailable');
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (!buffer.length || buffer.length > bilibiliCoverMaxBytes) throw new Error('Bilibili cover is too large');
+    const valueToCache = { buffer, contentType };
+    if (bilibiliCoverCache.size >= 100) bilibiliCoverCache.delete(bilibiliCoverCache.keys().next().value);
+    bilibiliCoverCache.set(imageUrl, { value: valueToCache, expiresAt: Date.now() + bilibiliCacheTtlMs });
+    return valueToCache;
+  } catch (cause) {
+    const error = new Error(cause?.name === 'AbortError' ? '获取 B 站封面超时' : '暂时无法加载 B 站视频封面');
+    error.status = 502;
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
+const shouldRefreshBilibiliThumbnail = (thumbnailUrl = '') => {
+  if (!thumbnailUrl) return true;
+  try {
+    const hostname = new URL(thumbnailUrl).hostname.toLowerCase();
+    return hostname.endsWith('.hdslb.com') || hostname.endsWith('.biliimg.com');
+  } catch {
+    return false;
+  }
+};
+
+const enrichEntityPayload = async (entityName, payload) => {
+  if (entityName === 'VideoLink' && payload?.bilibili_url && shouldRefreshBilibiliThumbnail(payload.thumbnail_url)) {
+    try {
+      const metadata = await fetchBilibiliMetadata(payload.bilibili_url);
+      return {
+        ...payload,
+        title: payload.title || metadata.title,
+        description: payload.description || metadata.description,
+        thumbnail_url: metadata.thumbnail_url,
+      };
+    } catch {
+      return payload;
+    }
+  }
+
+  if (entityName !== 'GuideCourse' || !shouldRefreshBilibiliThumbnail(payload?.image_url)) return payload;
+  const bilibiliUrl = [payload.primary_url, payload.secondary_url].find((value) => getBilibiliId(value));
+  if (!bilibiliUrl) return payload;
+  try {
+    const metadata = await fetchBilibiliMetadata(bilibiliUrl);
+    return {
+      ...payload,
+      title: payload.title || metadata.title,
+      description: payload.description || metadata.description,
+      image_url: metadata.thumbnail_url,
+    };
+  } catch {
+    return payload;
+  }
+};
 
 app.disable('x-powered-by');
 if (process.env.TRUST_PROXY === 'true') app.set('trust proxy', 1);
@@ -56,8 +218,17 @@ app.use((_req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   next();
 });
+app.use(compression({ threshold: 1024 }));
 app.use(express.json({ limit: '1mb' }));
-app.use('/uploads', express.static(uploadsDirectory, { fallthrough: false }));
+app.use('/uploads', express.static(uploadsDirectory, {
+  fallthrough: false,
+  immutable: true,
+  maxAge: '30d',
+}));
+app.use('/api', (_req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
 
 const parseCookies = (header = '') => Object.fromEntries(
   header.split(';').map((part) => part.trim()).filter(Boolean).map((part) => {
@@ -142,7 +313,8 @@ app.get('/api/entities/:entity', async (req, res, next) => {
 
 app.post('/api/entities/:entity', requireAdmin, async (req, res, next) => {
   try {
-    res.status(201).json(await store.create(req.params.entity, req.body || {}));
+    const payload = await enrichEntityPayload(req.params.entity, req.body || {});
+    res.status(201).json(await store.create(req.params.entity, payload));
   } catch (error) {
     next(error);
   }
@@ -150,7 +322,8 @@ app.post('/api/entities/:entity', requireAdmin, async (req, res, next) => {
 
 app.put('/api/entities/:entity/:id', requireAdmin, async (req, res, next) => {
   try {
-    res.json(await store.update(req.params.entity, req.params.id, req.body || {}));
+    const payload = await enrichEntityPayload(req.params.entity, req.body || {});
+    res.json(await store.update(req.params.entity, req.params.id, payload));
   } catch (error) {
     next(error);
   }
@@ -164,15 +337,8 @@ app.delete('/api/entities/:entity/:id', requireAdmin, async (req, res, next) => 
   }
 });
 
-const storage = multer.diskStorage({
-  destination: uploadsDirectory,
-  filename: (_req, file, callback) => {
-    const extension = path.extname(file.originalname).toLowerCase().replace(/[^.a-z0-9]/g, '');
-    callback(null, `${Date.now()}-${crypto.randomUUID()}${extension}`);
-  },
-});
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 25 * 1024 * 1024 },
   fileFilter: (_req, file, callback) => {
     const extension = path.extname(file.originalname).toLowerCase();
@@ -186,9 +352,71 @@ const upload = multer({
   },
 });
 
-app.post('/api/upload', requireAdmin, upload.single('file'), (req, res) => {
+app.get('/api/bilibili/preview', async (req, res, next) => {
+  try {
+    res.json(await fetchBilibiliMetadata(req.query.url));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/bilibili/cover', async (req, res, next) => {
+  try {
+    const cover = await fetchBilibiliCover(req.query.url);
+    res.setHeader('Cache-Control', 'public, max-age=604800');
+    res.type(cover.contentType).send(cover.buffer);
+  } catch (error) {
+    next(error);
+  }
+});
+
+const optimizableImageExtensions = new Set(['.png', '.jpg', '.jpeg', '.webp', '.avif']);
+
+const persistUpload = async (file) => {
+  const extension = path.extname(file.originalname).toLowerCase().replace(/[^.a-z0-9]/g, '');
+  const basename = `${Date.now()}-${crypto.randomUUID()}`;
+  const isOptimizableImage = file.mimetype.startsWith('image/') && optimizableImageExtensions.has(extension);
+
+  if (!isOptimizableImage) {
+    const filename = `${basename}${extension}`;
+    await writeFile(path.join(uploadsDirectory, filename), file.buffer);
+    return { file_url: `/uploads/${filename}` };
+  }
+
+  try {
+    const metadata = await sharp(file.buffer).metadata();
+    const image = sharp(file.buffer)
+      .rotate()
+      .resize({ width: 2560, height: 2560, fit: 'inside', withoutEnlargement: true });
+    const optimizedBuffer = metadata.format === 'png'
+      ? await image.webp({ lossless: true, effort: 4 }).toBuffer()
+      : await image.webp({ quality: 86, effort: 4, smartSubsample: true }).toBuffer();
+    const originalFilename = `${basename}${extension}`;
+    const optimizedFilename = `${basename}.webp`;
+
+    await Promise.all([
+      writeFile(path.join(originalUploadsDirectory, originalFilename), file.buffer),
+      writeFile(path.join(uploadsDirectory, optimizedFilename), optimizedBuffer),
+    ]);
+
+    return {
+      file_url: `/uploads/${optimizedFilename}`,
+      original_file_url: `/uploads/originals/${originalFilename}`,
+    };
+  } catch {
+    const error = new Error('图片处理失败，请检查图片文件是否完整');
+    error.status = 400;
+    throw error;
+  }
+};
+
+app.post('/api/upload', requireAdmin, upload.single('file'), async (req, res, next) => {
   if (!req.file) return res.status(400).json({ message: '请选择文件' });
-  res.status(201).json({ file_url: `/uploads/${req.file.filename}` });
+  try {
+    res.status(201).json(await persistUpload(req.file));
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.use('/api', (_req, res) => {
@@ -204,10 +432,22 @@ if (isDevelopment) {
     console.error('Missing dist/index.html. Run npm run build first.');
     process.exit(1);
   }
-  app.use(express.static(distDirectory));
+  app.use('/assets', express.static(path.join(distDirectory, 'assets'), {
+    fallthrough: false,
+    immutable: true,
+    maxAge: '1y',
+  }));
+  app.use(express.static(distDirectory, {
+    maxAge: '1h',
+    setHeaders: (res, filePath) => {
+      if (path.basename(filePath) === 'index.html') res.setHeader('Cache-Control', 'no-cache');
+    },
+  }));
   app.use((req, res, next) => {
     if (req.method !== 'GET') return next();
-    res.sendFile(path.join(distDirectory, 'index.html'));
+    res.sendFile(path.join(distDirectory, 'index.html'), {
+      headers: { 'Cache-Control': 'no-cache' },
+    });
   });
 }
 

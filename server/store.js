@@ -68,6 +68,7 @@ export function createStore(dataDirectory) {
   const dataFile = path.join(dataDirectory, 'site-data.json');
   let ensurePromise = null;
   let mutationQueue = Promise.resolve();
+  let cachedData = null;
 
   const ensureData = () => {
     if (!ensurePromise) {
@@ -85,11 +86,17 @@ export function createStore(dataDirectory) {
 
   const readData = async () => {
     await ensureData();
-    const parsed = JSON.parse(await readFile(dataFile, 'utf8'));
-    return { ...emptyData, ...parsed };
+    if (!cachedData) {
+      const parsed = JSON.parse(await readFile(dataFile, 'utf8'));
+      cachedData = { ...emptyData, ...parsed };
+    }
+    return cachedData;
   };
 
-  const saveData = (data) => writeFile(dataFile, JSON.stringify(data, null, 2), 'utf8');
+  const saveData = async (data) => {
+    await writeFile(dataFile, JSON.stringify(data, null, 2), 'utf8');
+    cachedData = data;
+  };
 
   const enqueueMutation = (operation) => {
     const result = mutationQueue.then(operation);
@@ -190,7 +197,7 @@ export function createStore(dataDirectory) {
       const normalizedPayload = normalizeRecord(entityName, payload);
       validate(entityName, normalizedPayload);
       return enqueueMutation(async () => {
-        const data = await readData();
+        const data = structuredClone(await readData());
         validateRelations(entityName, normalizedPayload, data);
         const now = new Date().toISOString();
         const record = {
@@ -208,7 +215,7 @@ export function createStore(dataDirectory) {
     async update(entityName, id, payload) {
       assertEntity(entityName);
       return enqueueMutation(async () => {
-        const data = await readData();
+        const data = structuredClone(await readData());
         const index = data[entityName].findIndex((item) => item.id === id);
         if (index === -1) {
           const error = new Error('Record not found');
@@ -232,7 +239,7 @@ export function createStore(dataDirectory) {
     async remove(entityName, id) {
       assertEntity(entityName);
       return enqueueMutation(async () => {
-        const data = await readData();
+        const data = structuredClone(await readData());
         const index = data[entityName].findIndex((item) => item.id === id);
         if (index === -1) {
           const error = new Error('Record not found');

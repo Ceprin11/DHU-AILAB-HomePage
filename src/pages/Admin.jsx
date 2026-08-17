@@ -17,7 +17,7 @@ const memberFields = [
   { key: 'title', label: '职位/头衔', type: 'text', placeholder: '如：社长、技术负责人' },
   { key: 'category', label: '类别', type: 'select', options: [
     { value: 'advisor', label: '指导老师' }, { value: 'president', label: '社长' }, { value: 'core', label: '核心成员' }, { value: 'member', label: '成员' }] },
-  { key: 'grade', label: '年级（如 2023，已毕业填毕业年份）', type: 'text' },
+  { key: 'grade', label: '入学年级', type: 'text', placeholder: '如：2024 或 24' },
   { key: 'hometown', label: '来自', type: 'text', placeholder: '如：四川成都', showWhen: (member) => member.category !== 'advisor' },
   { key: 'hobbies', label: '兴趣爱好', type: 'textarea', rows: 2, placeholder: '如：摄影、羽毛球、阅读', showWhen: (member) => member.category !== 'advisor' },
   { key: 'graduated', label: '是否已毕业', type: 'boolean' },
@@ -72,7 +72,7 @@ const activityFields = [
 const videoFields = [
   { key: 'title', label: '视频标题', type: 'text', required: true },
   { key: 'bilibili_url', label: 'B站链接', type: 'text', required: true },
-  { key: 'thumbnail_url', label: '封面图', type: 'image' },
+  { key: 'thumbnail_url', label: '封面图（留空则自动获取）', type: 'image' },
   { key: 'date', label: '发布日期', type: 'date' },
   { key: 'description', label: '视频简介', type: 'textarea', rows: 3 },
 ];

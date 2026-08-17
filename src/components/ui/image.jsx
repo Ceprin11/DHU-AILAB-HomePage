@@ -87,6 +87,7 @@ const ResponsiveImage = React.forwardRef(
             src={buildTransformUrl(parsed, options)}
             srcSet={buildSrcSet(parsed, options)}
             loading="lazy"
+            decoding="async"
             className={cn(
               "w-full h-full inset-0 absolute",
               fittingType === "fit" ? "object-contain" : "object-cover"
@@ -157,7 +158,7 @@ const Image = React.forwardRef(
     if (!parsed) {
       const imageSrc = getOriginalImageUrl(src, parsedSource)
       return (
-        <img ref={ref} src={imageSrc} {...imageProps} />
+        <img ref={ref} src={imageSrc} loading="lazy" decoding="async" {...imageProps} />
       )
     }
 

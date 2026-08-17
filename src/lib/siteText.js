@@ -54,7 +54,7 @@ export const SITE_TEXT_GROUPS = [
       ['members_achievements', '科研成果标签', '科研成果'], ['members_message', '寄语标签', '写给学弟学妹的话'],
       ['members_destination', '毕业去向标题', '毕业去向'], ['members_destination_type', '去向标签', '去向'], ['members_organization', '单位标签', '单位'],
       ['members_specialty', '专业方向标签', '专业方向'], ['members_position', '岗位标签', '岗位'], ['members_graduated_badge', '毕业状态文字', '已毕业'],
-      ['members_grade_suffix', '年级后缀', '级'], ['members_count_unit', '成员数量单位', '人'],
+      ['members_grade_suffix', '年级后缀', '级'], ['members_grade_unassigned', '未填写年级分组', '未填写年级'], ['members_count_unit', '成员数量单位', '人'],
     ],
   },
   {
@@ -80,22 +80,42 @@ export const SITE_TEXT_GROUPS = [
     ],
   },
   {
-    id: 'content_pages', label: '通知、成果与活动', fields: [
+    id: 'notifications', label: '通知', fields: [
       ['notice_eyebrow', '通知英文小字', 'Notice'], ['notice_title', '通知标题', '通知公告'], ['notice_description', '通知说明', '实验室最新动态、新闻与活动通知。', 'textarea'], ['notice_empty', '无通知提示', '暂无通知'],
       ['notice_back', '返回列表按钮', '返回列表'], ['notice_pinned', '置顶标签', '置顶'], ['notice_category_notice', '通知分类名称', '通知'], ['notice_category_news', '新闻分类名称', '新闻'], ['notice_category_event', '活动分类名称', '活动'],
+    ],
+  },
+  {
+    id: 'awards', label: '成果', fields: [
       ['awards_eyebrow', '成果英文小字', 'Achievements'], ['awards_title', '成果标题', '成果展示'], ['awards_description', '成果说明', '实验室成员在各类竞赛与科研中取得的成果，涵盖竞赛获奖与科研成果。', 'textarea'],
       ['awards_competition', '竞赛获奖分类', '竞赛获奖'], ['awards_research', '科研成果分类', '科研成果'], ['awards_empty_competition', '无竞赛获奖提示', '暂无竞赛获奖'], ['awards_empty_research', '无科研成果提示', '暂无科研成果'],
       ['awards_level_national', '国家级标签', '国家级'], ['awards_level_provincial', '省级标签', '省级'], ['awards_level_university', '校级标签', '校级'], ['awards_level_other', '其他级别标签', '其他'],
+    ],
+  },
+  {
+    id: 'activities', label: '社团活动', fields: [
       ['activities_eyebrow', '活动英文小字', 'Activities'], ['activities_title', '活动标题', '社团活动'], ['activities_description', '活动说明', '技术沙龙、项目实践与学术交流——记录实验室的每一次相聚。', 'textarea'], ['activities_empty', '无活动提示', '暂无活动'],
       ['activities_document', '相关文档按钮', '相关文档'], ['activities_detail', '详情链接按钮', '详情链接'],
+    ],
+  },
+  {
+    id: 'club_life', label: '社团生活', fields: [
       ['life_eyebrow', '社团生活英文小字', 'Club Life'], ['life_title', '社团生活标题', '社团生活'], ['life_description', '社团生活说明', '踏青、团建、日常点滴——记录实验室成员在一起的每个瞬间。', 'textarea'], ['life_empty', '无照片提示', '暂无照片'],
       ['life_default_album', '默认相册名称', '日常活动'], ['life_photo_unit', '照片数量单位', '张'],
     ],
   },
   {
-    id: 'resources', label: '视频、资料与问答', fields: [
+    id: 'videos', label: '视频', fields: [
       ['videos_eyebrow', '视频英文小字', 'Bilibili'], ['videos_title', '视频标题', 'B站视频'], ['videos_description', '视频说明', '实验室的技术分享、项目展示与精彩瞬间，都在 B 站。', 'textarea'], ['videos_empty', '无视频提示', '暂无视频'],
+    ],
+  },
+  {
+    id: 'resources', label: '学习资料', fields: [
       ['resources_eyebrow', '资料英文小字', 'Knowledge Vault'], ['resources_title', '资料标题', '学习资料'], ['resources_description', '资料说明', '实验室精选的 AI 学习资源，涵盖论文、代码、数据集与视频。', 'textarea'], ['resources_all', '全部分类标签', '全部'], ['resources_empty', '无资料提示', '暂无资料'], ['resources_download', '下载按钮', '下载'],
+    ],
+  },
+  {
+    id: 'qa', label: '常见问题', fields: [
       ['qa_eyebrow', '问答英文小字', 'Q & A'], ['qa_title', '问答标题', '常见问题'], ['qa_description', '问答说明', '关于实验室、加入方式与日常活动的常见疑问解答。', 'textarea'], ['qa_empty', '无问答提示', '暂无问答'],
     ],
   },

@@ -1,12 +1,25 @@
 async function request(url, options = {}) {
-  const response = await fetch(url, {
-    credentials: 'same-origin',
-    ...options,
-    headers: {
-      ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
-      ...options.headers,
-    },
-  });
+  const { timeoutMs = 10000, ...fetchOptions } = options;
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  let response;
+
+  try {
+    response = await fetch(url, {
+      credentials: 'same-origin',
+      ...fetchOptions,
+      signal: controller.signal,
+      headers: {
+        ...(fetchOptions.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+        ...fetchOptions.headers,
+      },
+    });
+  } catch (error) {
+    if (error?.name === 'AbortError') throw new Error('请求超时，请检查网络后重试');
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
 
   if (response.status === 204) return null;
   const data = await response.json().catch(() => ({}));
@@ -55,6 +68,11 @@ export const api = {
     },
     logout() {
       return request('/api/auth/logout', { method: 'POST' });
+    },
+  },
+  bilibili: {
+    preview(url) {
+      return request(`/api/bilibili/preview?${new URLSearchParams({ url })}`, { timeoutMs: 8000 });
     },
   },
   async upload(file) {

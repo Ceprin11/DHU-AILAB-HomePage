@@ -10,6 +10,7 @@ import Layout from '@/components/Layout';
 import Home from '@/pages/Home';
 import { Skeleton } from '@/components/ui/skeleton';
 import { domAnimation, LazyMotion } from 'framer-motion';
+import AppErrorBoundary from '@/components/AppErrorBoundary';
 
 const Members = lazy(() => import('@/pages/Members'));
 const Notifications = lazy(() => import('@/pages/Notifications'));
@@ -83,8 +84,10 @@ function App() {
       <QueryClientProvider client={queryClientInstance}>
         <LazyMotion features={domAnimation} strict>
           <Router>
-            <ScrollToTop />
-            <AuthenticatedApp />
+            <AppErrorBoundary>
+              <ScrollToTop />
+              <AuthenticatedApp />
+            </AppErrorBoundary>
           </Router>
           <Toaster />
         </LazyMotion>

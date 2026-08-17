@@ -10,6 +10,35 @@ import { Reveal } from '@/components/motion/MotionPrimitives';
 
 const DEST_LABEL = { '保研': '保研', '留学': '留学', '就业': '就业', '其他': '其他' };
 
+const normalizeGrade = (grade) => {
+  const value = String(grade || '').trim().replace(/[级届]$/, '');
+  if (!value) return null;
+  if (/^\d{2}$/.test(value)) return { key: Number(`20${value}`), label: value };
+  if (/^\d{4}$/.test(value)) return { key: Number(value), label: value.slice(-2) };
+  return { key: value, label: value };
+};
+
+const formatGrade = (grade, text) => {
+  const normalized = normalizeGrade(grade);
+  return normalized ? `${normalized.label}${text('members_grade_suffix')}` : '';
+};
+
+const groupByGrade = (members) => {
+  const groups = new Map();
+  members.forEach((member) => {
+    const normalized = normalizeGrade(member.grade);
+    const key = normalized?.key ?? 'unassigned';
+    if (!groups.has(key)) groups.set(key, { ...normalized, key, members: [] });
+    groups.get(key).members.push(member);
+  });
+  return [...groups.values()].sort((left, right) => {
+    if (left.key === 'unassigned') return 1;
+    if (right.key === 'unassigned') return -1;
+    if (typeof left.key === 'number' && typeof right.key === 'number') return right.key - left.key;
+    return String(right.key).localeCompare(String(left.key), 'zh-CN');
+  });
+};
+
 const getDestinationDetails = (member, text) => {
   const category = DEST_LABEL[member.destination] || member.destination;
   const legacy = String(member.destination_detail || '').split(/\s*[·，|]\s*/, 2);
@@ -96,7 +125,7 @@ function MemberCard({ member, onClick, text, index = 0 }) {
         </div>
         {(member.grade || member.graduated) && (
           <p className="mt-1.5 font-mono-date text-[11px] text-muted-foreground">
-            {[member.grade && `${member.grade}${text('members_grade_suffix')}`, member.graduated && text('members_graduated_badge')].filter(Boolean).join(' / ')}
+            {[formatGrade(member.grade, text), member.graduated && text('members_graduated_badge')].filter(Boolean).join(' / ')}
           </p>
         )}
         {member.graduated && member.destination && (
@@ -158,7 +187,7 @@ function FocusPanel({ member, onClose, text }) {
         </div>
         <div className="p-6 sm:p-8">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono-date text-xs text-muted-foreground">
-            {member.grade && <span>{member.grade}{text('members_grade_suffix')}</span>}
+            {member.grade && <span>{formatGrade(member.grade, text)}</span>}
             {member.graduated && <span>{text('members_graduated_badge')}</span>}
           </div>
           <h2 id="member-detail-title" className="mt-3 font-display text-3xl font-bold tracking-tight text-foreground">{member.name}</h2>
@@ -220,6 +249,30 @@ function FocusPanel({ member, onClose, text }) {
     </m.div>
     )}
     </AnimatePresence>
+  );
+}
+
+function MemberGradeGroups({ members, onClick, text }) {
+  return (
+    <div className="mt-8 space-y-12">
+      {groupByGrade(members).map((group) => (
+        <section key={group.key} aria-labelledby={`member-grade-${group.key}`}>
+          <div className="flex items-center justify-between gap-4 border-b border-border/65 pb-3">
+            <h4 id={`member-grade-${group.key}`} className="font-display text-lg font-semibold tracking-tight text-foreground">
+              {group.label ? `${group.label}${text('members_grade_suffix')}` : text('members_grade_unassigned')}
+            </h4>
+            <span className="font-mono-date text-[11px] text-muted-foreground">
+              {String(group.members.length).padStart(2, '0')} {text('members_count_unit')}
+            </span>
+          </div>
+          <div className="mt-6 grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {group.members.map((member, index) => (
+              <MemberCard key={member.id} member={member} onClick={onClick} text={text} index={index} />
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
   );
 }
 
@@ -298,9 +351,7 @@ export default function Members() {
             {inSchool.length === 0 ? (
               <EmptyState title={text('members_empty_current')} icon={GraduationCap} compact className="mt-5" />
             ) : (
-              <div className="mt-7 grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {inSchool.map((member, index) => <MemberCard key={member.id} member={member} onClick={setFocus} text={text} index={index} />)}
-              </div>
+              <MemberGradeGroups members={inSchool} onClick={setFocus} text={text} />
             )}
           </section>
 
@@ -314,9 +365,7 @@ export default function Members() {
                 </div>
                 <span className="font-mono-date text-xs text-muted-foreground">{String(graduated.length).padStart(2, '0')} {text('members_count_unit')}</span>
               </div>
-              <div className="mt-7 grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {graduated.map((member, index) => <MemberCard key={member.id} member={member} onClick={setFocus} text={text} index={index} />)}
-              </div>
+              <MemberGradeGroups members={graduated} onClick={setFocus} text={text} />
             </section>
           )}
         </>
