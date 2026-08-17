@@ -9,6 +9,8 @@ import { ContentLoading, EmptyState } from '@/components/ContentState';
 import { useSiteText } from '@/lib/siteText';
 import { getAutomaticResourceThumbnail, getResourceAction, getResourceKind } from '@/lib/resourceLinks';
 
+const GIT_TUTORIAL_CATEGORY = 'Git教程';
+
 export default function Resources() {
   const text = useSiteText();
   const [items, setItems] = useState([]);
@@ -36,6 +38,11 @@ export default function Resources() {
                   {category}
                 </button>
               ))}
+              {cat === GIT_TUTORIAL_CATEGORY && text('resources_git_credit') && (
+                <p role="status" className="self-center pl-1 text-xs leading-5 text-muted-foreground">
+                  {text('resources_git_credit')}
+                </p>
+              )}
             </div>
           )}
           {filtered.length === 0 ? <EmptyState title={text('resources_empty')} icon={FileBox} /> : (
