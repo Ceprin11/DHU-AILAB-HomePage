@@ -184,6 +184,13 @@ export function createStore(dataDirectory) {
   };
 
   return {
+    async get(entityName, id) {
+      assertEntity(entityName);
+      await mutationQueue;
+      const data = await readData();
+      return data[entityName].find((item) => item.id === id) || null;
+    },
+
     async list(entityName, sort, limit = 200) {
       assertEntity(entityName);
       await mutationQueue;

@@ -13,6 +13,7 @@ import compression from 'compression';
 import express from 'express';
 import multer from 'multer';
 import sharp from 'sharp';
+import { createMemberAccountStore } from './member-account-store.js';
 import { createStore } from './store.js';
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -27,7 +28,7 @@ const port = Number(process.env.PORT || 3000);
 const adminAccount = process.env.ADMIN_ACCOUNT || 'AILAB';
 const adminPassword = process.env.ADMIN_PASSWORD || 'AILAB123';
 const sessionSecret = process.env.SESSION_SECRET || 'change-this-session-secret-before-production';
-const sessionCookie = 'ailab_admin_session';
+const sessionCookie = 'ailab_session';
 const cookieSecure = isProduction && process.env.COOKIE_SECURE !== 'false';
 const execFileAsync = promisify(execFile);
 
@@ -47,6 +48,7 @@ await Promise.all([
   mkdir(imageVariantsDirectory, { recursive: true }),
 ]);
 const store = createStore(dataDirectory);
+const memberAccountStore = createMemberAccountStore(dataDirectory);
 const app = express();
 const httpServer = createHttpServer(app);
 const loginAttempts = new Map();
@@ -395,8 +397,8 @@ const parseCookies = (header = '') => Object.fromEntries(
   })
 );
 
-const createSession = () => {
-  const payload = Buffer.from(JSON.stringify({ role: 'admin', exp: Date.now() + 12 * 60 * 60 * 1000 })).toString('base64url');
+const createSession = (session) => {
+  const payload = Buffer.from(JSON.stringify({ ...session, exp: Date.now() + 12 * 60 * 60 * 1000 })).toString('base64url');
   const signature = crypto.createHmac('sha256', sessionSecret).update(payload).digest('base64url');
   return `${payload}.${signature}`;
 };
@@ -408,62 +410,158 @@ const verifySession = (token = '') => {
   if (signature.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return false;
   try {
     const session = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
-    return session.role === 'admin' && session.exp > Date.now();
+    if (!['admin', 'member'].includes(session.role) || session.exp <= Date.now()) return null;
+    return session;
   } catch {
-    return false;
+    return null;
   }
 };
 
-const requireAdmin = (req, res, next) => {
+const resolveSession = async (req) => {
   const token = parseCookies(req.headers.cookie)[sessionCookie];
-  if (!verifySession(token)) return res.status(401).json({ message: '请先登录管理员账号' });
+  const session = verifySession(token);
+  if (!session) return null;
+  if (session.role === 'admin') return { role: 'admin' };
+  const account = await memberAccountStore.getByMemberId(session.member_id);
+  if (!account || !account.active || account.session_version !== session.session_version) return null;
+  const member = await store.get('Member', session.member_id);
+  if (!member) return null;
+  return { role: 'member', account, member };
+};
+
+const requireAuth = async (req, res, next) => {
+  req.auth = await resolveSession(req);
+  if (!req.auth) return res.status(401).json({ message: '请先登录账号' });
   next();
 };
 
-app.get('/api/health', (_req, res) => res.json({ ok: true }));
+const requireAdmin = async (req, res, next) => {
+  req.auth = await resolveSession(req);
+  if (req.auth?.role !== 'admin') return res.status(401).json({ message: '请先登录管理员账号' });
+  next();
+};
 
-app.post('/api/auth/login', (req, res) => {
-  const { account, password } = req.body || {};
-  const now = Date.now();
-  for (const [key, attempt] of loginAttempts) {
-    if (attempt.resetAt <= now) loginAttempts.delete(key);
-  }
-  const clientKey = req.ip || req.socket.remoteAddress || 'unknown';
-  const attempt = loginAttempts.get(clientKey);
-  if (attempt && attempt.count >= maxLoginAttempts) {
-    res.setHeader('Retry-After', String(Math.ceil((attempt.resetAt - now) / 1000)));
-    return res.status(429).json({ message: '登录尝试次数过多，请稍后再试' });
-  }
-  if (account !== adminAccount || password !== adminPassword) {
-    loginAttempts.set(clientKey, {
-      count: (attempt?.count || 0) + 1,
-      resetAt: attempt?.resetAt || now + loginWindowMs,
-    });
-    return res.status(401).json({ message: '账号或密码错误' });
-  }
-  loginAttempts.delete(clientKey);
-  res.cookie(sessionCookie, createSession(), {
+const requireMember = async (req, res, next) => {
+  req.auth = await resolveSession(req);
+  if (req.auth?.role !== 'member') return res.status(401).json({ message: '请先登录成员账号' });
+  next();
+};
+
+const setSessionCookie = (res, session) => {
+  res.cookie(sessionCookie, createSession(session), {
     httpOnly: true,
     sameSite: 'lax',
     secure: cookieSecure,
     path: '/',
     maxAge: 12 * 60 * 60 * 1000,
   });
-  res.json({ id: 'ailab-admin', role: 'admin', full_name: 'AILAB 管理员' });
+};
+
+const memberUser = (member, account) => ({
+  id: member.id,
+  role: 'member',
+  full_name: member.name,
+  account: account.account,
+  must_change_password: account.must_change_password,
 });
 
-app.get('/api/auth/me', requireAdmin, (_req, res) => {
-  res.json({ id: 'ailab-admin', role: 'admin', full_name: 'AILAB 管理员' });
+const registerLoginFailure = (clientKey, attempt, now) => {
+  loginAttempts.set(clientKey, {
+    count: (attempt?.count || 0) + 1,
+    resetAt: attempt?.resetAt || now + loginWindowMs,
+  });
+};
+
+app.get('/api/health', (_req, res) => res.json({ ok: true }));
+
+app.post('/api/auth/login', async (req, res) => {
+  const { account, password } = req.body || {};
+  const now = Date.now();
+  for (const [key, attempt] of loginAttempts) {
+    if (attempt.resetAt <= now) loginAttempts.delete(key);
+  }
+  const normalizedAccount = String(account || '').trim();
+  const clientKey = `${req.ip || req.socket.remoteAddress || 'unknown'}:${normalizedAccount.toLowerCase()}`;
+  const attempt = loginAttempts.get(clientKey);
+  if (attempt && attempt.count >= maxLoginAttempts) {
+    res.setHeader('Retry-After', String(Math.ceil((attempt.resetAt - now) / 1000)));
+    return res.status(429).json({ message: '登录尝试次数过多，请稍后再试' });
+  }
+  if (normalizedAccount === adminAccount && password === adminPassword) {
+    loginAttempts.delete(clientKey);
+    setSessionCookie(res, { role: 'admin' });
+    return res.json({ id: 'ailab-admin', role: 'admin', full_name: 'AILAB 管理员' });
+  }
+
+  const memberAccount = await memberAccountStore.authenticate(normalizedAccount, password || '');
+  const member = memberAccount ? await store.get('Member', memberAccount.member_id) : null;
+  if (!memberAccount || !member) {
+    registerLoginFailure(clientKey, attempt, now);
+    return res.status(401).json({ message: '账号或密码错误' });
+  }
+
+  loginAttempts.delete(clientKey);
+  setSessionCookie(res, { role: 'member', member_id: member.id, session_version: memberAccount.session_version });
+  res.json(memberUser(member, memberAccount));
+});
+
+app.get('/api/auth/me', requireAuth, (req, res) => {
+  if (req.auth.role === 'admin') return res.json({ id: 'ailab-admin', role: 'admin', full_name: 'AILAB 管理员' });
+  res.json(memberUser(req.auth.member, req.auth.account));
+});
+
+app.post('/api/auth/change-password', requireMember, async (req, res, next) => {
+  try {
+    const { current_password: currentPassword, new_password: newPassword } = req.body || {};
+    const account = await memberAccountStore.changePassword(req.auth.member.id, currentPassword || '', newPassword || '');
+    setSessionCookie(res, { role: 'member', member_id: req.auth.member.id, session_version: account.session_version });
+    res.json(memberUser(req.auth.member, account));
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.post('/api/auth/logout', (_req, res) => {
   res.clearCookie(sessionCookie, { httpOnly: true, sameSite: 'lax', secure: cookieSecure, path: '/' });
+  res.clearCookie('ailab_admin_session', { httpOnly: true, sameSite: 'lax', secure: cookieSecure, path: '/' });
   res.status(204).end();
+});
+
+const splitMemberAccountPayload = (payload) => {
+  const {
+    account,
+    account_active: accountActive,
+    reset_member_password: resetMemberPassword,
+    must_change_password: _mustChangePassword,
+    ...memberPayload
+  } = payload;
+  return {
+    memberPayload,
+    accountConfig: {
+      account,
+      active: accountActive,
+      resetPassword: resetMemberPassword === true,
+    },
+  };
+};
+
+const withMemberAccount = (member, account) => ({
+  ...member,
+  account: account?.account || '',
+  account_active: account?.active ?? true,
+  must_change_password: account?.must_change_password ?? false,
+  reset_member_password: false,
 });
 
 app.get('/api/entities/:entity', async (req, res, next) => {
   try {
-    res.json(await store.list(req.params.entity, req.query.sort, req.query.limit));
+    const records = await store.list(req.params.entity, req.query.sort, req.query.limit);
+    if (req.params.entity !== 'Member') return res.json(records);
+    const auth = await resolveSession(req);
+    if (auth?.role !== 'admin') return res.json(records);
+    const accounts = await memberAccountStore.listSummaries();
+    const accountByMember = new Map(accounts.map((account) => [account.member_id, account]));
+    res.json(records.map((member) => withMemberAccount(member, accountByMember.get(member.id))));
   } catch (error) {
     next(error);
   }
@@ -472,7 +570,17 @@ app.get('/api/entities/:entity', async (req, res, next) => {
 app.post('/api/entities/:entity', requireAdmin, async (req, res, next) => {
   try {
     const payload = await enrichEntityPayload(req.params.entity, req.body || {});
-    res.status(201).json(await store.create(req.params.entity, payload));
+    if (req.params.entity !== 'Member') return res.status(201).json(await store.create(req.params.entity, payload));
+    const { memberPayload, accountConfig } = splitMemberAccountPayload(payload);
+    if (!String(accountConfig.account || '').trim()) return res.status(400).json({ message: '新增成员必须填写学号或工号' });
+    const member = await store.create('Member', memberPayload);
+    try {
+      const account = await memberAccountStore.createForMember(member.id, accountConfig.account, { active: accountConfig.active });
+      res.status(201).json(withMemberAccount(member, account));
+    } catch (error) {
+      await store.remove('Member', member.id).catch(() => {});
+      throw error;
+    }
   } catch (error) {
     next(error);
   }
@@ -481,7 +589,18 @@ app.post('/api/entities/:entity', requireAdmin, async (req, res, next) => {
 app.put('/api/entities/:entity/:id', requireAdmin, async (req, res, next) => {
   try {
     const payload = await enrichEntityPayload(req.params.entity, req.body || {});
-    res.json(await store.update(req.params.entity, req.params.id, payload));
+    if (req.params.entity !== 'Member') return res.json(await store.update(req.params.entity, req.params.id, payload));
+    const previous = await store.get('Member', req.params.id);
+    if (!previous) return res.status(404).json({ message: 'Record not found' });
+    const { memberPayload, accountConfig } = splitMemberAccountPayload(payload);
+    const member = await store.update('Member', req.params.id, memberPayload);
+    try {
+      const account = await memberAccountStore.configureForMember(member.id, accountConfig);
+      res.json(withMemberAccount(member, account));
+    } catch (error) {
+      await store.update('Member', req.params.id, previous).catch(() => {});
+      throw error;
+    }
   } catch (error) {
     next(error);
   }
@@ -489,7 +608,36 @@ app.put('/api/entities/:entity/:id', requireAdmin, async (req, res, next) => {
 
 app.delete('/api/entities/:entity/:id', requireAdmin, async (req, res, next) => {
   try {
-    res.json(await store.remove(req.params.entity, req.params.id));
+    const result = await store.remove(req.params.entity, req.params.id);
+    if (req.params.entity === 'Member') await memberAccountStore.removeForMember(req.params.id);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+const MEMBER_SELF_EDITABLE_FIELDS = new Set([
+  'hometown',
+  'hobbies',
+  'research_interests',
+  'bio',
+  'competition_awards',
+  'research_achievements',
+  'email',
+  'personal_homepage',
+]);
+
+app.get('/api/member/profile', requireMember, (req, res) => {
+  res.json(req.auth.member);
+});
+
+app.put('/api/member/profile', requireMember, async (req, res, next) => {
+  if (req.auth.account.must_change_password) return res.status(403).json({ message: '请先修改初始密码' });
+  try {
+    const payload = Object.fromEntries(
+      Object.entries(req.body || {}).filter(([field]) => MEMBER_SELF_EDITABLE_FIELDS.has(field)),
+    );
+    res.json(await store.update('Member', req.auth.member.id, payload));
   } catch (error) {
     next(error);
   }
@@ -590,6 +738,21 @@ const persistUpload = async (file) => {
     throw error;
   }
 };
+
+app.post('/api/member/photo', requireMember, upload.single('file'), async (req, res, next) => {
+  if (req.auth.account.must_change_password) return res.status(403).json({ message: '请先修改初始密码' });
+  if (!req.file) return res.status(400).json({ message: '请选择照片' });
+  if (!req.file.mimetype.startsWith('image/') || !optimizableImageExtensions.has(path.extname(req.file.originalname).toLowerCase())) {
+    return res.status(400).json({ message: '成员照片仅支持 PNG、JPG、WEBP 或 AVIF' });
+  }
+  try {
+    const uploadResult = await persistUpload(req.file);
+    const member = await store.update('Member', req.auth.member.id, { photo_url: uploadResult.file_url });
+    res.status(201).json(member);
+  } catch (error) {
+    next(error);
+  }
+});
 
 app.post('/api/upload', requireAdmin, upload.single('file'), async (req, res, next) => {
   if (!req.file) return res.status(400).json({ message: '请选择文件' });

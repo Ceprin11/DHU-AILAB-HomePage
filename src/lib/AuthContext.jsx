@@ -14,17 +14,13 @@ export function AuthProvider({ children }) {
       .finally(() => setIsLoadingAuth(false));
   }, []);
 
-  const loginAdmin = async (account, password) => {
-    try {
-      const admin = await api.auth.login(account, password);
-      setUser(admin);
-      return true;
-    } catch {
-      return false;
-    }
+  const login = async (account, password) => {
+    const authenticatedUser = await api.auth.login(account, password);
+    setUser(authenticatedUser);
+    return authenticatedUser;
   };
 
-  const logoutAdmin = async () => {
+  const logout = async () => {
     try {
       await api.auth.logout();
     } finally {
@@ -32,13 +28,22 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const changePassword = async (currentPassword, newPassword) => {
+    const updatedUser = await api.auth.changePassword(currentPassword, newPassword);
+    setUser(updatedUser);
+    return updatedUser;
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
       isAuthenticated: Boolean(user),
       isLoadingAuth,
-      loginAdmin,
-      logoutAdmin,
+      login,
+      loginAdmin: login,
+      logout,
+      logoutAdmin: logout,
+      changePassword,
     }}>
       {children}
     </AuthContext.Provider>

@@ -25,6 +25,7 @@ const AdminLogin = lazy(() => import('@/pages/AdminLogin'));
 const ClubLife = lazy(() => import('@/pages/ClubLife'));
 const AIGuide = lazy(() => import('@/pages/AIGuide'));
 const MemberCenter = lazy(() => import('@/pages/MemberCenter'));
+const MemberPasswordChange = lazy(() => import('@/pages/MemberPasswordChange'));
 
 const PageLoading = () => (
   <div className="page-shell page-section" role="status" aria-live="polite">
@@ -57,6 +58,7 @@ const AuthenticatedApp = () => {
     <Suspense fallback={<PageLoading />}>
     <Routes>
       <Route path="/member-login" element={<Navigate to="/admin-login" replace />} />
+      <Route path="/member-password" element={<MemberPasswordChange />} />
       <Route path="/member-center" element={<MemberCenter />} />
       <Route element={<Layout />}>
         <Route path="/" element={<Home />} />

@@ -9,7 +9,7 @@ import { useSiteText } from '@/lib/siteText';
 
 export default function AdminLogin() {
   const text = useSiteText();
-  const { user, loginAdmin } = useAuth();
+  const { user, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [account, setAccount] = useState('');
@@ -20,25 +20,27 @@ export default function AdminLogin() {
   if (user?.role === 'admin') {
     return <Navigate to="/admin" replace />;
   }
+  if (user?.role === 'member') {
+    return <Navigate to={user.must_change_password ? '/member-password' : '/member-center'} replace />;
+  }
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
     setLoading(true);
 
-    if (import.meta.env.DEV && account.trim().toUpperCase() !== 'AILAB') {
-      navigate('/member-center', { replace: true });
-      return;
-    }
-
-    if (!await loginAdmin(account.trim(), password)) {
-      setError(text('login_error'));
+    try {
+      const authenticatedUser = await login(account.trim(), password);
+      if (authenticatedUser.role === 'member') {
+        navigate(authenticatedUser.must_change_password ? '/member-password' : '/member-center', { replace: true });
+        return;
+      }
+      const target = location.state?.from || '/admin';
+      navigate(target, { replace: true });
+    } catch (loginError) {
+      setError(loginError.message || text('login_error'));
       setLoading(false);
-      return;
     }
-
-    const target = location.state?.from || '/admin';
-    navigate(target, { replace: true });
   };
 
   return (
@@ -52,12 +54,6 @@ export default function AdminLogin() {
         </div>
         <p className="mt-5 font-mono-date text-xs uppercase tracking-[0.22em] text-primary">{text('login_eyebrow')}</p>
         <h1 className="mt-2 font-display text-2xl font-bold tracking-tight text-foreground">{text('login_title')}</h1>
-        {import.meta.env.DEV && (
-          <div className="mt-5 rounded-lg border border-primary/15 bg-accent/65 px-3.5 py-3 text-sm leading-6 text-muted-foreground">
-            本地界面预览：输入任意非管理员账号可进入成员个人中心。
-          </div>
-        )}
-
         {error && (
           <div role="alert" className="mt-5 rounded-lg border border-destructive/20 bg-destructive/10 px-3.5 py-3 text-sm text-destructive">
             {error}

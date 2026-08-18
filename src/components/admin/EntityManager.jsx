@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import MediaUpload from '@/components/admin/MediaUpload';
 
-export default function EntityManager({ entityName, label, fields, itemTitle, sort = '-created_date', onItemsChange = undefined }) {
+export default function EntityManager({ entityName, label, fields, itemTitle, itemSubtitle = undefined, sort = '-created_date', onItemsChange = undefined }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null); // null closed; {} new; record edit
@@ -32,7 +32,9 @@ export default function EntityManager({ entityName, label, fields, itemTitle, so
 
   const openNew = () => {
     const blank = {};
-    fields.forEach((f) => { blank[f.key] = f.type === 'boolean' ? false : f.type === 'number' ? 0 : ''; });
+    fields.forEach((f) => {
+      blank[f.key] = f.defaultValue ?? (f.type === 'boolean' ? false : f.type === 'number' ? 0 : '');
+    });
     setEditing(blank);
   };
 
@@ -93,6 +95,7 @@ export default function EntityManager({ entityName, label, fields, itemTitle, so
             <div key={it.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3">
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-foreground">{itemTitle ? itemTitle(it) : it.title || it.name || it.question || '未命名'}</p>
+                {itemSubtitle?.(it) && <p className="mt-0.5 truncate text-xs text-muted-foreground">{itemSubtitle(it)}</p>}
                 {(it.date || it.category || it.level) && (
                   <p className="mt-0.5 font-mono-date text-xs text-muted-foreground">
                     {[it.date, it.category, it.level].filter(Boolean).join(' · ')}

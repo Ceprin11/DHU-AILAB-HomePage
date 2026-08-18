@@ -14,6 +14,9 @@ import PageTextAdmin from '@/components/admin/PageTextAdmin';
 
 const memberFields = [
   { key: 'name', label: '姓名', type: 'text', required: true },
+  { key: 'account', label: '学号或工号', type: 'text', required: true, placeholder: '成员登录账号', helper: '新增成员时会自动创建账号，初始密码与学号或工号相同。' },
+  { key: 'account_active', label: '允许该成员登录', type: 'boolean', defaultValue: true, helper: '关闭后，该成员现有登录状态会立即失效。' },
+  { key: 'reset_member_password', label: '将密码重置为学号或工号', type: 'boolean', showWhen: (member) => !!member.id, helper: '保存后成员需要使用初始密码重新登录，并再次设置新密码。' },
   { key: 'title', label: '职位/头衔', type: 'text', placeholder: '如：社长、技术负责人' },
   { key: 'category', label: '类别', type: 'select', options: [
     { value: 'advisor', label: '指导老师' }, { value: 'president', label: '社长' }, { value: 'core', label: '核心成员' }, { value: 'member', label: '成员' }] },
@@ -235,7 +238,7 @@ export default function Admin() {
           <TabsTrigger value="page-text">页面文案</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="members" className="mt-6"><EntityManager entityName="Member" label="成员" fields={memberFields} sort="order_index" itemTitle={(it) => it.name} /></TabsContent>
+        <TabsContent value="members" className="mt-6"><EntityManager entityName="Member" label="成员" fields={memberFields} sort="order_index" itemTitle={(it) => it.name} itemSubtitle={(it) => it.account ? `账号 ${it.account} / ${it.account_active ? '可登录' : '已停用'}` : '未配置登录账号' } /></TabsContent>
         <TabsContent value="ai-guide" className="mt-6"><GuideAdmin /></TabsContent>
         <TabsContent value="notifications" className="mt-6"><EntityManager entityName="Notification" label="通知" fields={notifFields} itemTitle={(it) => it.title} /></TabsContent>
         <TabsContent value="awards" className="mt-6"><EntityManager entityName="Award" label="成果" fields={awardFields} itemTitle={(it) => it.title} /></TabsContent>

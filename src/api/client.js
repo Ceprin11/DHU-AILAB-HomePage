@@ -89,17 +89,46 @@ export const api = {
     },
   }),
   auth: {
-    login(account, password) {
-      return request('/api/auth/login', {
+    async login(account, password) {
+      const result = await request('/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({ account, password }),
       });
+      entityListCache.clear();
+      return result;
     },
     me() {
       return request('/api/auth/me');
     },
-    logout() {
-      return request('/api/auth/logout', { method: 'POST' });
+    changePassword(currentPassword, newPassword) {
+      return request('/api/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+      });
+    },
+    async logout() {
+      const result = await request('/api/auth/logout', { method: 'POST' });
+      entityListCache.clear();
+      return result;
+    },
+  },
+  member: {
+    profile() {
+      return request('/api/member/profile');
+    },
+    async updateProfile(payload) {
+      const result = await request('/api/member/profile', { method: 'PUT', body: JSON.stringify(payload) });
+      invalidateEntityLists('Member');
+      notifyEntityChange('Member');
+      return result;
+    },
+    async uploadPhoto(file) {
+      const body = new FormData();
+      body.append('file', file);
+      const result = await request('/api/member/photo', { method: 'POST', body, timeoutMs: 30000 });
+      invalidateEntityLists('Member');
+      notifyEntityChange('Member');
+      return result;
     },
   },
   bilibili: {
