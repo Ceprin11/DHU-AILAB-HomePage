@@ -49,7 +49,6 @@ const normalizeMember = (member) => {
     normalized.destination_organization = '';
     normalized.destination_specialty = '';
     normalized.destination_position = '';
-    normalized.personal_homepage = '';
   } else if (normalized.destination === '就业') {
     normalized.destination_specialty = '';
   } else if (normalized.destination === '保研' || normalized.destination === '留学') {

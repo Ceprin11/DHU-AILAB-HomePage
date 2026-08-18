@@ -161,7 +161,7 @@ function MemberCard({ member, onClick, text, index = 0 }) {
 
 function FocusPanel({ member, onClose, text }) {
   const reduceMotion = useReducedMotion();
-  const homepageUrl = member?.graduated ? normalizeHomepageUrl(member.personal_homepage) : '';
+  const homepageUrl = normalizeHomepageUrl(member?.personal_homepage);
   useEffect(() => {
     if (!member) return undefined;
 
