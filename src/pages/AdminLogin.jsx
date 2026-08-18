@@ -26,6 +26,11 @@ export default function AdminLogin() {
     setError('');
     setLoading(true);
 
+    if (import.meta.env.DEV && account.trim().toUpperCase() !== 'AILAB') {
+      navigate('/member-center', { replace: true });
+      return;
+    }
+
     if (!await loginAdmin(account.trim(), password)) {
       setError(text('login_error'));
       setLoading(false);
@@ -47,7 +52,11 @@ export default function AdminLogin() {
         </div>
         <p className="mt-5 font-mono-date text-xs uppercase tracking-[0.22em] text-primary">{text('login_eyebrow')}</p>
         <h1 className="mt-2 font-display text-2xl font-bold tracking-tight text-foreground">{text('login_title')}</h1>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{text('login_description')}</p>
+        {import.meta.env.DEV && (
+          <div className="mt-5 rounded-lg border border-primary/15 bg-accent/65 px-3.5 py-3 text-sm leading-6 text-muted-foreground">
+            本地界面预览：输入任意非管理员账号可进入成员个人中心。
+          </div>
+        )}
 
         {error && (
           <div role="alert" className="mt-5 rounded-lg border border-destructive/20 bg-destructive/10 px-3.5 py-3 text-sm text-destructive">
@@ -57,11 +66,11 @@ export default function AdminLogin() {
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="admin-account">{text('login_account')}</Label>
+            <Label htmlFor="login-account">{text('login_account')}</Label>
             <div className="relative">
               <UserRound className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
               <Input
-                id="admin-account"
+                id="login-account"
                 autoComplete="username"
                 autoFocus
                 value={account}
@@ -74,11 +83,11 @@ export default function AdminLogin() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="admin-password">{text('login_password')}</Label>
+            <Label htmlFor="login-password">{text('login_password')}</Label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
               <Input
-                id="admin-password"
+                id="login-password"
                 type="password"
                 autoComplete="current-password"
                 value={password}

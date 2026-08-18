@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
@@ -24,6 +24,7 @@ const Admin = lazy(() => import('@/pages/Admin'));
 const AdminLogin = lazy(() => import('@/pages/AdminLogin'));
 const ClubLife = lazy(() => import('@/pages/ClubLife'));
 const AIGuide = lazy(() => import('@/pages/AIGuide'));
+const MemberCenter = lazy(() => import('@/pages/MemberCenter'));
 
 const PageLoading = () => (
   <div className="page-shell page-section" role="status" aria-live="polite">
@@ -55,6 +56,8 @@ const AuthenticatedApp = () => {
   return (
     <Suspense fallback={<PageLoading />}>
     <Routes>
+      <Route path="/member-login" element={<Navigate to="/admin-login" replace />} />
+      <Route path="/member-center" element={<MemberCenter />} />
       <Route element={<Layout />}>
         <Route path="/" element={<Home />} />
         <Route path="/members" element={<Members />} />

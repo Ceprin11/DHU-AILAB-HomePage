@@ -132,11 +132,10 @@ export const SITE_TEXT_GROUPS = [
   },
   {
     id: 'system', label: '登录与错误页面', fields: [
-      ['login_eyebrow', '登录页英文小字', 'AILAB Admin'], ['login_title', '登录页标题', '管理员登录'],
-      ['login_description', '登录页说明', '请输入管理员账号和密码进入内容管理后台。', 'textarea'],
-      ['login_account', '账号标签', '账号'], ['login_account_placeholder', '账号输入提示', '请输入管理员账号'],
-      ['login_password', '密码标签', '密码'], ['login_password_placeholder', '密码输入提示', '请输入管理员密码'],
-      ['login_button', '登录按钮', '登录管理后台'], ['login_loading', '登录中提示', '正在登录…'], ['login_error', '登录失败提示', '账号或密码错误，请重新输入。'],
+      ['login_eyebrow', '登录页英文小字', 'AILAB Account'], ['login_title', '登录页标题', '账号登录'],
+      ['login_account', '账号标签', '账号'], ['login_account_placeholder', '账号输入提示', '请输入管理员账号、学号或工号'],
+      ['login_password', '密码标签', '密码'], ['login_password_placeholder', '密码输入提示', '请输入登录密码'],
+      ['login_button', '登录按钮', '登录'], ['login_loading', '登录中提示', '正在登录…'], ['login_error', '登录失败提示', '账号或密码错误，请重新输入。'],
       ['not_found_title', '404 页面标题', '页面不存在'], ['not_found_description', '404 页面说明', '无法找到你访问的页面。'], ['not_found_button', '404 返回按钮', '返回首页'],
     ],
   },
