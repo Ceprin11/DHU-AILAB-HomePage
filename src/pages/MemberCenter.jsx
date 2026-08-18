@@ -62,6 +62,7 @@ export default function MemberCenter() {
   const [photoFile, setPhotoFile] = useState(null);
   const photoInputRef = useRef(null);
   const initials = useMemo(() => profile?.name?.slice(0, 1) || '你', [profile?.name]);
+  const isPublished = profile?.profile_status !== 'draft';
 
   useEffect(() => {
     if (user?.role !== 'member' || user.must_change_password) return;
@@ -220,7 +221,9 @@ export default function MemberCenter() {
             <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <h1 className="font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">个人资料</h1>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">维护将在团队页面公开展示的个人信息。</p>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                  {isPublished ? '维护将在团队页面公开展示的个人信息。' : '你的资料目前不会公开；上传照片并保存后将自动显示在团队页面。'}
+                </p>
               </div>
               <p role="status" aria-live="polite" className="flex min-h-8 items-center gap-2 text-sm text-muted-foreground">
                 {saved && <Check size={16} className="text-primary" aria-hidden="true" />}
@@ -231,6 +234,12 @@ export default function MemberCenter() {
             {error && (
               <div role="alert" className="mb-5 rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                 {error}
+              </div>
+            )}
+
+            {!isPublished && (
+              <div className="mb-5 rounded-lg border border-primary/15 bg-accent/65 px-4 py-3 text-sm leading-6 text-foreground/85">
+                当前状态：待完善。你可以先保存文字资料，只有成功上传照片后个人资料才会公开。
               </div>
             )}
 
@@ -286,7 +295,9 @@ export default function MemberCenter() {
               </FormSection>
 
               <div className="sticky bottom-4 z-20 flex flex-col gap-3 rounded-xl border border-border/80 bg-background/92 px-4 py-3 shadow-[0_16px_50px_hsl(var(--foreground)/0.1)] backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:px-5">
-                <p className="text-sm text-muted-foreground">保存后，公开团队页面将同步更新。</p>
+                <p className="text-sm text-muted-foreground">
+                  {isPublished ? '保存后，公开团队页面将同步更新。' : '没有照片时只保存草稿，上传照片后自动公开。'}
+                </p>
                 <Button type="submit" size="lg" className="w-full active:translate-y-px sm:w-auto" disabled={saving}>
                   <Save size={16} aria-hidden="true" />{saving ? '正在保存' : '保存修改'}
                 </Button>

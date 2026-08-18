@@ -13,7 +13,7 @@ import GuideAdmin from '@/components/admin/GuideAdmin';
 import PageTextAdmin from '@/components/admin/PageTextAdmin';
 
 const memberFields = [
-  { key: 'name', label: '姓名', type: 'text', required: true },
+  { key: 'name', label: '姓名', type: 'text', required: true, helper: '只填写姓名和学号或工号即可先创建账号；未上传照片前不会显示在团队页面。' },
   { key: 'account', label: '学号或工号', type: 'text', required: true, placeholder: '成员登录账号', helper: '新增成员时会自动创建账号，初始密码与学号或工号相同。' },
   { key: 'account_active', label: '允许该成员登录', type: 'boolean', defaultValue: true, helper: '关闭后，该成员现有登录状态会立即失效。' },
   { key: 'reset_member_password', label: '将密码重置为学号或工号', type: 'boolean', showWhen: (member) => !!member.id, helper: '保存后成员需要使用初始密码重新登录，并再次设置新密码。' },
@@ -31,7 +31,7 @@ const memberFields = [
   { key: 'destination_position', label: '岗位', type: 'text', placeholder: '如：算法工程师', showWhen: (member) => !!member.graduated && member.destination === '就业' },
   { key: 'personal_homepage', label: '个人主页', type: 'text', placeholder: 'https://...', helper: '支持个人网站、GitHub Pages 等公开主页。' },
   { key: 'message_to_juniors', label: '写给学弟学妹的话', type: 'textarea', rows: 4, placeholder: '分享经验、建议或祝福', showWhen: (member) => !!member.graduated },
-  { key: 'photo_url', label: '照片', type: 'image' },
+  { key: 'photo_url', label: '照片', type: 'image', helper: '新成员上传照片后会自动公开；留空时成员可登录个人中心自行完善。' },
   { key: 'email', label: '邮箱', type: 'text' },
   { key: 'research_interests', label: '研究方向', type: 'textarea', rows: 2 },
   { key: 'bio', label: '个人简介', type: 'textarea', rows: 4 },
@@ -39,6 +39,15 @@ const memberFields = [
   { key: 'research_achievements', label: '个人科研成果（每行一条）', type: 'textarea', rows: 4 },
   { key: 'order_index', label: '排序(小在前)', type: 'number' },
 ];
+
+const memberProfileStatus = (member) => {
+  if (!member.account) return '未配置登录账号';
+  if (!member.account_active) return `账号 ${member.account} / 已停用`;
+  if (member.profile_status === 'hidden') return `账号 ${member.account} / 已隐藏`;
+  if (member.profile_status === 'draft' && !member.account_last_login_at) return `账号 ${member.account} / 待首次登录`;
+  if (member.profile_status === 'draft') return `账号 ${member.account} / 待完善资料`;
+  return `账号 ${member.account} / 已公开`;
+};
 
 const notifFields = [
   { key: 'title', label: '标题', type: 'text', required: true },
@@ -238,7 +247,7 @@ export default function Admin() {
           <TabsTrigger value="page-text">页面文案</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="members" className="mt-6"><EntityManager entityName="Member" label="成员" fields={memberFields} sort="order_index" itemTitle={(it) => it.name} itemSubtitle={(it) => it.account ? `账号 ${it.account} / ${it.account_active ? '可登录' : '已停用'}` : '未配置登录账号' } /></TabsContent>
+        <TabsContent value="members" className="mt-6"><EntityManager entityName="Member" label="成员" fields={memberFields} sort="order_index" itemTitle={(it) => it.name} itemSubtitle={memberProfileStatus} /></TabsContent>
         <TabsContent value="ai-guide" className="mt-6"><GuideAdmin /></TabsContent>
         <TabsContent value="notifications" className="mt-6"><EntityManager entityName="Notification" label="通知" fields={notifFields} itemTitle={(it) => it.title} /></TabsContent>
         <TabsContent value="awards" className="mt-6"><EntityManager entityName="Award" label="成果" fields={awardFields} itemTitle={(it) => it.title} /></TabsContent>

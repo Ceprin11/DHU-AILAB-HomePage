@@ -19,7 +19,9 @@ test('creates an account with a hashed initial password', async () => {
     const account = await store.createForMember('member-1', '20240001');
     assert.equal(account.account, '20240001');
     assert.equal(account.must_change_password, true);
-    assert.ok(await store.authenticate('20240001', '20240001'));
+    const authenticated = await store.authenticate('20240001', '20240001');
+    assert.ok(authenticated);
+    assert.ok(authenticated.last_login_at);
     assert.equal(await store.authenticate('20240001', 'wrong-password'), null);
 
     const file = await readFile(path.join(directory, 'member-accounts.json'), 'utf8');

@@ -19,6 +19,7 @@ export const ENTITY_RULES = {
 };
 
 const MEMBER_DESTINATIONS = new Set(['', '保研', '留学', '就业', '其他']);
+const MEMBER_PROFILE_STATUSES = new Set(['draft', 'published', 'hidden']);
 const MEMBER_FIELD_LIMITS = {
   hometown: 100,
   hobbies: 500,
@@ -130,6 +131,12 @@ export function createStore(dataDirectory) {
 
       if (record.destination !== undefined && !MEMBER_DESTINATIONS.has(record.destination)) {
         const error = new Error('destination is invalid');
+        error.status = 400;
+        throw error;
+      }
+
+      if (record.profile_status !== undefined && !MEMBER_PROFILE_STATUSES.has(record.profile_status)) {
+        const error = new Error('profile_status is invalid');
         error.status = 400;
         throw error;
       }

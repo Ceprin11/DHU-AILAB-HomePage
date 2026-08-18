@@ -533,6 +533,7 @@ const splitMemberAccountPayload = (payload) => {
     account_active: accountActive,
     reset_member_password: resetMemberPassword,
     must_change_password: _mustChangePassword,
+    account_last_login_at: _accountLastLoginAt,
     ...memberPayload
   } = payload;
   return {
@@ -550,15 +551,18 @@ const withMemberAccount = (member, account) => ({
   account: account?.account || '',
   account_active: account?.active ?? true,
   must_change_password: account?.must_change_password ?? false,
+  account_last_login_at: account?.last_login_at || '',
   reset_member_password: false,
 });
+
+const isPublicMember = (member) => member.profile_status !== 'draft' && member.profile_status !== 'hidden';
 
 app.get('/api/entities/:entity', async (req, res, next) => {
   try {
     const records = await store.list(req.params.entity, req.query.sort, req.query.limit);
     if (req.params.entity !== 'Member') return res.json(records);
     const auth = await resolveSession(req);
-    if (auth?.role !== 'admin') return res.json(records);
+    if (auth?.role !== 'admin') return res.json(records.filter(isPublicMember));
     const accounts = await memberAccountStore.listSummaries();
     const accountByMember = new Map(accounts.map((account) => [account.member_id, account]));
     res.json(records.map((member) => withMemberAccount(member, accountByMember.get(member.id))));
@@ -573,7 +577,10 @@ app.post('/api/entities/:entity', requireAdmin, async (req, res, next) => {
     if (req.params.entity !== 'Member') return res.status(201).json(await store.create(req.params.entity, payload));
     const { memberPayload, accountConfig } = splitMemberAccountPayload(payload);
     if (!String(accountConfig.account || '').trim()) return res.status(400).json({ message: '新增成员必须填写学号或工号' });
-    const member = await store.create('Member', memberPayload);
+    const member = await store.create('Member', {
+      ...memberPayload,
+      profile_status: memberPayload.photo_url ? 'published' : 'draft',
+    });
     try {
       const account = await memberAccountStore.createForMember(member.id, accountConfig.account, { active: accountConfig.active });
       res.status(201).json(withMemberAccount(member, account));
@@ -593,7 +600,16 @@ app.put('/api/entities/:entity/:id', requireAdmin, async (req, res, next) => {
     const previous = await store.get('Member', req.params.id);
     if (!previous) return res.status(404).json({ message: 'Record not found' });
     const { memberPayload, accountConfig } = splitMemberAccountPayload(payload);
-    const member = await store.update('Member', req.params.id, memberPayload);
+    const resultingPhoto = Object.hasOwn(memberPayload, 'photo_url') ? memberPayload.photo_url : previous.photo_url;
+    const nextMemberPayload = previous.profile_status
+      ? {
+          ...memberPayload,
+          profile_status: previous.profile_status === 'hidden'
+            ? 'hidden'
+            : resultingPhoto ? 'published' : 'draft',
+        }
+      : memberPayload;
+    const member = await store.update('Member', req.params.id, nextMemberPayload);
     try {
       const account = await memberAccountStore.configureForMember(member.id, accountConfig);
       res.json(withMemberAccount(member, account));
@@ -747,7 +763,10 @@ app.post('/api/member/photo', requireMember, upload.single('file'), async (req, 
   }
   try {
     const uploadResult = await persistUpload(req.file);
-    const member = await store.update('Member', req.auth.member.id, { photo_url: uploadResult.file_url });
+    const member = await store.update('Member', req.auth.member.id, {
+      photo_url: uploadResult.file_url,
+      profile_status: 'published',
+    });
     res.status(201).json(member);
   } catch (error) {
     next(error);

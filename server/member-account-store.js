@@ -45,6 +45,7 @@ const publicAccount = (record) => record ? ({
   active: record.active !== false,
   must_change_password: record.must_change_password !== false,
   session_version: record.session_version || 1,
+  last_login_at: record.last_login_at || '',
   created_date: record.created_date,
   updated_date: record.updated_date,
 }) : null;
@@ -107,10 +108,14 @@ export function createMemberAccountStore(dataDirectory) {
     },
 
     async authenticate(account, password) {
-      await mutationQueue;
-      const record = findByAccount(await readRecords(), account);
-      if (!record || record.active === false || !await verifyPassword(password, record)) return null;
-      return publicAccount(record);
+      return enqueueMutation(async () => {
+        const records = structuredClone(await readRecords());
+        const record = findByAccount(records, account);
+        if (!record || record.active === false || !await verifyPassword(password, record)) return null;
+        record.last_login_at = new Date().toISOString();
+        await saveRecords(records);
+        return publicAccount(record);
+      });
     },
 
     async createForMember(memberId, account, { active = true } = {}) {
