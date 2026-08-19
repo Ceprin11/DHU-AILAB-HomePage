@@ -87,7 +87,7 @@ export default function Footer() {
           >
             {text('footer_icp_number')}
           </a>
-          <Link to={user?.role === 'admin' ? '/admin' : '/admin-login'} className="interactive-link justify-self-center rounded-sm hover:text-primary sm:justify-self-end">{text('footer_admin')}</Link>
+          <Link to={user?.role === 'admin' ? '/admin' : user?.role === 'member' ? '/member-center' : '/admin-login'} className="interactive-link justify-self-center rounded-sm hover:text-primary sm:justify-self-end">{user?.role === 'admin' ? text('footer_admin') : user?.role === 'member' ? '个人中心' : '登录'}</Link>
         </div>
       </div>
     </footer>

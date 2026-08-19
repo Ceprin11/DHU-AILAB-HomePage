@@ -7,6 +7,7 @@ import {
   Check,
   ExternalLink,
   FlaskConical,
+  House,
   LogOut,
   Mail,
   MapPin,
@@ -55,7 +56,7 @@ function FormSection({ id, icon: Icon, title, description, children }) {
 }
 
 export default function MemberCenter() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -114,7 +115,10 @@ export default function MemberCenter() {
         'experiences',
       ].map((field) => [field, field === 'experiences' ? profile[field] || [] : profile[field] || '']));
       let updatedProfile = await api.member.updateProfile(editableProfile);
-      if (photoFile) updatedProfile = await api.member.uploadPhoto(photoFile);
+      if (photoFile) {
+        updatedProfile = await api.member.uploadPhoto(photoFile);
+        await refreshUser();
+      }
       setProfile(updatedProfile);
       setPhotoFile(null);
       setPhotoPreview('');
@@ -155,9 +159,10 @@ export default function MemberCenter() {
             <span className="hidden h-6 w-px bg-border sm:block" />
             <span className="hidden truncate text-sm font-semibold text-foreground sm:block">成员个人中心</span>
           </div>
-          <Button variant="ghost" onClick={handleLogout} className="min-h-11 px-3 text-muted-foreground hover:text-foreground">
-            <LogOut size={16} aria-hidden="true" />退出登录
-          </Button>
+          <div className="flex items-center gap-1 sm:gap-2">
+            <Button asChild variant="ghost" className="min-h-11 px-3 text-muted-foreground hover:text-foreground"><Link to="/"><House size={16} aria-hidden="true" /><span className="hidden sm:inline">主页</span></Link></Button>
+            <Button variant="ghost" onClick={handleLogout} className="min-h-11 px-3 text-muted-foreground hover:text-foreground"><LogOut size={16} aria-hidden="true" /><span className="hidden sm:inline">退出登录</span></Button>
+          </div>
         </div>
       </header>
 

@@ -11,6 +11,14 @@ export function formatDate(dateStr) {
   return `${y}.${m}.${day}`;
 }
 
+export function formatDateTime(dateStr) {
+  const date = formatDate(dateStr);
+  if (!date || !/T\d{2}:\d{2}/.test(String(dateStr))) return date;
+  const parsed = new Date(dateStr);
+  if (isNaN(parsed.getTime())) return dateStr;
+  return `${date} ${String(parsed.getHours()).padStart(2, '0')}:${String(parsed.getMinutes()).padStart(2, '0')}`;
+}
+
 export function useSiteSettings() {
   const [settings, setSettings] = useState(null);
   useEffect(() => {

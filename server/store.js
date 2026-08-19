@@ -4,6 +4,7 @@ import path from 'node:path';
 
 export const ENTITY_RULES = {
   Activity: ['title'],
+  Album: ['title'],
   Award: ['title'],
   ClubLife: ['title'],
   GuideCategory: ['title'],
@@ -43,6 +44,15 @@ const MEMBER_FIELD_LIMITS = {
   message_to_juniors: 2000,
 };
 const AWARD_LINK_FIELDS = ['arxiv_url', 'project_url', 'code_url'];
+const ALBUM_IMAGE_LIMIT = 20;
+const ALBUM_FIELD_LIMITS = {
+  title: 200,
+  date: 40,
+  category: 20,
+  location: 200,
+  description: 10000,
+};
+const ALBUM_CATEGORIES = new Set(['activity', 'club_life']);
 
 const normalizeMemberExperiences = (experiences) => experiences.map((experience) => {
   if (!experience || typeof experience !== 'object' || Array.isArray(experience)) return experience;
@@ -96,7 +106,24 @@ const normalizeMember = (member) => {
   return normalized;
 };
 
-const normalizeRecord = (entityName, record) => entityName === 'Member' ? normalizeMember(record) : record;
+const normalizeAlbum = (album) => {
+  const normalized = { ...album };
+  if (Array.isArray(normalized.images)) {
+    normalized.images = normalized.images.map((image) => ({
+      id: image?.id || randomUUID(),
+      url: image?.url || image?.image_url || '',
+      is_home_featured: image?.is_home_featured === true,
+    }));
+    normalized.image_url = normalized.images[0]?.url || '';
+  }
+  return normalized;
+};
+
+const normalizeRecord = (entityName, record) => {
+  if (entityName === 'Member') return normalizeMember(record);
+  if (entityName === 'Album') return normalizeAlbum(record);
+  return record;
+};
 
 const emptyData = Object.fromEntries(Object.keys(ENTITY_RULES).map((name) => [name, []]));
 
@@ -237,6 +264,67 @@ export function createStore(dataDirectory) {
           const error = new Error('personal_homepage must be a valid http/https URL');
           error.status = 400;
           throw error;
+        }
+      }
+    }
+
+    if (entityName === 'Album') {
+      for (const [field, maxLength] of Object.entries(ALBUM_FIELD_LIMITS)) {
+        const value = record[field];
+        if (value !== undefined && value !== null && typeof value !== 'string') {
+          const error = new Error(`${field} must be a string`);
+          error.status = 400;
+          throw error;
+        }
+        if (typeof value === 'string' && value.length > maxLength) {
+          const error = new Error(`${field} is too long`);
+          error.status = 400;
+          throw error;
+        }
+      }
+
+      if (record.date && Number.isNaN(Date.parse(record.date))) {
+        const error = new Error('date is invalid');
+        error.status = 400;
+        throw error;
+      }
+
+      if (record.category !== undefined && !ALBUM_CATEGORIES.has(record.category)) {
+        const error = new Error('category is invalid');
+        error.status = 400;
+        throw error;
+      }
+
+      if (record.images !== undefined) {
+        if (!Array.isArray(record.images) || record.images.length > ALBUM_IMAGE_LIMIT) {
+          const error = new Error(`images must be an array with at most ${ALBUM_IMAGE_LIMIT} items`);
+          error.status = 400;
+          throw error;
+        }
+
+        const imageIds = new Set();
+        for (const image of record.images) {
+          if (!image || typeof image !== 'object' || Array.isArray(image)) {
+            const error = new Error('album image must be an object');
+            error.status = 400;
+            throw error;
+          }
+          if (typeof image.id !== 'string' || !image.id || image.id.length > 100 || imageIds.has(image.id)) {
+            const error = new Error('album image id is invalid');
+            error.status = 400;
+            throw error;
+          }
+          imageIds.add(image.id);
+          if (typeof image.url !== 'string' || !image.url || image.url.length > 1000) {
+            const error = new Error('album image url is invalid');
+            error.status = 400;
+            throw error;
+          }
+          if (typeof image.is_home_featured !== 'boolean') {
+            const error = new Error('album image is_home_featured must be a boolean');
+            error.status = 400;
+            throw error;
+          }
         }
       }
     }

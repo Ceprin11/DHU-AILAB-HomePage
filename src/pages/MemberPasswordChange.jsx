@@ -33,7 +33,7 @@ export default function MemberPasswordChange() {
     setSaving(true);
     try {
       await changePassword(currentPassword, newPassword);
-      navigate('/member-center', { replace: true });
+      navigate('/', { replace: true });
     } catch (changeError) {
       setError(changeError.message || '密码修改失败');
       setSaving(false);
@@ -85,7 +85,7 @@ export default function MemberPasswordChange() {
             <Input id="confirm-password" type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} minLength={8} maxLength={128} className="h-11" required />
           </div>
           <Button type="submit" className="h-11 w-full font-semibold" disabled={saving}>
-            {saving ? '正在保存' : '保存并进入成员中心'}
+            {saving ? '正在保存' : '保存并返回主页'}
           </Button>
         </form>
 

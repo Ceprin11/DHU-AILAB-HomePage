@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { KeyRound, Lock, UserRound } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -11,18 +11,13 @@ export default function AdminLogin() {
   const text = useSiteText();
   const { user, login } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [account, setAccount] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  if (user?.role === 'admin') {
-    return <Navigate to="/admin" replace />;
-  }
-  if (user?.role === 'member') {
-    return <Navigate to={user.must_change_password ? '/member-password' : '/member-center'} replace />;
-  }
+  if (user?.role === 'admin') return <Navigate to="/" replace />;
+  if (user?.role === 'member') return <Navigate to={user.must_change_password ? '/member-password' : '/'} replace />;
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -32,11 +27,10 @@ export default function AdminLogin() {
     try {
       const authenticatedUser = await login(account.trim(), password);
       if (authenticatedUser.role === 'member') {
-        navigate(authenticatedUser.must_change_password ? '/member-password' : '/member-center', { replace: true });
+        navigate(authenticatedUser.must_change_password ? '/member-password' : '/', { replace: true, state: { from: '/' } });
         return;
       }
-      const target = location.state?.from || '/admin';
-      navigate(target, { replace: true });
+      navigate('/', { replace: true });
     } catch (loginError) {
       setError(loginError.message || text('login_error'));
       setLoading(false);

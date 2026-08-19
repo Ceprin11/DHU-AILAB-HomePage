@@ -34,6 +34,12 @@ export function AuthProvider({ children }) {
     return updatedUser;
   };
 
+  const refreshUser = async () => {
+    const updatedUser = await api.auth.me();
+    setUser(updatedUser);
+    return updatedUser;
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -44,6 +50,7 @@ export function AuthProvider({ children }) {
       logout,
       logoutAdmin: logout,
       changePassword,
+      refreshUser,
     }}>
       {children}
     </AuthContext.Provider>

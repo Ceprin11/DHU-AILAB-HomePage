@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Pencil, Trash2, Loader2, X } from 'lucide-react';
 import { api } from '@/api/client';
 import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -153,7 +154,7 @@ export default function EntityManager({ entityName, label, fields, itemTitle, it
                   {f.type !== 'boolean' && <Label className="mb-1.5 block text-sm font-medium">{f.label}{f.required && <span className="text-destructive"> *</span>}</Label>}
                   {f.type === 'text' && <Input value={editing[f.key] || ''} onChange={(e) => setField(f.key, e.target.value)} placeholder={f.placeholder} />}
                   {f.type === 'textarea' && <Textarea value={editing[f.key] || ''} rows={f.rows || 4} onChange={(e) => setField(f.key, e.target.value)} placeholder={f.placeholder} />}
-                  {f.type === 'date' && <Input type="date" value={editing[f.key] || ''} onChange={(e) => setField(f.key, e.target.value)} />}
+                  {f.type === 'date' && <DatePicker value={editing[f.key] || ''} onChange={(value) => setField(f.key, value)} />}
                   {f.type === 'number' && <Input type="number" value={editing[f.key] ?? 0} onChange={(e) => setField(f.key, e.target.value)} />}
                   {f.type === 'select' && (
                     <Select value={editing[f.key] || ''} onValueChange={(v) => setField(f.key, v)}>
