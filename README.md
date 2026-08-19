@@ -391,8 +391,6 @@ git clone https://github.com/Ceprin11/DHU-AILAB-HomePage.git
 cd DHU-AILAB-HomePage
 ```
 
-如果仓库为私有仓库，需要先让管理员添加 GitHub 访问权限。
-
 ### 2. 安装依赖
 
 推荐使用锁文件安装：
