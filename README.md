@@ -149,6 +149,7 @@ await api.entities.Activity.delete(id);
 | `POST /api/auth/logout` | 退出 | 公开 |
 | `GET /api/public/members` | 公开成员 | 公开 |
 | `GET /api/public/home-photos` | 仅返回主页精选照片 | 公开 |
+| `GET /api/public/albums?category=...` | 返回活动或社团生活页面所需的公开相册字段 | 公开 |
 | `GET /api/entities/:entity` | 查询实体 | 公开读取 |
 | `POST /api/entities/:entity` | 新增实体 | 管理员 |
 | `PUT /api/entities/:entity/:id` | 修改实体 | 管理员 |
@@ -187,7 +188,7 @@ await api.entities.Activity.delete(id);
 - `StudyMaterial`
 - `VideoLink`
 
-`Album` 是活动与社团生活共用的内部公共相册。完整相册及其管理界面仅对已登录账号开放；每个相册包含分类、时间、地点、描述和最多 20 张照片，照片通过 `is_home_featured` 标记是否展示在主页轮播。所有已登录账号都可上传和编辑相册，只有管理员可以调整主页精选；删除操作仅限相册创建者或管理员。游客只能通过 `/api/public/home-photos` 获取主页展示所需的精选照片，无法读取完整相册；若尚未精选相册照片，主页会继续使用旧的 `HomeImage` 数据作为兼容回退。
+`Album` 是活动与社团生活共用的内部公共相册。完整相册、创建者信息及其管理界面仅对已登录账号开放；每个相册包含分类、时间、地点、描述和最多 20 张照片，照片通过 `is_home_featured` 标记是否展示在主页轮播。所有已登录账号都可上传和编辑相册，只有管理员可以调整主页精选；删除操作仅限相册创建者或管理员。相册中的照片会按分类公开展示在活动或社团生活页面，公开接口只返回页面展示所需的安全字段，不包含创建者账号或主页精选状态。若尚未精选相册照片，主页会继续使用旧的 `HomeImage` 数据作为兼容回退。
 
 运行数据结构：
 

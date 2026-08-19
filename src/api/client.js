@@ -189,6 +189,9 @@ export const api = {
     homePhotos() {
       return request('/api/public/home-photos');
     },
+    albums(category) {
+      return request(`/api/public/albums?${new URLSearchParams({ category })}`);
+    },
   },
   admin: {
     previewMemberImport(rows) {

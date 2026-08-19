@@ -13,9 +13,19 @@ export default function Activities() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.entities.Activity.list('-date', 200)
-      .then((r) => { setItems(r || []); setLoading(false); })
-      .catch(() => setLoading(false));
+    Promise.all([
+      api.entities.Activity.list('-date', 200).catch(() => []),
+      api.public.albums('activity').catch(() => []),
+    ]).then(([activities, albums]) => {
+      const albumActivities = (albums || []).map((album) => ({
+        ...album,
+        id: `album:${album.id}`,
+        album_photos: album.images || [],
+      }));
+      setItems([...(activities || []), ...albumActivities]
+        .sort((left, right) => String(right.date || '').localeCompare(String(left.date || ''))));
+      setLoading(false);
+    });
   }, []);
 
   return (
@@ -50,6 +60,19 @@ export default function Activities() {
                   </div>
                   <h3 className="font-display text-xl font-semibold leading-snug tracking-[-0.02em] text-foreground md:text-2xl">{a.title}</h3>
                   {a.description && <p className="mt-3 whitespace-pre-line text-sm leading-7 text-foreground/90">{a.description}</p>}
+                  {a.album_photos?.length > 0 && (
+                    <div className={`mt-6 grid gap-3 ${a.album_photos.length === 1 ? 'max-w-2xl grid-cols-1' : 'grid-cols-2 lg:grid-cols-3'}`}>
+                      {a.album_photos.map((photo, photoIndex) => (
+                        <img
+                          key={photo.id || photo.url}
+                          src={photo.url}
+                          alt={`${a.title || text('activities_title')}照片 ${photoIndex + 1}`}
+                          loading="lazy"
+                          className="aspect-[4/3] h-full w-full rounded-xl border border-border/75 bg-secondary/40 object-cover shadow-[0_10px_26px_hsl(var(--foreground)/0.035)]"
+                        />
+                      ))}
+                    </div>
+                  )}
                   {(a.document_url || a.external_link) && (
                     <div className="mt-5 flex flex-wrap gap-2.5">
                       {a.document_url && (
