@@ -22,7 +22,7 @@ const memberFields = [
   { key: 'category', label: '类别', type: 'select', options: [
     { value: 'advisor', label: '指导老师' }, { value: 'current_president', label: '现任社长' }, { value: 'current_vice_president', label: '现任副社长' }, { value: 'president', label: '社长' }, { value: 'vice_president', label: '副社长' }, { value: 'core', label: '核心成员' }, { value: 'member', label: '成员' }] },
   { key: 'grade', label: '入学年级', type: 'text', placeholder: '如：2024 或 24' },
-  { key: 'major', label: '专业', type: 'text', placeholder: '如：计算机科学与技术', showWhen: (member) => member.category !== 'advisor' },
+  { key: 'major', label: '专业', type: 'text', placeholder: '如：计算机科学与技术', showWhen: (member) => member.category !== 'advisor' && !member.graduated },
   { key: 'hometown', label: '来自', type: 'text', placeholder: '如：四川成都', showWhen: (member) => member.category !== 'advisor' },
   { key: 'hobbies', label: '兴趣爱好', type: 'textarea', rows: 2, placeholder: '如：摄影、羽毛球、阅读', showWhen: (member) => member.category !== 'advisor' },
   { key: 'graduated', label: '是否已毕业', type: 'boolean' },

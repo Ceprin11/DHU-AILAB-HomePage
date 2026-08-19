@@ -253,10 +253,12 @@ export default function MemberCenter() {
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <FormSection id="basic-profile" icon={UserRound} title="基本资料" description="介绍你的个人背景和兴趣。">
-                <div className="space-y-2">
-                  <Label htmlFor="member-major">专业</Label>
-                  <Input id="member-major" value={profile.major || ''} onChange={updateField('major')} className={fieldClass} placeholder="如：计算机科学与技术" />
-                </div>
+                {!profile.graduated && (
+                  <div className="space-y-2">
+                    <Label htmlFor="member-major">专业</Label>
+                    <Input id="member-major" value={profile.major || ''} onChange={updateField('major')} className={fieldClass} placeholder="如：计算机科学与技术" />
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="member-hometown">来自</Label>
                   <div className="relative">
