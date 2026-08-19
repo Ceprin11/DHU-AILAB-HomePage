@@ -89,19 +89,19 @@ export default function Navbar() {
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button type="button" className="flex min-w-0 items-center gap-2.5 rounded-full border border-border bg-background/75 py-1 pl-1 pr-3 text-left transition-colors hover:border-primary/30 hover:bg-accent" aria-label="打开账号菜单">
+                <button type="button" className="flex w-48 min-w-0 items-center gap-2.5 rounded-full border border-border bg-background py-1 pl-1 pr-3 text-left shadow-sm transition-colors hover:border-primary/35 hover:bg-secondary" aria-label="打开账号菜单">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-amber text-sm font-bold text-amber-foreground">
                     {user.avatar_url ? <img src={user.avatar_url} alt="" className="h-full w-full object-cover" /> : userInitial}
                   </span>
-                  <span className="min-w-0 leading-tight">
-                    <span className="block max-w-32 truncate text-sm font-semibold text-foreground">{user.full_name}</span>
-                    <span className="mt-0.5 block max-w-32 truncate text-[10px] text-muted-foreground">{userHeadline}</span>
+                  <span className="min-w-0 flex-1 leading-tight">
+                    <span className="block truncate text-sm font-semibold text-foreground">{user.full_name}</span>
+                    <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">{userHeadline}</span>
                   </span>
                   <ChevronDown size={14} className="ml-0.5 text-muted-foreground" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" sideOffset={10} className="w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl border-border/80 bg-background/98 p-2 shadow-[0_24px_70px_hsl(var(--foreground)/0.16)] backdrop-blur-xl">
-                <DropdownMenuLabel className="relative overflow-hidden rounded-xl border border-border/75 bg-secondary/55 p-3.5">
+              <DropdownMenuContent align="end" sideOffset={10} className="w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl border-border bg-popover/80 p-2 text-popover-foreground shadow-[0_24px_70px_hsl(var(--foreground)/0.22)] backdrop-blur-xl">
+                <DropdownMenuLabel className="relative overflow-hidden rounded-xl border border-border bg-secondary/80 p-3.5">
                   <span className="absolute -right-7 -top-8 h-20 w-20 rounded-full bg-amber/20 blur-2xl" />
                   <span className="relative flex items-center gap-3">
                     <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-amber text-base font-bold text-amber-foreground shadow-sm">{user.avatar_url ? <img src={user.avatar_url} alt="" className="h-full w-full object-cover" /> : userInitial}</span>
@@ -167,7 +167,7 @@ export default function Navbar() {
             ))}
             {user ? (
               <div className="col-span-2 mt-2 overflow-hidden rounded-2xl border border-border/80 bg-background p-2 shadow-[0_16px_38px_hsl(var(--foreground)/0.08)] sm:col-span-3">
-                <div className="relative flex items-center gap-3 overflow-hidden rounded-xl border border-border/75 bg-secondary/55 p-3">
+                <div className="relative flex items-center gap-3 overflow-hidden rounded-xl border border-border bg-secondary/80 p-3 backdrop-blur-xl">
                   <span className="absolute -right-5 -top-7 h-20 w-20 rounded-full bg-amber/20 blur-2xl" />
                   <span className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-amber text-base font-bold text-amber-foreground shadow-sm">{user.avatar_url ? <img src={user.avatar_url} alt="" className="h-full w-full object-cover" /> : userInitial}</span>
                   <span className="relative min-w-0"><span className="block truncate font-display text-base font-bold text-foreground">{user.full_name}</span><span className="mt-0.5 block truncate font-mono-date text-[10px] uppercase tracking-[0.14em] text-muted-foreground">{userHeadline}</span></span>

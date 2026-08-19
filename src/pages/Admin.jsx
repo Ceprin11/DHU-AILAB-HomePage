@@ -63,7 +63,7 @@ const awardFields = [
   { key: 'date', label: '日期', type: 'date' },
   { key: 'level', label: '竞赛级别（仅竞赛获奖）', type: 'select', options: [
     { value: 'national', label: '国家级' }, { value: 'provincial', label: '省级' }, { value: 'university', label: '校级' }, { value: 'other', label: '其他' }] },
-  { key: 'ccf_level', label: 'CCF等级/会议（如 CCF-A、CVPR、ACL）', type: 'text' },
+  { key: 'ccf_level', label: 'CCF 等级 / 中科院几区', type: 'text', placeholder: '如：CCF-A、中科院一区' },
   { key: 'doi_url', label: 'DOI链接（仅科研成果）', type: 'text', placeholder: 'https://doi.org/10.xxxx/... 或 10.xxxx/...', helper: '填写后，论文卡片会显示 DOI 访问入口。', showWhen: (award) => award.type === 'research' },
   { key: 'arxiv_url', label: 'arXiv链接（仅科研成果）', type: 'text', placeholder: 'https://arxiv.org/abs/...', showWhen: (award) => award.type === 'research' },
   { key: 'project_url', label: '项目主页（仅科研成果）', type: 'text', placeholder: 'https://...', showWhen: (award) => award.type === 'research' },
