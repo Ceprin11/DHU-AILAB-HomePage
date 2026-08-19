@@ -11,6 +11,7 @@ import {
   LogOut,
   Mail,
   MapPin,
+  MessageCircle,
   Save,
   UserRound,
 } from 'lucide-react';
@@ -28,6 +29,7 @@ const navigation = [
   { id: 'basic-profile', label: '基本资料', icon: UserRound },
   { id: 'academic-profile', label: '学术资料', icon: FlaskConical },
   { id: 'experience-profile', label: '教育与职业', icon: CalendarDays },
+  { id: 'message-profile', label: '学弟学妹寄语', icon: MessageCircle, graduatedOnly: true },
   { id: 'contact-profile', label: '联系方式', icon: Mail },
 ];
 
@@ -113,6 +115,7 @@ export default function MemberCenter() {
         'email',
         'personal_homepage',
         'experiences',
+        'message_to_juniors',
       ].map((field) => [field, field === 'experiences' ? profile[field] || [] : profile[field] || '']));
       let updatedProfile = await api.member.updateProfile(editableProfile);
       if (photoFile) {
@@ -216,8 +219,8 @@ export default function MemberCenter() {
               </div>
             </section>
 
-            <nav aria-label="个人资料分区" className="grid grid-cols-4 gap-2 rounded-xl border border-border/75 bg-card/65 p-2 backdrop-blur-sm lg:grid-cols-1">
-              {navigation.map(({ id, label, icon: Icon }) => (
+            <nav aria-label="个人资料分区" className={`${profile.graduated ? 'grid-cols-3' : 'grid-cols-4'} grid gap-2 rounded-xl border border-border/75 bg-card/65 p-2 backdrop-blur-sm lg:grid-cols-1`}>
+              {navigation.filter((item) => !item.graduatedOnly || profile.graduated).map(({ id, label, icon: Icon }) => (
                 <a
                   key={id}
                   href={`#${id}`}
@@ -327,6 +330,23 @@ export default function MemberCenter() {
                   </div>
                   <MemberExperienceTimeline experiences={profile.experiences} />
                 </section>
+              )}
+
+              {profile.graduated && (
+                <FormSection id="message-profile" icon={MessageCircle} title="写给学弟学妹的话" description="分享你愿意公开的经验、建议或祝福。">
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label htmlFor="member-message-to-juniors">寄语</Label>
+                    <Textarea
+                      id="member-message-to-juniors"
+                      value={profile.message_to_juniors || ''}
+                      onChange={updateField('message_to_juniors')}
+                      className={textareaClass}
+                      maxLength={2000}
+                      placeholder="写下想对学弟学妹说的话"
+                    />
+                    <p className="text-right text-xs text-muted-foreground">{String(profile.message_to_juniors || '').length} / 2000</p>
+                  </div>
+                </FormSection>
               )}
 
               <FormSection id="contact-profile" icon={Mail} title="联系方式" description="填写你愿意公开的联系入口。">

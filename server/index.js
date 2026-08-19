@@ -712,6 +712,7 @@ const MEMBER_SELF_EDITABLE_FIELDS = new Set([
   'email',
   'personal_homepage',
   'experiences',
+  'message_to_juniors',
 ]);
 
 app.get('/api/member/profile', requireMember, (req, res) => {
@@ -724,6 +725,7 @@ app.put('/api/member/profile', requireMember, async (req, res, next) => {
     const payload = Object.fromEntries(
       Object.entries(req.body || {}).filter(([field]) => MEMBER_SELF_EDITABLE_FIELDS.has(field)),
     );
+    if (!req.auth.member.graduated) delete payload.message_to_juniors;
     res.json(await store.update('Member', req.auth.member.id, payload));
   } catch (error) {
     next(error);
