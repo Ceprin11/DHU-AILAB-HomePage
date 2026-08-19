@@ -131,6 +131,25 @@ export const api = {
       return result;
     },
   },
+  admin: {
+    previewMemberImport(rows) {
+      return request('/api/admin/member-import', {
+        method: 'POST',
+        body: JSON.stringify({ rows, dry_run: true }),
+        timeoutMs: 30000,
+      });
+    },
+    async importMembers(rows) {
+      const result = await request('/api/admin/member-import', {
+        method: 'POST',
+        body: JSON.stringify({ rows, dry_run: false }),
+        timeoutMs: 120000,
+      });
+      invalidateEntityLists('Member');
+      notifyEntityChange('Member');
+      return result;
+    },
+  },
   bilibili: {
     preview(url) {
       return request(`/api/bilibili/preview?${new URLSearchParams({ url })}`, { timeoutMs: 8000 });

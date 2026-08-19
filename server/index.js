@@ -14,6 +14,7 @@ import express from 'express';
 import multer from 'multer';
 import sharp from 'sharp';
 import { createMemberAccountStore } from './member-account-store.js';
+import { executeMemberImport, planMemberImport } from './member-import.js';
 import { createStore } from './store.js';
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -556,6 +557,18 @@ const withMemberAccount = (member, account) => ({
 });
 
 const isPublicMember = (member) => member.profile_status !== 'draft' && member.profile_status !== 'hidden';
+
+app.post('/api/admin/member-import', requireAdmin, async (req, res, next) => {
+  try {
+    const members = await store.list('Member', '', 5000);
+    const accounts = await memberAccountStore.listSummaries();
+    const plan = planMemberImport(req.body?.rows, members, accounts);
+    if (req.body?.dry_run !== false) return res.json({ dry_run: true, ...plan });
+    res.status(201).json({ dry_run: false, ...await executeMemberImport(plan, { store, memberAccountStore }) });
+  } catch (error) {
+    next(error);
+  }
+});
 
 app.get('/api/entities/:entity', async (req, res, next) => {
   try {

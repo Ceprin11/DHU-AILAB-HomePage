@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import EntityManager from '@/components/admin/EntityManager';
 import GuideAdmin from '@/components/admin/GuideAdmin';
 import PageTextAdmin from '@/components/admin/PageTextAdmin';
+import MemberImportPanel from '@/components/admin/MemberImportPanel';
 
 const memberFields = [
   { key: 'name', label: '姓名', type: 'text', required: true, helper: '只填写姓名和学号或工号即可先创建账号；未上传照片前不会显示在团队页面。' },
@@ -207,6 +208,16 @@ function SiteSettingsTab() {
   );
 }
 
+function MemberManagementTab() {
+  const [refreshKey, setRefreshKey] = useState(0);
+  return (
+    <>
+      <MemberImportPanel onImported={() => setRefreshKey((key) => key + 1)} />
+      <EntityManager key={refreshKey} entityName="Member" label="成员" fields={memberFields} sort="order_index" itemTitle={(it) => it.name} itemSubtitle={memberProfileStatus} />
+    </>
+  );
+}
+
 export default function Admin() {
   const { user, logoutAdmin } = useAuth();
   const navigate = useNavigate();
@@ -251,7 +262,7 @@ export default function Admin() {
           <TabsTrigger value="page-text">页面文案</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="members" className="mt-6"><EntityManager entityName="Member" label="成员" fields={memberFields} sort="order_index" itemTitle={(it) => it.name} itemSubtitle={memberProfileStatus} /></TabsContent>
+        <TabsContent value="members" className="mt-6"><MemberManagementTab /></TabsContent>
         <TabsContent value="ai-guide" className="mt-6"><GuideAdmin /></TabsContent>
         <TabsContent value="notifications" className="mt-6"><EntityManager entityName="Notification" label="通知" fields={notifFields} itemTitle={(it) => it.title} /></TabsContent>
         <TabsContent value="awards" className="mt-6"><EntityManager entityName="Award" label="成果" fields={awardFields} itemTitle={(it) => it.title} /></TabsContent>
