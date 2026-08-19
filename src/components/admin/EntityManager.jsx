@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import MediaUpload from '@/components/admin/MediaUpload';
+import MemberExperienceEditor from '@/components/members/MemberExperienceEditor';
 
 export default function EntityManager({ entityName, label, fields, itemTitle, itemSubtitle = undefined, sort = '-created_date', onItemsChange = undefined, quickToggle = undefined }) {
   const [items, setItems] = useState([]);
@@ -141,7 +142,7 @@ export default function EntityManager({ entityName, label, fields, itemTitle, it
       {/* Edit / New dialog */}
       {editing && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-foreground/40 p-4 sm:p-8" onClick={() => setEditing(null)}>
-          <div className="w-full max-w-lg rounded-xl border border-border bg-background shadow-xl animate-fade-up" onClick={(e) => e.stopPropagation()}>
+          <div className={`${fields.some((field) => field.type === 'experiences') ? 'max-w-4xl' : 'max-w-lg'} w-full rounded-xl border border-border bg-background shadow-xl animate-fade-up`} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-border px-5 py-4">
               <h3 className="font-display text-lg font-semibold">{editing.id ? '编辑' : '新增'}{label}</h3>
               <button onClick={() => setEditing(null)} className="text-muted-foreground hover:text-foreground"><X size={18} /></button>
@@ -171,6 +172,7 @@ export default function EntityManager({ entityName, label, fields, itemTitle, it
                   {f.type === 'image' && <MediaUpload label={f.label} value={editing[f.key] || ''} onChange={(v) => setField(f.key, v)} type="image" />}
                   {f.type === 'file' && <MediaUpload label={f.label} value={editing[f.key] || ''} onChange={(v) => setField(f.key, v)} onUploaded={(result) => result.thumbnail_url && setField('thumbnail_url', result.thumbnail_url)} type="file" />}
                   {f.type === 'video' && <MediaUpload label={f.label} value={editing[f.key] || ''} onChange={(v) => setField(f.key, v)} type="video" />}
+                  {f.type === 'experiences' && <MemberExperienceEditor value={editing[f.key] || []} onChange={(v) => setField(f.key, v)} />}
                   {f.helper && <p className="mt-1.5 text-xs leading-5 text-muted-foreground">{f.helper}</p>}
                 </div>
               ))}

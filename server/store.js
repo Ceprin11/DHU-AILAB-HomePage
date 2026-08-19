@@ -20,6 +20,17 @@ export const ENTITY_RULES = {
 
 const MEMBER_DESTINATIONS = new Set(['', '保研', '留学', '就业', '其他']);
 const MEMBER_PROFILE_STATUSES = new Set(['draft', 'published', 'hidden']);
+const MEMBER_EXPERIENCE_TYPES = new Set(['education', 'work', 'internship', 'other']);
+const MEMBER_EXPERIENCE_LIMIT = 30;
+const MEMBER_EXPERIENCE_FIELD_LIMITS = {
+  id: 100,
+  start_date: 7,
+  end_date: 7,
+  organization: 200,
+  role: 200,
+  field: 200,
+  description: 1000,
+};
 const MEMBER_FIELD_LIMITS = {
   major: 100,
   hometown: 100,
@@ -33,8 +44,29 @@ const MEMBER_FIELD_LIMITS = {
 };
 const AWARD_LINK_FIELDS = ['arxiv_url', 'project_url', 'code_url'];
 
+const normalizeMemberExperiences = (experiences) => experiences.map((experience) => {
+  if (!experience || typeof experience !== 'object' || Array.isArray(experience)) return experience;
+  const normalized = {
+    id: experience.id || randomUUID(),
+    type: experience.type || 'education',
+    start_date: experience.start_date || '',
+    end_date: experience.end_date || '',
+    is_current: experience.is_current ?? false,
+    organization: experience.organization || '',
+    role: experience.role || '',
+    field: experience.field || '',
+    description: experience.description || '',
+  };
+  if (normalized.is_current === true) normalized.end_date = '';
+  return normalized;
+});
+
 const normalizeMember = (member) => {
   const normalized = { ...member };
+
+  if (Array.isArray(normalized.experiences)) {
+    normalized.experiences = normalizeMemberExperiences(normalized.experiences);
+  }
 
   if (normalized.destination_detail && !normalized.destination_organization) {
     const [organization = '', detail = ''] = normalized.destination_detail
@@ -157,6 +189,46 @@ export function createStore(dataDirectory) {
         }
       }
 
+      if (record.experiences !== undefined) {
+        if (!Array.isArray(record.experiences) || record.experiences.length > MEMBER_EXPERIENCE_LIMIT) {
+          const error = new Error(`experiences must be an array with at most ${MEMBER_EXPERIENCE_LIMIT} items`);
+          error.status = 400;
+          throw error;
+        }
+
+        for (const experience of record.experiences) {
+          if (!experience || typeof experience !== 'object' || Array.isArray(experience)) {
+            const error = new Error('experience must be an object');
+            error.status = 400;
+            throw error;
+          }
+          if (!MEMBER_EXPERIENCE_TYPES.has(experience.type)) {
+            const error = new Error('experience type is invalid');
+            error.status = 400;
+            throw error;
+          }
+          if (typeof experience.is_current !== 'boolean') {
+            const error = new Error('experience is_current must be a boolean');
+            error.status = 400;
+            throw error;
+          }
+          for (const [field, maxLength] of Object.entries(MEMBER_EXPERIENCE_FIELD_LIMITS)) {
+            if (typeof experience[field] !== 'string' || experience[field].length > maxLength) {
+              const error = new Error(`experience ${field} is invalid`);
+              error.status = 400;
+              throw error;
+            }
+          }
+          for (const field of ['start_date', 'end_date']) {
+            if (experience[field] && !/^\d{4}-(0[1-9]|1[0-2])$/.test(experience[field])) {
+              const error = new Error(`experience ${field} must use YYYY-MM format`);
+              error.status = 400;
+              throw error;
+            }
+          }
+        }
+      }
+
       if (record.personal_homepage) {
         try {
           const homepage = new URL(record.personal_homepage);
@@ -181,6 +253,7 @@ export function createStore(dataDirectory) {
           throw error;
         }
       }
+
     }
 
     if (entityName === 'HomeImage' && record.is_visible !== undefined && typeof record.is_visible !== 'boolean') {

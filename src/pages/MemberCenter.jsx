@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BookOpen,
+  Building2,
+  CalendarDays,
   Camera,
   Check,
   ExternalLink,
@@ -19,10 +21,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/lib/AuthContext';
+import MemberExperienceEditor, { MemberExperienceTimeline } from '@/components/members/MemberExperienceEditor';
 
 const navigation = [
   { id: 'basic-profile', label: '基本资料', icon: UserRound },
-  { id: 'academic-profile', label: '学术与经历', icon: FlaskConical },
+  { id: 'academic-profile', label: '学术资料', icon: FlaskConical },
+  { id: 'experience-profile', label: '教育与职业', icon: CalendarDays },
   { id: 'contact-profile', label: '联系方式', icon: Mail },
 ];
 
@@ -107,7 +111,8 @@ export default function MemberCenter() {
         'research_achievements',
         'email',
         'personal_homepage',
-      ].map((field) => [field, profile[field] || '']));
+        'experiences',
+      ].map((field) => [field, field === 'experiences' ? profile[field] || [] : profile[field] || '']));
       let updatedProfile = await api.member.updateProfile(editableProfile);
       if (photoFile) updatedProfile = await api.member.uploadPhoto(photoFile);
       setProfile(updatedProfile);
@@ -206,7 +211,7 @@ export default function MemberCenter() {
               </div>
             </section>
 
-            <nav aria-label="个人资料分区" className="grid grid-cols-3 gap-2 rounded-xl border border-border/75 bg-card/65 p-2 backdrop-blur-sm lg:grid-cols-1">
+            <nav aria-label="个人资料分区" className="grid grid-cols-4 gap-2 rounded-xl border border-border/75 bg-card/65 p-2 backdrop-blur-sm lg:grid-cols-1">
               {navigation.map(({ id, label, icon: Icon }) => (
                 <a
                   key={id}
@@ -269,7 +274,7 @@ export default function MemberCenter() {
                 </div>
               </FormSection>
 
-              <FormSection id="academic-profile" icon={FlaskConical} title="学术与经历" description="记录研究方向、竞赛经历和科研成果。">
+              <FormSection id="academic-profile" icon={FlaskConical} title="学术资料" description="记录研究方向、竞赛经历和科研成果。">
                 <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="member-research">研究方向</Label>
                   <div className="relative">
@@ -286,6 +291,36 @@ export default function MemberCenter() {
                   <Textarea id="member-achievements" value={profile.research_achievements || ''} onChange={updateField('research_achievements')} className={textareaClass} placeholder="每行填写一条" />
                 </div>
               </FormSection>
+
+              <section id="experience-profile" className="scroll-mt-24 rounded-xl border border-border/75 bg-card/80 px-5 py-6 shadow-[0_16px_48px_hsl(var(--foreground)/0.035)] sm:px-7 sm:py-7">
+                <div className="mb-7 flex items-start gap-3.5 border-b border-border/70 pb-5">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent text-primary"><CalendarDays size={17} strokeWidth={1.8} /></span>
+                  <div>
+                    <h2 className="font-display text-lg font-bold tracking-tight text-foreground">教育 / 职业经历</h2>
+                    <p className="mt-1 text-sm leading-6 text-muted-foreground">最新经历放在最前面，可使用右上角按钮调整顺序。</p>
+                  </div>
+                </div>
+                <MemberExperienceEditor
+                  value={profile.experiences || []}
+                  onChange={(experiences) => {
+                    setSaved(false);
+                    setProfile((current) => ({ ...current, experiences }));
+                  }}
+                />
+              </section>
+
+              {!!profile.experiences?.length && (
+                <section className="rounded-xl border border-border/75 bg-card/80 px-5 py-6 sm:px-7 sm:py-7">
+                  <div className="mb-6 flex items-center gap-3 border-b border-border/70 pb-4">
+                    <Building2 size={18} className="text-primary" />
+                    <div>
+                      <h2 className="font-display text-base font-bold text-foreground">公开展示预览</h2>
+                      <p className="mt-1 text-xs text-muted-foreground">团队成员详情中将以此样式展示。</p>
+                    </div>
+                  </div>
+                  <MemberExperienceTimeline experiences={profile.experiences} />
+                </section>
+              )}
 
               <FormSection id="contact-profile" icon={Mail} title="联系方式" description="填写你愿意公开的联系入口。">
                 <div className="space-y-2">

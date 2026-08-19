@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, m, useReducedMotion } from 'framer-motion';
-import { Mail, X, GraduationCap, Compass, Award, FlaskConical, UserCog, MapPin, Heart, MessageCircle, ExternalLink } from 'lucide-react';
+import { Mail, X, GraduationCap, CalendarDays, Compass, Award, FlaskConical, UserCog, MapPin, Heart, MessageCircle, ExternalLink } from 'lucide-react';
 import { api } from '@/api/client';
 import { Image } from '@/components/ui/image';
 import SectionHeading from '@/components/SectionHeading';
@@ -8,8 +8,7 @@ import { ContentLoading, EmptyState } from '@/components/ContentState';
 import { useSiteText } from '@/lib/siteText';
 import { Reveal } from '@/components/motion/MotionPrimitives';
 import { compareMembersByRoleAndName, isGraduatedMember } from '@/lib/memberSort';
-
-const DEST_LABEL = { '保研': '保研', '留学': '留学', '就业': '就业', '其他': '其他' };
+import { MemberExperienceTimeline } from '@/components/members/MemberExperienceEditor';
 
 const normalizeHomepageUrl = (value = '') => {
   try {
@@ -55,45 +54,6 @@ const groupByGrade = (members, ascending = false) => {
       : String(right.key).localeCompare(String(left.key), 'zh-CN');
   });
 };
-
-const getDestinationDetails = (member, text) => {
-  const category = DEST_LABEL[member.destination] || member.destination;
-  const legacy = String(member.destination_detail || '').split(/\s*[·，|]\s*/, 2);
-  const organization = member.destination_organization || legacy[0] || '';
-  const isEmployment = member.destination === '就业';
-
-  return {
-    category,
-    organization,
-    detailLabel: isEmployment ? text('members_position') : ['保研', '留学'].includes(member.destination) ? text('members_specialty') : '',
-    detail: isEmployment
-      ? member.destination_position || legacy[1] || ''
-      : member.destination_specialty || legacy[1] || '',
-  };
-};
-
-function DestinationDetails({ member, text, compact = false }) {
-  const details = getDestinationDetails(member, text);
-  const rows = [
-    [text('members_destination_type'), details.category],
-    [text('members_organization'), details.organization],
-    [details.detailLabel, details.detail],
-  ].filter(([label, value]) => label && value);
-
-  return (
-    <div className={compact ? 'mt-3 border-l-2 border-primary/25 pl-3' : 'mt-6 border-t border-border/80 pt-5'}>
-      {!compact && <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground"><Compass size={14} strokeWidth={1.8} className="text-primary" /> {text('members_destination')}</p>}
-      <dl className={`${compact ? 'grid-cols-[3.5rem_minmax(0,1fr)] text-xs' : 'mt-3 grid-cols-[4.5rem_minmax(0,1fr)] text-sm'} grid gap-x-3 gap-y-1.5 leading-5`}>
-        {rows.map(([label, value]) => (
-          <React.Fragment key={label}>
-            <dt className="whitespace-nowrap text-muted-foreground">{label}</dt>
-            <dd className={compact ? 'min-w-0 break-words text-primary' : 'min-w-0 break-words text-foreground/90'}>{value}</dd>
-          </React.Fragment>
-        ))}
-      </dl>
-    </div>
-  );
-}
 
 function PortraitMedia({ src, alt, imageWidth = 960, imageSizes = '100vw', loadPriority = 'auto' }) {
   return (
@@ -154,9 +114,6 @@ function MemberCard({ member, onClick, text, index = 0 }) {
           <p className="mt-1.5 font-mono-date text-[11px] text-muted-foreground">
             {[formatGrade(member.grade, text), member.major, member.graduated && text('members_graduated_badge')].filter(Boolean).join(' / ')}
           </p>
-        )}
-        {member.graduated && member.destination && (
-          <DestinationDetails member={member} text={text} compact />
         )}
       </div>
     </m.button>
@@ -227,8 +184,11 @@ function FocusPanel({ member, onClose, text }) {
           </div>
           <h2 id="member-detail-title" className="mt-3 font-display text-3xl font-bold tracking-tight text-foreground">{member.name}</h2>
           {member.title && <p className="mt-1 text-primary">{member.title}</p>}
-          {member.graduated && member.destination && (
-            <DestinationDetails member={member} text={text} />
+          {!!member.experiences?.length && (
+            <div className="mt-6 border-t border-border/80 pt-5">
+              <p className="mb-5 flex items-center gap-1.5 text-sm font-semibold text-foreground"><CalendarDays size={14} strokeWidth={1.8} className="text-primary" />教育 / 职业经历</p>
+              <MemberExperienceTimeline experiences={member.experiences} />
+            </div>
           )}
           {(member.hometown || member.hobbies) && (
             <div className="mt-7 grid gap-5 border-y border-border/80 py-5 sm:grid-cols-2">

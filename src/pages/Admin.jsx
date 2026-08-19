@@ -26,11 +26,7 @@ const memberFields = [
   { key: 'hometown', label: '来自', type: 'text', placeholder: '如：四川成都', showWhen: (member) => member.category !== 'advisor' },
   { key: 'hobbies', label: '兴趣爱好', type: 'textarea', rows: 2, placeholder: '如：摄影、羽毛球、阅读', showWhen: (member) => member.category !== 'advisor' },
   { key: 'graduated', label: '是否已毕业', type: 'boolean' },
-  { key: 'destination', label: '去向（仅已毕业）', type: 'select', options: [
-    { value: '保研', label: '保研' }, { value: '留学', label: '留学' }, { value: '就业', label: '就业' }, { value: '其他', label: '其他' }], showWhen: (member) => !!member.graduated },
-  { key: 'destination_organization', label: '单位', type: 'text', placeholder: '如：浙江大学、腾讯、CMU', helper: '填写学校、公司或其他接收单位。', showWhen: (member) => !!member.graduated && !!member.destination },
-  { key: 'destination_specialty', label: '专业方向', type: 'text', placeholder: '如：计算机科学与技术、AI4S', showWhen: (member) => !!member.graduated && ['保研', '留学'].includes(member.destination) },
-  { key: 'destination_position', label: '岗位', type: 'text', placeholder: '如：算法工程师', showWhen: (member) => !!member.graduated && member.destination === '就业' },
+  { key: 'experiences', label: '教育 / 职业经历', type: 'experiences', defaultValue: [], helper: '按公开展示顺序填写，支持教育、职业、实习和其他经历。' },
   { key: 'personal_homepage', label: '个人主页', type: 'text', placeholder: 'https://...', helper: '支持个人网站、GitHub Pages 等公开主页。' },
   { key: 'message_to_juniors', label: '写给学弟学妹的话', type: 'textarea', rows: 4, placeholder: '分享经验、建议或祝福', showWhen: (member) => !!member.graduated },
   { key: 'photo_url', label: '照片', type: 'image', helper: '新成员上传照片后会自动公开；留空时成员可登录个人中心自行完善。' },

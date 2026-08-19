@@ -662,6 +662,7 @@ const MEMBER_SELF_EDITABLE_FIELDS = new Set([
   'research_achievements',
   'email',
   'personal_homepage',
+  'experiences',
 ]);
 
 app.get('/api/member/profile', requireMember, (req, res) => {
