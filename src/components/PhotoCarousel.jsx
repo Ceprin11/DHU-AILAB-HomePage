@@ -38,11 +38,16 @@ export default function PhotoCarousel({ photos = [], interval = 4800, className 
           slideShadows: false,
         }}
       >
-        {photos.map((photo, index) => (
-          <SwiperSlide key={`${photo}-${index}`} className="!h-auto !w-[86%] sm:!w-[77%]">
+        {photos.map((photo, index) => {
+          const source = typeof photo === 'string' ? photo : photo.url;
+          const alt = typeof photo === 'string' ? '实验室风采照片' : photo.alt;
+          const key = typeof photo === 'string' ? photo : photo.id || photo.url;
+          return (
+          <SwiperSlide key={`${key}-${index}`} className="!h-auto !w-[86%] sm:!w-[77%]">
             <div className="photo-soft-edge aspect-[16/10] overflow-hidden rounded-2xl border border-border/80 bg-background shadow-[0_30px_75px_hsl(var(--foreground)/0.15)]">
               <Image
-                src={photo}
+                src={source}
+                alt={alt || '实验室风采照片'}
                 fittingType="fit"
                 loading={index === 0 ? 'eager' : 'lazy'}
                 fetchPriority={index === 0 ? 'high' : 'auto'}
@@ -50,7 +55,8 @@ export default function PhotoCarousel({ photos = [], interval = 4800, className 
               />
             </div>
           </SwiperSlide>
-        ))}
+          );
+        })}
       </Swiper>
     </div>
   );

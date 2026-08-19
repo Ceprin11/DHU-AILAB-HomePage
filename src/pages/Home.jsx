@@ -20,12 +20,7 @@ export default function Home() {
   useEffect(() => {
     api.entities.Notification.list('-date', 3).then(setNotifs).catch(() => {});
     api.entities.Award.list('-date', 3).then(setAwards).catch(() => {});
-    api.entities.HomeImage.list('order_index', 50)
-      .then((rows) => {
-        const photos = (rows || []).filter((item) => item.is_visible !== false).map((item) => item.image_url).filter(Boolean);
-        setHeroPhotos(photos);
-      })
-      .catch(() => {});
+    api.public.homePhotos().then((photos) => setHeroPhotos(photos || [])).catch(() => {});
   }, []);
 
   const quickLinks = [

@@ -131,10 +131,63 @@ export const api = {
       return result;
     },
   },
+  albums: {
+    async create(payload) {
+      const result = await request('/api/albums', { method: 'POST', body: JSON.stringify(payload) });
+      invalidateEntityLists('Album');
+      notifyEntityChange('Album');
+      return result;
+    },
+    async update(id, payload) {
+      const result = await request(`/api/albums/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(payload) });
+      invalidateEntityLists('Album');
+      notifyEntityChange('Album');
+      return result;
+    },
+    async delete(id) {
+      const result = await request(`/api/albums/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      invalidateEntityLists('Album');
+      notifyEntityChange('Album');
+      return result;
+    },
+    async uploadPhotos(files) {
+      const body = new FormData();
+      Array.from(files || []).forEach((file) => body.append('files', file));
+      return request('/api/album-photos', { method: 'POST', body, timeoutMs: 120000 });
+    },
+    async setHomeFeatured(albumId, photoId, isHomeFeatured) {
+      const result = await request(`/api/albums/${encodeURIComponent(albumId)}/photos/${encodeURIComponent(photoId)}/home-featured`, {
+        method: 'PATCH',
+        body: JSON.stringify({ is_home_featured: isHomeFeatured }),
+      });
+      invalidateEntityLists('Album');
+      notifyEntityChange('Album');
+      return result;
+    },
+  },
+  contributions: {
+    async create(entityName, payload) {
+      const result = await request(`/api/contributions/${encodeURIComponent(entityName)}`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      invalidateEntityLists(entityName);
+      notifyEntityChange(entityName);
+      return result;
+    },
+    async upload(file) {
+      const body = new FormData();
+      body.append('file', file);
+      return request('/api/contributor-upload', { method: 'POST', body, timeoutMs: 120000 });
+    },
+  },
   public: {
     members(sort = '', limit = 500) {
       const query = new URLSearchParams({ sort, limit: String(limit) });
       return request(`/api/public/members?${query}`);
+    },
+    homePhotos() {
+      return request('/api/public/home-photos');
     },
   },
   admin: {

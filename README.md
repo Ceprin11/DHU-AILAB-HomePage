@@ -82,6 +82,10 @@ DHU-AILAB-HomePage/
 | `/awards` | 科研成果与竞赛获奖 | 公开 |
 | `/activities` | 活动 | 公开 |
 | `/club-life` | 社团生活 | 公开 |
+| `/gallery` | 实验室公共相册与主页照片精选 | 已登录账号 |
+| `/contribute/material` | 学习资料上传 | 已登录账号 |
+| `/contribute/qa` | 问答补充 | 已登录账号 |
+| `/contribute/award` | 竞赛与科研成果上传 | 已登录账号 |
 | `/videos` | 视频 | 公开 |
 | `/resources` | 学习资料 | 公开 |
 | `/ai-guide` | AI 入门指南 | 公开 |
@@ -144,6 +148,7 @@ await api.entities.Activity.delete(id);
 | `POST /api/auth/change-password` | 修改密码 | 成员 |
 | `POST /api/auth/logout` | 退出 | 公开 |
 | `GET /api/public/members` | 公开成员 | 公开 |
+| `GET /api/public/home-photos` | 仅返回主页精选照片 | 公开 |
 | `GET /api/entities/:entity` | 查询实体 | 公开读取 |
 | `POST /api/entities/:entity` | 新增实体 | 管理员 |
 | `PUT /api/entities/:entity/:id` | 修改实体 | 管理员 |
@@ -153,6 +158,13 @@ await api.entities.Activity.delete(id);
 | `PUT /api/member/profile` | 修改本人资料 | 成员 |
 | `POST /api/member/photo` | 上传本人照片 | 成员 |
 | `POST /api/upload` | 上传管理内容 | 管理员 |
+| `POST /api/album-photos` | 批量上传相册照片 | 已登录账号 |
+| `POST /api/albums` | 创建公共相册 | 已登录账号 |
+| `PUT /api/albums/:id` | 编辑公共相册 | 已登录账号 |
+| `DELETE /api/albums/:id` | 删除本人创建的相册 | 创建者或管理员 |
+| `PATCH /api/albums/:id/photos/:photoId/home-featured` | 选择或取消主页轮播照片 | 管理员 |
+| `POST /api/contributor-upload` | 上传投稿附件或图片 | 已登录账号 |
+| `POST /api/contributions/:entity` | 投稿 `StudyMaterial`、`QA` 或 `Award` | 已登录账号 |
 
 权限必须由后端验证，不能只依赖前端隐藏按钮或路由跳转。
 
@@ -161,6 +173,7 @@ await api.entities.Activity.delete(id);
 通用实体定义在 `server/store.js` 的 `ENTITY_RULES` 中：
 
 - `Activity`
+- `Album`
 - `Award`
 - `ClubLife`
 - `GuideCategory`
@@ -173,6 +186,8 @@ await api.entities.Activity.delete(id);
 - `SiteSettings`
 - `StudyMaterial`
 - `VideoLink`
+
+`Album` 是活动与社团生活共用的内部公共相册。完整相册及其管理界面仅对已登录账号开放；每个相册包含分类、时间、地点、描述和最多 20 张照片，照片通过 `is_home_featured` 标记是否展示在主页轮播。所有已登录账号都可上传和编辑相册，只有管理员可以调整主页精选；删除操作仅限相册创建者或管理员。游客只能通过 `/api/public/home-photos` 获取主页展示所需的精选照片，无法读取完整相册；若尚未精选相册照片，主页会继续使用旧的 `HomeImage` 数据作为兼容回退。
 
 运行数据结构：
 

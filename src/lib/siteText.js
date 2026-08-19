@@ -10,7 +10,7 @@ export const SITE_TEXT_GROUPS = [
       ['lab_name_en', '实验室英文名称', 'AI Innovation Laboratory · AILAB'],
       ['nav_home', '导航：首页', '首页'], ['nav_team', '导航：团队', '团队'], ['nav_guide', '导航：AI入门', 'AI入门'],
       ['nav_notice', '导航：通知', '通知'], ['nav_awards', '导航：成果', '成果'], ['nav_activities', '导航：活动', '活动'],
-      ['nav_club_life', '导航：社团生活', '社团生活'], ['nav_videos', '导航：视频', '视频'], ['nav_resources', '导航：资料', '资料'],
+      ['nav_club_life', '导航：社团生活', '社团生活'], ['nav_gallery', '导航：相册', '相册'], ['nav_videos', '导航：视频', '视频'], ['nav_resources', '导航：资料', '资料'],
       ['nav_qa', '导航：问答', '问答'], ['nav_admin', '管理入口', '管理'], ['nav_join', '加入入口', '加入我们'],
       ['footer_slogan', '页脚简介', '人工智能创新实验室 — 探索智能前沿，编织学术未来。'],
       ['footer_nav_title', '页脚导航标题', '导航'], ['footer_contact_title', '页脚联系方式标题', '联系方式'],

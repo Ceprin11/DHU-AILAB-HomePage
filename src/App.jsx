@@ -23,6 +23,8 @@ const Resources = lazy(() => import('@/pages/Resources'));
 const Admin = lazy(() => import('@/pages/Admin'));
 const AdminLogin = lazy(() => import('@/pages/AdminLogin'));
 const ClubLife = lazy(() => import('@/pages/ClubLife'));
+const Gallery = lazy(() => import('@/pages/Gallery'));
+const Contribute = lazy(() => import('@/pages/Contribute'));
 const AIGuide = lazy(() => import('@/pages/AIGuide'));
 const MemberCenter = lazy(() => import('@/pages/MemberCenter'));
 const MemberPasswordChange = lazy(() => import('@/pages/MemberPasswordChange'));
@@ -72,6 +74,11 @@ const AuthenticatedApp = () => {
         <Route path="/qa" element={<QAPage />} />
         <Route path="/resources" element={<Resources />} />
         <Route path="/club-life" element={<ClubLife />} />
+        <Route path="/gallery" element={<Gallery />} />
+        <Route path="/contribute" element={<Navigate to="/contribute/material" replace />} />
+        <Route path="/contribute/material" element={<Contribute type="material" />} />
+        <Route path="/contribute/qa" element={<Contribute type="qa" />} />
+        <Route path="/contribute/award" element={<Contribute type="award" />} />
         <Route path="/admin-login" element={<AdminLogin />} />
         <Route path="/admin" element={<Admin />} />
       </Route>

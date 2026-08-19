@@ -14,6 +14,8 @@ import express from 'express';
 import multer from 'multer';
 import sharp from 'sharp';
 import { createMemberAccountStore } from './member-account-store.js';
+import { applyHomeSelectionPolicy } from './album-permissions.js';
+import { CONTRIBUTION_ENTITY_NAMES, normalizeContentContribution } from './content-contribution.js';
 import { executeMemberImport, planMemberImport } from './member-import.js';
 import { isPublicMember } from './member-visibility.js';
 import { createStore } from './store.js';
@@ -463,6 +465,8 @@ const memberUser = (member, account) => ({
   id: member.id,
   role: 'member',
   full_name: member.name,
+  headline: member.title || '实验室成员',
+  avatar_url: member.photo_url || '',
   account: account.account,
   must_change_password: account.must_change_password,
 });
@@ -492,7 +496,7 @@ app.post('/api/auth/login', async (req, res) => {
   if (normalizedAccount === adminAccount && password === adminPassword) {
     loginAttempts.delete(clientKey);
     setSessionCookie(res, { role: 'admin' });
-    return res.json({ id: 'ailab-admin', role: 'admin', full_name: 'AILAB 管理员' });
+    return res.json({ id: 'ailab-admin', role: 'admin', full_name: 'AILAB 管理员', headline: '管理员' });
   }
 
   const memberAccount = await memberAccountStore.authenticate(normalizedAccount, password || '');
@@ -508,7 +512,7 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 app.get('/api/auth/me', requireAuth, (req, res) => {
-  if (req.auth.role === 'admin') return res.json({ id: 'ailab-admin', role: 'admin', full_name: 'AILAB 管理员' });
+  if (req.auth.role === 'admin') return res.json({ id: 'ailab-admin', role: 'admin', full_name: 'AILAB 管理员', headline: '管理员' });
   res.json(memberUser(req.auth.member, req.auth.account));
 });
 
@@ -579,9 +583,38 @@ app.get('/api/public/members', async (req, res, next) => {
   }
 });
 
+app.get('/api/public/home-photos', async (_req, res, next) => {
+  try {
+    const albums = await store.list('Album', '-date', 500);
+    const featured = albums.flatMap((album) => (Array.isArray(album.images) ? album.images : [])
+      .filter((image) => image.is_home_featured === true && image.url)
+      .map((image) => ({
+        id: `${album.id}:${image.id}`,
+        url: image.url,
+        alt: album.title || '实验室相册照片',
+      })));
+    if (featured.length > 0) {
+      res.setHeader('Cache-Control', 'no-store');
+      return res.json(featured);
+    }
+    const legacyImages = await store.list('HomeImage', 'order_index', 50);
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(legacyImages
+      .filter((image) => image.is_visible !== false && image.image_url)
+      .map((image) => ({ id: image.id, url: image.image_url, alt: image.title || '实验室风采照片' })));
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get('/api/entities/:entity', async (req, res, next) => {
   try {
     const records = await store.list(req.params.entity, req.query.sort, req.query.limit);
+    if (req.params.entity === 'Album') {
+      const auth = await resolveSession(req);
+      if (auth) return res.json(records);
+      return res.status(401).json({ message: '请先登录账号查看相册' });
+    }
     if (req.params.entity !== 'Member') return res.json(records);
     const auth = await resolveSession(req);
     if (auth?.role !== 'admin') return res.json(records.filter(isPublicMember));
@@ -776,6 +809,148 @@ const persistUpload = async (file) => {
     throw error;
   }
 };
+
+const ALBUM_EDITABLE_FIELDS = new Set(['title', 'date', 'category', 'location', 'description', 'images']);
+
+const albumPayloadFromRequest = (body = {}) => Object.fromEntries(
+  Object.entries(body).filter(([field]) => ALBUM_EDITABLE_FIELDS.has(field)),
+);
+
+const ensureContributorAccountReady = (req, res) => {
+  if (req.auth.role === 'member' && req.auth.account.must_change_password) {
+    res.status(403).json({ message: '请先修改初始密码，再上传或投稿内容' });
+    return false;
+  }
+  return true;
+};
+
+const contributorIdentity = (auth) => auth.role === 'admin'
+  ? { created_by_user_id: 'ailab-admin', created_by_name: 'AILAB 管理员', created_by_role: 'admin' }
+  : { created_by_user_id: auth.member.id, created_by_name: auth.member.name, created_by_role: 'member' };
+
+const contributorUploadExtensions = new Set([
+  '.png', '.jpg', '.jpeg', '.webp', '.avif',
+  '.pdf', '.txt', '.md', '.csv', '.zip', '.doc', '.docx',
+  '.ppt', '.pptx', '.xls', '.xlsx', '.ipynb',
+]);
+
+app.post('/api/contributor-upload', requireAuth, upload.single('file'), async (req, res, next) => {
+  if (!ensureContributorAccountReady(req, res)) return;
+  if (!req.file) return res.status(400).json({ message: '请选择文件' });
+  const extension = path.extname(req.file.originalname).toLowerCase();
+  if (!contributorUploadExtensions.has(extension)) return res.status(400).json({ message: '普通投稿不支持该文件类型' });
+  try {
+    res.status(201).json(await persistUpload(req.file));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/contributions/:entity', requireAuth, async (req, res, next) => {
+  if (!ensureContributorAccountReady(req, res)) return;
+  if (!CONTRIBUTION_ENTITY_NAMES.has(req.params.entity)) return res.status(404).json({ message: '不支持该投稿类型' });
+  try {
+    let payload = normalizeContentContribution(req.params.entity, req.body || {});
+    if (req.params.entity === 'QA') {
+      const existing = await store.list('QA', 'order_index', 5000);
+      payload.order_index = existing.reduce((maximum, item) => Math.max(maximum, Number(item.order_index) || 0), 0) + 1;
+    }
+    payload = await enrichEntityPayload(req.params.entity, payload);
+    res.status(201).json(await store.create(req.params.entity, { ...payload, ...contributorIdentity(req.auth) }));
+  } catch (error) {
+    next(error);
+  }
+});
+
+const validateAlbumContribution = (payload) => {
+  if (!String(payload.title || '').trim()) return '请填写相册标题';
+  if (!String(payload.date || '').trim()) return '请选择拍摄或活动时间';
+  if (!String(payload.description || '').trim()) return '请填写相册描述';
+  if (!['activity', 'club_life'].includes(payload.category)) return '请选择相册分类';
+  if (!Array.isArray(payload.images) || payload.images.length === 0) return '请至少上传一张照片';
+  if (payload.images.some((image) => !String(image?.url || '').startsWith('/uploads/'))) return '相册中包含无效的照片地址';
+  return '';
+};
+
+const canDeleteAlbum = (auth, album) => (
+  auth.role === 'admin' || (auth.role === 'member' && album.created_by_user_id === auth.member.id)
+);
+
+app.post('/api/album-photos', requireAuth, upload.array('files', 20), async (req, res, next) => {
+  if (!ensureContributorAccountReady(req, res)) return;
+  const files = req.files || [];
+  if (!files.length) return res.status(400).json({ message: '请选择照片' });
+  if (files.some((file) => !file.mimetype.startsWith('image/') || !optimizableImageExtensions.has(path.extname(file.originalname).toLowerCase()))) {
+    return res.status(400).json({ message: '相册仅支持 PNG、JPG、WEBP 或 AVIF 图片' });
+  }
+  try {
+    const uploaded = await Promise.all(files.map((file) => persistUpload(file)));
+    res.status(201).json(uploaded);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/albums', requireAuth, async (req, res, next) => {
+  if (!ensureContributorAccountReady(req, res)) return;
+  try {
+    const payload = albumPayloadFromRequest(req.body || {});
+    const validationMessage = validateAlbumContribution(payload);
+    if (validationMessage) return res.status(400).json({ message: validationMessage });
+    const creator = contributorIdentity(req.auth);
+    const securedPayload = {
+      ...payload,
+      images: applyHomeSelectionPolicy(req.auth.role, payload.images, []),
+    };
+    res.status(201).json(await store.create('Album', { ...securedPayload, ...creator }));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put('/api/albums/:id', requireAuth, async (req, res, next) => {
+  if (!ensureContributorAccountReady(req, res)) return;
+  try {
+    const album = await store.get('Album', req.params.id);
+    if (!album) return res.status(404).json({ message: '相册不存在' });
+    const payload = albumPayloadFromRequest(req.body || {});
+    const validationMessage = validateAlbumContribution({ ...album, ...payload });
+    if (validationMessage) return res.status(400).json({ message: validationMessage });
+    const securedPayload = Object.hasOwn(payload, 'images')
+      ? { ...payload, images: applyHomeSelectionPolicy(req.auth.role, payload.images, album.images || []) }
+      : payload;
+    res.json(await store.update('Album', album.id, securedPayload));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete('/api/albums/:id', requireAuth, async (req, res, next) => {
+  if (!ensureContributorAccountReady(req, res)) return;
+  try {
+    const album = await store.get('Album', req.params.id);
+    if (!album) return res.status(404).json({ message: '相册不存在' });
+    if (!canDeleteAlbum(req.auth, album)) return res.status(403).json({ message: '只能删除自己创建的相册' });
+    res.json(await store.remove('Album', album.id));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch('/api/albums/:id/photos/:photoId/home-featured', requireAdmin, async (req, res, next) => {
+  if (typeof req.body?.is_home_featured !== 'boolean') return res.status(400).json({ message: '请选择是否在主页展示' });
+  try {
+    const album = await store.get('Album', req.params.id);
+    if (!album) return res.status(404).json({ message: '相册不存在' });
+    const images = Array.isArray(album.images) ? album.images.map((image) => ({ ...image })) : [];
+    const photo = images.find((image) => image.id === req.params.photoId);
+    if (!photo) return res.status(404).json({ message: '照片不存在' });
+    photo.is_home_featured = req.body.is_home_featured;
+    res.json(await store.update('Album', album.id, { images }));
+  } catch (error) {
+    next(error);
+  }
+});
 
 app.post('/api/member/photo', requireMember, upload.single('file'), async (req, res, next) => {
   if (req.auth.account.must_change_password) return res.status(403).json({ message: '请先修改初始密码' });

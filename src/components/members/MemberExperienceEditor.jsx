@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { MonthPicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -150,7 +151,7 @@ export default function MemberExperienceEditor({ value = [], onChange }) {
             <div className="mt-5 grid gap-5 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor={`${item.id}-start`}>开始时间</Label>
-                <Input id={`${item.id}-start`} type="month" value={item.start_date || ''} onChange={(event) => update(item.id, 'start_date', event.target.value)} className="h-11 border-border/85 bg-background" />
+                <MonthPicker id={`${item.id}-start`} value={item.start_date || ''} onChange={(nextValue) => update(item.id, 'start_date', nextValue)} />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-3">
@@ -159,7 +160,7 @@ export default function MemberExperienceEditor({ value = [], onChange }) {
                     <Checkbox checked={item.is_current === true} onCheckedChange={(checked) => update(item.id, 'is_current', checked === true)} /> 至今
                   </label>
                 </div>
-                <Input id={`${item.id}-end`} type="month" value={item.end_date || ''} disabled={item.is_current === true} onChange={(event) => update(item.id, 'end_date', event.target.value)} className="h-11 border-border/85 bg-background disabled:bg-secondary/60" />
+                <MonthPicker id={`${item.id}-end`} value={item.end_date || ''} disabled={item.is_current === true} onChange={(nextValue) => update(item.id, 'end_date', nextValue)} />
               </div>
               <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor={`${item.id}-organization`}>{type.organization}</Label>
