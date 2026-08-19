@@ -1,6 +1,8 @@
 const MEMBER_ROLE_RANK = {
   president: 0,
+  current_president: 0,
   vice_president: 1,
+  current_vice_president: 1,
   core: 2,
   member: 3,
 };

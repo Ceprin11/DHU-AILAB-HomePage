@@ -49,7 +49,7 @@ export const SITE_TEXT_GROUPS = [
       ['members_description', '页面说明', '汇聚东华大学对人工智能充满热忱的青年学者与指导老师。', 'textarea'],
       ['members_advisor', '指导老师标题', '指导老师'], ['members_current', '在校成员标题', '在校成员'], ['members_graduated', '毕业成员标题', '已毕业成员'],
       ['members_empty_current', '无在校成员提示', '暂无在校成员'], ['members_empty_graduated', '无毕业成员提示', '暂无毕业成员'],
-      ['members_from', '来自标签', '来自'], ['members_hobbies', '兴趣爱好标签', '兴趣爱好'], ['members_research', '研究方向标签', '研究方向'],
+      ['members_major', '专业标签', '专业'], ['members_from', '来自标签', '来自'], ['members_hobbies', '兴趣爱好标签', '兴趣爱好'], ['members_research', '研究方向标签', '研究方向'],
       ['members_bio', '个人简介标签', '个人简介'], ['members_advisor_bio', '老师简介标签', '简介'], ['members_competition', '竞赛获奖标签', '竞赛获奖'],
       ['members_achievements', '科研成果标签', '科研成果'], ['members_message', '寄语标签', '写给学弟学妹的话'],
       ['members_destination', '毕业去向标题', '毕业去向'], ['members_destination_type', '去向标签', '去向'], ['members_organization', '单位标签', '单位'],

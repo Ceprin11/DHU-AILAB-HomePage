@@ -114,8 +114,11 @@ export async function executeMemberImport(plan, { store, memberAccountStore }) {
           active: true,
         });
         const existing = await store.get('Member', item.member_id);
-        if (existing && !String(existing.grade || '').trim() && item.grade) {
-          await store.update('Member', item.member_id, { grade: item.grade });
+        if (existing) {
+          const updates = {};
+          if (!String(existing.grade || '').trim() && item.grade) updates.grade = item.grade;
+          if (!existing.photo_url && existing.profile_status !== 'hidden') updates.profile_status = 'draft';
+          if (Object.keys(updates).length) await store.update('Member', item.member_id, updates);
         }
         results.push({ ...item, status: 'success' });
         continue;

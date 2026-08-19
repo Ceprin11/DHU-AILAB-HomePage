@@ -20,8 +20,9 @@ const memberFields = [
   { key: 'reset_member_password', label: '将密码重置为学号或工号', type: 'boolean', showWhen: (member) => !!member.id, helper: '保存后成员需要使用初始密码重新登录，并再次设置新密码。' },
   { key: 'title', label: '职位/头衔', type: 'text', placeholder: '如：社长、技术负责人' },
   { key: 'category', label: '类别', type: 'select', options: [
-    { value: 'advisor', label: '指导老师' }, { value: 'president', label: '社长' }, { value: 'vice_president', label: '副社长' }, { value: 'core', label: '核心成员' }, { value: 'member', label: '成员' }] },
+    { value: 'advisor', label: '指导老师' }, { value: 'current_president', label: '现任社长' }, { value: 'current_vice_president', label: '现任副社长' }, { value: 'president', label: '社长' }, { value: 'vice_president', label: '副社长' }, { value: 'core', label: '核心成员' }, { value: 'member', label: '成员' }] },
   { key: 'grade', label: '入学年级', type: 'text', placeholder: '如：2024 或 24' },
+  { key: 'major', label: '专业', type: 'text', placeholder: '如：计算机科学与技术', showWhen: (member) => member.category !== 'advisor' },
   { key: 'hometown', label: '来自', type: 'text', placeholder: '如：四川成都', showWhen: (member) => member.category !== 'advisor' },
   { key: 'hobbies', label: '兴趣爱好', type: 'textarea', rows: 2, placeholder: '如：摄影、羽毛球、阅读', showWhen: (member) => member.category !== 'advisor' },
   { key: 'graduated', label: '是否已毕业', type: 'boolean' },
@@ -44,8 +45,8 @@ const memberProfileStatus = (member) => {
   if (!member.account) return '未配置登录账号';
   if (!member.account_active) return `账号 ${member.account} / 已停用`;
   if (member.profile_status === 'hidden') return `账号 ${member.account} / 已隐藏`;
-  if (member.profile_status === 'draft' && !member.account_last_login_at) return `账号 ${member.account} / 待首次登录`;
-  if (member.profile_status === 'draft') return `账号 ${member.account} / 待完善资料`;
+  if ((!member.photo_url || member.profile_status === 'draft') && !member.account_last_login_at) return `账号 ${member.account} / 待首次登录`;
+  if (!member.photo_url || member.profile_status === 'draft') return `账号 ${member.account} / 待完善资料`;
   return `账号 ${member.account} / 已公开`;
 };
 

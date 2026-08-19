@@ -21,6 +21,7 @@ export const ENTITY_RULES = {
 const MEMBER_DESTINATIONS = new Set(['', '保研', '留学', '就业', '其他']);
 const MEMBER_PROFILE_STATUSES = new Set(['draft', 'published', 'hidden']);
 const MEMBER_FIELD_LIMITS = {
+  major: 100,
   hometown: 100,
   hobbies: 500,
   destination_organization: 200,

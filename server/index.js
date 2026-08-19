@@ -15,6 +15,7 @@ import multer from 'multer';
 import sharp from 'sharp';
 import { createMemberAccountStore } from './member-account-store.js';
 import { executeMemberImport, planMemberImport } from './member-import.js';
+import { isPublicMember } from './member-visibility.js';
 import { createStore } from './store.js';
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -556,8 +557,6 @@ const withMemberAccount = (member, account) => ({
   reset_member_password: false,
 });
 
-const isPublicMember = (member) => member.profile_status !== 'draft' && member.profile_status !== 'hidden';
-
 app.post('/api/admin/member-import', requireAdmin, async (req, res, next) => {
   try {
     const members = await store.list('Member', '', 5000);
@@ -614,14 +613,12 @@ app.put('/api/entities/:entity/:id', requireAdmin, async (req, res, next) => {
     if (!previous) return res.status(404).json({ message: 'Record not found' });
     const { memberPayload, accountConfig } = splitMemberAccountPayload(payload);
     const resultingPhoto = Object.hasOwn(memberPayload, 'photo_url') ? memberPayload.photo_url : previous.photo_url;
-    const nextMemberPayload = previous.profile_status
-      ? {
-          ...memberPayload,
-          profile_status: previous.profile_status === 'hidden'
-            ? 'hidden'
-            : resultingPhoto ? 'published' : 'draft',
-        }
-      : memberPayload;
+    const nextMemberPayload = {
+      ...memberPayload,
+      profile_status: previous.profile_status === 'hidden'
+        ? 'hidden'
+        : resultingPhoto ? 'published' : 'draft',
+    };
     const member = await store.update('Member', req.params.id, nextMemberPayload);
     try {
       const account = await memberAccountStore.configureForMember(member.id, accountConfig);
@@ -646,6 +643,7 @@ app.delete('/api/entities/:entity/:id', requireAdmin, async (req, res, next) => 
 });
 
 const MEMBER_SELF_EDITABLE_FIELDS = new Set([
+  'major',
   'hometown',
   'hobbies',
   'research_interests',

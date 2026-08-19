@@ -150,9 +150,9 @@ function MemberCard({ member, onClick, text, index = 0 }) {
           <h3 className="font-display text-lg font-semibold leading-tight text-foreground transition-colors group-hover:text-primary">{member.name}</h3>
           {member.title && <span className="max-w-[8rem] shrink-0 text-right text-xs leading-5 text-primary">{member.title}</span>}
         </div>
-        {(member.grade || member.graduated) && (
+        {(member.grade || member.major || member.graduated) && (
           <p className="mt-1.5 font-mono-date text-[11px] text-muted-foreground">
-            {[formatGrade(member.grade, text), member.graduated && text('members_graduated_badge')].filter(Boolean).join(' / ')}
+            {[formatGrade(member.grade, text), member.major, member.graduated && text('members_graduated_badge')].filter(Boolean).join(' / ')}
           </p>
         )}
         {member.graduated && member.destination && (
@@ -222,6 +222,7 @@ function FocusPanel({ member, onClose, text }) {
         <div className="p-6 sm:p-8">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono-date text-xs text-muted-foreground">
             {member.grade && <span>{formatGrade(member.grade, text)}</span>}
+            {member.major && <span>{text('members_major')}：{member.major}</span>}
             {member.graduated && <span>{text('members_graduated_badge')}</span>}
           </div>
           <h2 id="member-detail-title" className="mt-3 font-display text-3xl font-bold tracking-tight text-foreground">{member.name}</h2>

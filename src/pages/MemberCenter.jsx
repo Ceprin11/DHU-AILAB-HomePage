@@ -62,7 +62,9 @@ export default function MemberCenter() {
   const [photoFile, setPhotoFile] = useState(null);
   const photoInputRef = useRef(null);
   const initials = useMemo(() => profile?.name?.slice(0, 1) || '你', [profile?.name]);
-  const isPublished = profile?.profile_status !== 'draft';
+  const isPublished = Boolean(profile?.photo_url)
+    && profile?.profile_status !== 'draft'
+    && profile?.profile_status !== 'hidden';
 
   useEffect(() => {
     if (user?.role !== 'member' || user.must_change_password) return;
@@ -96,6 +98,7 @@ export default function MemberCenter() {
     setError('');
     try {
       const editableProfile = Object.fromEntries([
+        'major',
         'hometown',
         'hobbies',
         'research_interests',
@@ -189,7 +192,7 @@ export default function MemberCenter() {
 
               <div className="min-w-0 py-1 lg:px-1 lg:pb-1 lg:pt-5">
                 <h2 className="font-display text-xl font-bold tracking-tight text-foreground lg:text-2xl">{profile.name}</h2>
-                <p className="mt-1.5 text-sm font-medium text-primary">{profile.grade} / {profile.title}</p>
+                <p className="mt-1.5 text-sm font-medium text-primary">{[profile.grade, profile.major, profile.title].filter(Boolean).join(' / ')}</p>
                 <p className="mt-3 text-xs leading-5 text-muted-foreground">姓名、年级和成员身份由管理员维护。</p>
                 <Button
                   type="button"
@@ -245,6 +248,10 @@ export default function MemberCenter() {
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <FormSection id="basic-profile" icon={UserRound} title="基本资料" description="介绍你的个人背景和兴趣。">
+                <div className="space-y-2">
+                  <Label htmlFor="member-major">专业</Label>
+                  <Input id="member-major" value={profile.major || ''} onChange={updateField('major')} className={fieldClass} placeholder="如：计算机科学与技术" />
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="member-hometown">来自</Label>
                   <div className="relative">

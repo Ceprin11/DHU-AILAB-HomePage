@@ -14,6 +14,11 @@ test('sorts each member role in the requested order', () => {
   ]);
 });
 
+test('treats current and former leadership as the same ordering level', () => {
+  assert.equal(getMemberRoleRank({ category: 'current_president' }), getMemberRoleRank({ category: 'president' }));
+  assert.equal(getMemberRoleRank({ category: 'current_vice_president' }), getMemberRoleRank({ category: 'vice_president' }));
+});
+
 test('uses legacy titles and pinyin name order within the same role', () => {
   assert.equal(getMemberRoleRank({ category: 'core', title: '副社长' }), 1);
   const members = [

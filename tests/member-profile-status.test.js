@@ -38,3 +38,10 @@ test('keeps legacy members valid and rejects unknown profile states', async () =
     );
   });
 });
+
+test('stores a member major', async () => {
+  await withStore(async (store) => {
+    const member = await store.create('Member', { name: '测试成员', major: '计算机科学与技术' });
+    assert.equal(member.major, '计算机科学与技术');
+  });
+});
