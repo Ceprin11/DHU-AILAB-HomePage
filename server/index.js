@@ -569,6 +569,16 @@ app.post('/api/admin/member-import', requireAdmin, async (req, res, next) => {
   }
 });
 
+app.get('/api/public/members', async (req, res, next) => {
+  try {
+    const records = await store.list('Member', req.query.sort, req.query.limit || 500);
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(records.filter(isPublicMember));
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get('/api/entities/:entity', async (req, res, next) => {
   try {
     const records = await store.list(req.params.entity, req.query.sort, req.query.limit);

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { compareMembersByRoleAndName, getMemberRoleRank } from '../src/lib/memberSort.js';
+import { compareMembersByRoleAndName, getMemberRoleRank, isGraduatedMember } from '../src/lib/memberSort.js';
 
 test('sorts each member role in the requested order', () => {
   const members = [
@@ -27,4 +27,11 @@ test('uses legacy titles and pinyin name order within the same role', () => {
     { id: '2', name: '李四', category: 'member' },
   ];
   assert.deepEqual(members.sort(compareMembersByRoleAndName).map((member) => member.name), ['陈晨', '李四', '张三']);
+});
+
+test('treats grade 22 and earlier as graduated members', () => {
+  assert.equal(isGraduatedMember({ grade: '22', graduated: false }), true);
+  assert.equal(isGraduatedMember({ grade: '2022', graduated: false }), true);
+  assert.equal(isGraduatedMember({ grade: '23', graduated: false }), false);
+  assert.equal(isGraduatedMember({ grade: '24', graduated: true }), true);
 });

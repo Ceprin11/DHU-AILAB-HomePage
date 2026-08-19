@@ -7,7 +7,7 @@ import SectionHeading from '@/components/SectionHeading';
 import { ContentLoading, EmptyState } from '@/components/ContentState';
 import { useSiteText } from '@/lib/siteText';
 import { Reveal } from '@/components/motion/MotionPrimitives';
-import { compareMembersByRoleAndName } from '@/lib/memberSort';
+import { compareMembersByRoleAndName, isGraduatedMember } from '@/lib/memberSort';
 
 const DEST_LABEL = { '保研': '保研', '留学': '留学', '就业': '就业', '其他': '其他' };
 
@@ -321,14 +321,17 @@ export default function Members() {
   const [focus, setFocus] = useState(null);
 
   useEffect(() => {
-    api.entities.Member.list('', 300)
+    api.public.members('', 300)
       .then((r) => { setMembers(r || []); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
 
-  const advisor = members.find((member) => member.category === 'advisor');
-  const inSchool = members.filter((member) => member.category !== 'advisor' && !member.graduated);
-  const graduated = members.filter((member) => member.category !== 'advisor' && member.graduated);
+  const displayMembers = members.map((member) => (
+    isGraduatedMember(member) && !member.graduated ? { ...member, graduated: true } : member
+  ));
+  const advisor = displayMembers.find((member) => member.category === 'advisor');
+  const inSchool = displayMembers.filter((member) => member.category !== 'advisor' && !member.graduated);
+  const graduated = displayMembers.filter((member) => member.category !== 'advisor' && member.graduated);
 
   return (
     <div className="page-shell page-section">

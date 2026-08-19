@@ -26,3 +26,10 @@ export function compareMembersByRoleAndName(left, right) {
   if (nameDifference) return nameDifference;
   return String(left?.id || '').localeCompare(String(right?.id || ''));
 }
+
+export function isGraduatedMember(member) {
+  if (member?.graduated) return true;
+  const grade = String(member?.grade || '').trim().replace(/[级届]$/, '');
+  const year = /^\d{2}$/.test(grade) ? Number(`20${grade}`) : /^\d{4}$/.test(grade) ? Number(grade) : null;
+  return year !== null && year <= 2022;
+}

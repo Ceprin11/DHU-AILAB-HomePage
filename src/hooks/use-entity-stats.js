@@ -10,7 +10,7 @@ export function useEntityStats() {
 
   const refresh = useCallback(async () => {
     const [members, awards, activities] = await Promise.all([
-      api.entities.Member.list('', 500).then((rows) => rows.length).catch(() => null),
+      api.public.members('', 500).then((rows) => rows.length).catch(() => null),
       api.entities.Award.list('', 500).then((rows) => rows.length).catch(() => null),
       api.entities.Activity.list('', 500).then((rows) => rows.length).catch(() => null),
     ]);

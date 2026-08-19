@@ -131,6 +131,12 @@ export const api = {
       return result;
     },
   },
+  public: {
+    members(sort = '', limit = 500) {
+      const query = new URLSearchParams({ sort, limit: String(limit) });
+      return request(`/api/public/members?${query}`);
+    },
+  },
   admin: {
     previewMemberImport(rows) {
       return request('/api/admin/member-import', {
