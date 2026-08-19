@@ -729,8 +729,6 @@ docker compose ps
 - 合并依赖升级 PR 前检查安全公告和破坏性变更。
 - 管理员账号不应与成员共享。
 
-`docker-compose.yml` 中的环境变量应在正式使用前迁移为服务器端 `.env`、Compose secrets 或其他安全配置，不应在 PR 中填写真实值。
-
 ## 常见问题
 
 ### 页面可以打开，但 API 返回 404
