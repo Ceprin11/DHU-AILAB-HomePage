@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, m, useReducedMotion } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, Camera } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Camera, MapPin } from 'lucide-react';
 import { api } from '@/api/client';
 import SectionHeading from '@/components/SectionHeading';
 import { formatDate } from '@/lib/site';
@@ -16,9 +16,24 @@ export default function ClubLife() {
 
   const load = () => {
     setLoading(true);
-    api.entities.ClubLife.list('-date', 300)
-      .then((r) => { setItems(r || []); setLoading(false); })
-      .catch(() => setLoading(false));
+    Promise.all([
+      api.entities.ClubLife.list('-date', 300).catch(() => []),
+      api.public.albums('club_life').catch(() => []),
+    ]).then(([clubLifeItems, publicAlbums]) => {
+      const publicAlbumPhotos = (publicAlbums || []).flatMap((album) => (album.images || []).map((photo) => ({
+        id: `album:${album.id}:${photo.id}`,
+        album: album.title,
+        date: album.date,
+        image_url: photo.url,
+        title: '',
+        description: album.description,
+        location: album.location,
+        is_public_album_photo: true,
+      })));
+      setItems([...(clubLifeItems || []), ...publicAlbumPhotos]
+        .sort((left, right) => String(right.date || '').localeCompare(String(left.date || ''))));
+      setLoading(false);
+    });
   };
 
   useEffect(() => { load(); }, []);
@@ -71,12 +86,17 @@ export default function ClubLife() {
         <EmptyState title={text('life_empty')} icon={Camera} />
       ) : (
         <div className="mt-12 space-y-14">
-          {albumKeys.map((album) => (
-            <div key={album}>
+          {albumKeys.map((album) => {
+            const publicAlbumInfo = albums[album].find((item) => item.is_public_album_photo);
+            return <div key={album}>
               <div className="flex items-end justify-between gap-4 border-b border-border/75 pb-4">
-                <div className="flex items-center gap-2.5">
-                  <Camera size={18} strokeWidth={1.8} className="text-primary" />
-                  <h3 className="font-display text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{album}</h3>
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <Camera size={18} strokeWidth={1.8} className="text-primary" />
+                    <h3 className="font-display text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{album}</h3>
+                  </div>
+                  {publicAlbumInfo && <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 pl-7 font-mono-date text-[10px] text-muted-foreground"><span>{formatDate(publicAlbumInfo.date)}</span>{publicAlbumInfo.location && <span className="inline-flex items-center gap-1"><MapPin size={11} />{publicAlbumInfo.location}</span>}</div>}
+                  {publicAlbumInfo?.description && <p className="mt-2 max-w-3xl pl-7 text-sm leading-6 text-muted-foreground">{publicAlbumInfo.description}</p>}
                 </div>
                 <span className="font-mono-date text-xs text-muted-foreground">{String(albums[album].length).padStart(2, '0')} {text('life_photo_unit')}</span>
               </div>
@@ -101,7 +121,7 @@ export default function ClubLife() {
                     ) : (
                       <div className="flex aspect-[4/3] items-center justify-center text-muted-foreground"><Camera size={24} /></div>
                     )}
-                    {(it.title || it.date) && (
+                    {!it.is_public_album_photo && (it.title || it.date) && (
                       <div className="border-t border-border/70 px-3 py-3 sm:px-4">
                         {it.title && <p className="font-display text-sm font-semibold leading-5 text-foreground transition-colors group-hover:text-primary">{it.title}</p>}
                         {it.date && <p className="mt-1 font-mono-date text-[10px] text-muted-foreground">{formatDate(it.date)}</p>}
@@ -110,15 +130,15 @@ export default function ClubLife() {
                   </m.button>
                 ))}
               </div>
-            </div>
-          ))}
+            </div>;
+          })}
         </div>
       )}
 
       {/* Lightbox */}
       <AnimatePresence>
       {current && (
-        <m.div initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={reduceMotion ? undefined : { opacity: 0 }} transition={{ duration: reduceMotion ? 0 : 0.2 }} className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/85 p-4 backdrop-blur-sm" onClick={closeLightbox} role="dialog" aria-modal="true" aria-label={current.title || text('life_title')}>
+        <m.div initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={reduceMotion ? undefined : { opacity: 0 }} transition={{ duration: reduceMotion ? 0 : 0.2 }} className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/85 p-4 backdrop-blur-sm" onClick={closeLightbox} role="dialog" aria-modal="true" aria-label={current.title || current.album || text('life_title')}>
           <button aria-label="关闭图片预览" className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-background/20 bg-background/15 text-background transition-colors hover:bg-background/30" onClick={closeLightbox}>
             <X size={20} />
           </button>
@@ -133,7 +153,8 @@ export default function ClubLife() {
               {current.image_url && <m.img key={current.id} initial={reduceMotion ? false : { opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={reduceMotion ? undefined : { opacity: 0, x: -12 }} transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.16, 1, 0.3, 1] }} src={current.image_url} alt={current.title} className="mx-auto max-h-[76vh] max-w-full rounded-xl object-contain" />}
             </AnimatePresence>
             <div className="mt-4 text-center text-background">
-              {current.title && <p className="font-display text-lg font-semibold">{current.title}</p>}
+              {(current.title || current.album) && <p className="font-display text-lg font-semibold">{current.title || current.album}</p>}
+              {current.description && <p className="mx-auto mt-1 max-w-2xl text-sm leading-6 text-background/80">{current.description}</p>}
               <p className="mt-1 font-mono-date text-xs text-background/70">{formatDate(current.date)}</p>
             </div>
           </div>

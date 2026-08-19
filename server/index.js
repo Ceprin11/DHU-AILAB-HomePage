@@ -18,6 +18,7 @@ import { applyHomeSelectionPolicy } from './album-permissions.js';
 import { CONTRIBUTION_ENTITY_NAMES, normalizeContentContribution } from './content-contribution.js';
 import { executeMemberImport, planMemberImport } from './member-import.js';
 import { isPublicMember } from './member-visibility.js';
+import { isPublicAlbumCategory, serializePublicAlbum } from './public-albums.js';
 import { createStore } from './store.js';
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -602,6 +603,21 @@ app.get('/api/public/home-photos', async (_req, res, next) => {
     res.json(legacyImages
       .filter((image) => image.is_visible !== false && image.image_url)
       .map((image) => ({ id: image.id, url: image.image_url, alt: image.title || '实验室风采照片' })));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/public/albums', async (req, res, next) => {
+  const category = String(req.query.category || '');
+  if (!isPublicAlbumCategory(category)) return res.status(400).json({ message: '相册分类不正确' });
+  try {
+    const albums = await store.list('Album', '-date', 500);
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(albums
+      .filter((album) => album.category === category)
+      .map(serializePublicAlbum)
+      .filter(Boolean));
   } catch (error) {
     next(error);
   }
