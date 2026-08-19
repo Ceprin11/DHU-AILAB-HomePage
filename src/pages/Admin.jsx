@@ -20,7 +20,7 @@ const memberFields = [
   { key: 'reset_member_password', label: '将密码重置为学号或工号', type: 'boolean', showWhen: (member) => !!member.id, helper: '保存后成员需要使用初始密码重新登录，并再次设置新密码。' },
   { key: 'title', label: '职位/头衔', type: 'text', placeholder: '如：社长、技术负责人' },
   { key: 'category', label: '类别', type: 'select', options: [
-    { value: 'advisor', label: '指导老师' }, { value: 'president', label: '社长' }, { value: 'core', label: '核心成员' }, { value: 'member', label: '成员' }] },
+    { value: 'advisor', label: '指导老师' }, { value: 'president', label: '社长' }, { value: 'vice_president', label: '副社长' }, { value: 'core', label: '核心成员' }, { value: 'member', label: '成员' }] },
   { key: 'grade', label: '入学年级', type: 'text', placeholder: '如：2024 或 24' },
   { key: 'hometown', label: '来自', type: 'text', placeholder: '如：四川成都', showWhen: (member) => member.category !== 'advisor' },
   { key: 'hobbies', label: '兴趣爱好', type: 'textarea', rows: 2, placeholder: '如：摄影、羽毛球、阅读', showWhen: (member) => member.category !== 'advisor' },
@@ -38,7 +38,6 @@ const memberFields = [
   { key: 'bio', label: '个人简介', type: 'textarea', rows: 4 },
   { key: 'competition_awards', label: '个人竞赛获奖（每行一条）', type: 'textarea', rows: 4 },
   { key: 'research_achievements', label: '个人科研成果（每行一条）', type: 'textarea', rows: 4 },
-  { key: 'order_index', label: '排序(小在前)', type: 'number' },
 ];
 
 const memberProfileStatus = (member) => {
@@ -213,7 +212,7 @@ function MemberManagementTab() {
   return (
     <>
       <MemberImportPanel onImported={() => setRefreshKey((key) => key + 1)} />
-      <EntityManager key={refreshKey} entityName="Member" label="成员" fields={memberFields} sort="order_index" itemTitle={(it) => it.name} itemSubtitle={memberProfileStatus} />
+      <EntityManager key={refreshKey} entityName="Member" label="成员" fields={memberFields} sort="name" itemTitle={(it) => it.name} itemSubtitle={memberProfileStatus} />
     </>
   );
 }

@@ -7,6 +7,7 @@ import SectionHeading from '@/components/SectionHeading';
 import { ContentLoading, EmptyState } from '@/components/ContentState';
 import { useSiteText } from '@/lib/siteText';
 import { Reveal } from '@/components/motion/MotionPrimitives';
+import { compareMembersByRoleAndName } from '@/lib/memberSort';
 
 const DEST_LABEL = { '保研': '保研', '留学': '留学', '就业': '就业', '其他': '其他' };
 
@@ -40,7 +41,10 @@ const groupByGrade = (members, ascending = false) => {
     if (!groups.has(key)) groups.set(key, { ...normalized, key, members: [] });
     groups.get(key).members.push(member);
   });
-  return [...groups.values()].sort((left, right) => {
+  return [...groups.values()].map((group) => ({
+    ...group,
+    members: group.members.sort(compareMembersByRoleAndName),
+  })).sort((left, right) => {
     if (left.key === 'unassigned') return 1;
     if (right.key === 'unassigned') return -1;
     if (typeof left.key === 'number' && typeof right.key === 'number') {
@@ -316,15 +320,14 @@ export default function Members() {
   const [focus, setFocus] = useState(null);
 
   useEffect(() => {
-    api.entities.Member.list('order_index', 300)
+    api.entities.Member.list('', 300)
       .then((r) => { setMembers(r || []); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
 
-  const sorted = [...members].sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
-  const advisor = sorted.find((m) => m.category === 'advisor');
-  const inSchool = sorted.filter((m) => m.category !== 'advisor' && !m.graduated);
-  const graduated = sorted.filter((m) => m.category !== 'advisor' && m.graduated);
+  const advisor = members.find((member) => member.category === 'advisor');
+  const inSchool = members.filter((member) => member.category !== 'advisor' && !member.graduated);
+  const graduated = members.filter((member) => member.category !== 'advisor' && member.graduated);
 
   return (
     <div className="page-shell page-section">
