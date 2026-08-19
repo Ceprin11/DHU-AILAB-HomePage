@@ -22,7 +22,7 @@ export default function Home() {
     api.entities.Award.list('-date', 3).then(setAwards).catch(() => {});
     api.entities.HomeImage.list('order_index', 50)
       .then((rows) => {
-        const photos = (rows || []).map((item) => item.image_url).filter(Boolean);
+        const photos = (rows || []).filter((item) => item.is_visible !== false).map((item) => item.image_url).filter(Boolean);
         setHeroPhotos(photos);
       })
       .catch(() => {});

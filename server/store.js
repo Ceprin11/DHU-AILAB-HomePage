@@ -30,6 +30,7 @@ const MEMBER_FIELD_LIMITS = {
   personal_homepage: 500,
   message_to_juniors: 2000,
 };
+const AWARD_LINK_FIELDS = ['arxiv_url', 'project_url', 'code_url'];
 
 const normalizeMember = (member) => {
   const normalized = { ...member };
@@ -165,6 +166,26 @@ export function createStore(dataDirectory) {
           throw error;
         }
       }
+    }
+
+    if (entityName === 'Award') {
+      for (const field of AWARD_LINK_FIELDS) {
+        if (!record[field]) continue;
+        try {
+          const link = new URL(record[field]);
+          if (!['http:', 'https:'].includes(link.protocol)) throw new Error('unsupported protocol');
+        } catch {
+          const error = new Error(`${field} must be a valid http/https URL`);
+          error.status = 400;
+          throw error;
+        }
+      }
+    }
+
+    if (entityName === 'HomeImage' && record.is_visible !== undefined && typeof record.is_visible !== 'boolean') {
+      const error = new Error('is_visible must be a boolean');
+      error.status = 400;
+      throw error;
     }
 
     if (entityName === 'SiteSettings' && record.page_texts !== undefined) {

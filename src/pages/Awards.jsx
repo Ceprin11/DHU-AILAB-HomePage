@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, FlaskConical, FileText, ExternalLink } from 'lucide-react';
+import { Trophy, FlaskConical, FileText, ExternalLink, Globe2 } from 'lucide-react';
+import SiArxiv, { defaultColor as SiArxivHex } from '@icons-pack/react-simple-icons/icons/SiArxiv';
+import SiGithub, { defaultColor as SiGithubHex } from '@icons-pack/react-simple-icons/icons/SiGithub';
 import { api } from '@/api/client';
 import { Image } from '@/components/ui/image';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -24,10 +26,43 @@ const normalizeDoiUrl = (value = '') => {
   return /^10\.\d{4,9}\/\S+$/i.test(doi) ? `https://doi.org/${doi}` : '';
 };
 
+const normalizeExternalUrl = (value = '') => {
+  const input = String(value).trim();
+  if (!input) return '';
+  try {
+    const url = new URL(input);
+    return ['http:', 'https:'].includes(url.protocol) ? url.toString() : '';
+  } catch {
+    return '';
+  }
+};
+
+function ResearchLinks({ award }) {
+  const links = [
+    { label: 'DOI', url: normalizeDoiUrl(award.doi_url), icon: ExternalLink, color: 'hsl(var(--primary))', background: 'hsl(var(--accent))' },
+    { label: 'arXiv', url: normalizeExternalUrl(award.arxiv_url), icon: SiArxiv, color: SiArxivHex, background: 'rgba(179, 27, 27, 0.09)' },
+    { label: 'Project', url: normalizeExternalUrl(award.project_url), icon: Globe2, color: '#2563EB', background: 'rgba(37, 99, 235, 0.09)' },
+    { label: 'GitHub', url: normalizeExternalUrl(award.code_url), icon: SiGithub, color: SiGithubHex, background: 'rgba(24, 23, 23, 0.08)' },
+  ].filter((item) => item.url);
+
+  if (!links.length) return null;
+  return (
+    <div className="mt-5 flex flex-wrap gap-2" aria-label="论文相关链接">
+      {links.map(({ label, url, icon: Icon, color, background }) => (
+        <a key={label} href={url} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-2 rounded-full border border-border bg-background px-3.5 text-xs font-semibold text-foreground transition-[border-color,background-color,color,transform] hover:-translate-y-0.5 hover:border-primary/35 hover:bg-accent hover:text-primary active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30" aria-label={`${award.title}：访问 ${label}`}>
+          <span className="flex h-6 w-6 items-center justify-center rounded-full" style={{ color, backgroundColor: background }}>
+            <Icon size={14} strokeWidth={1.7} aria-hidden="true" />
+          </span>
+          {label}
+        </a>
+      ))}
+    </div>
+  );
+}
+
 function AwardEntry({ a, text, index = 0 }) {
   const isResearch = a.type === 'research';
   const level = LEVEL[a.level] || LEVEL.other;
-  const doiUrl = isResearch ? normalizeDoiUrl(a.doi_url) : '';
   const content = (
     <>
       <div>
@@ -46,22 +81,18 @@ function AwardEntry({ a, text, index = 0 }) {
           {!isResearch && a.level && <span className={cn('rounded-md px-2.5 py-1 text-xs font-semibold', level.cls)}>{text(level.textKey)}</span>}
           {isResearch && a.ccf_level && <span className="rounded-md bg-amber/30 px-2.5 py-1 text-xs font-semibold text-primary">{a.ccf_level}</span>}
           <span className="font-mono-date text-xs text-muted-foreground">{formatDate(a.date)}</span>
-          {doiUrl && <span className="ml-auto flex items-center gap-1 text-xs font-medium text-primary">DOI <ExternalLink size={12} /></span>}
         </div>
         <h3 className="mt-4 font-display text-xl font-semibold leading-snug tracking-[-0.02em] text-foreground sm:text-2xl">{a.title}</h3>
         {a.recipient && <p className="mt-1.5 text-sm font-medium text-primary">{a.recipient}</p>}
         {a.description && <p className="mt-3 max-w-[65ch] text-sm leading-7 text-muted-foreground">{a.description}</p>}
         {a.notes && <p className="mt-4 flex items-start gap-2 border-l-2 border-primary/30 pl-3 text-xs leading-5 text-muted-foreground"><FileText size={13} strokeWidth={1.8} className="mt-0.5 shrink-0 text-primary" /> {a.notes}</p>}
+        {isResearch && <ResearchLinks award={a} />}
       </div>
     </>
   );
   return (
     <MotionItem as="article" index={index} className="border-t border-border/75 first:border-t-0 first:pt-0">
-      {doiUrl ? (
-        <a href={doiUrl} target="_blank" rel="noreferrer" aria-label={`${a.title}，访问 DOI`} className="group grid gap-5 rounded-xl py-7 transition-colors hover:bg-secondary/25 focus-visible:outline-offset-4 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-7 sm:px-3 sm:py-8">{content}</a>
-      ) : (
-        <div className="group grid gap-5 py-7 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-7 sm:py-8">{content}</div>
-      )}
+      <div className="group grid gap-5 rounded-xl py-7 transition-colors hover:bg-secondary/25 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-7 sm:px-3 sm:py-8">{content}</div>
     </MotionItem>
   );
 }

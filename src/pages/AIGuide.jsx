@@ -181,7 +181,7 @@ export default function AIGuide() {
           ) : stages.length === 0 ? (
             <EmptyState title={text('guide_empty_stage')} icon={BrainCircuit} className="mt-10" />
           ) : (
-            <div className="mt-10 grid gap-6 md:grid-cols-2">
+            <div className="mt-10 grid gap-6 md:grid-cols-3">
               {stages.map((stage, index) => (
                 <MotionItem as="article" index={index} key={stage.id} className="overflow-hidden rounded-xl border border-border/75 bg-card shadow-[0_10px_26px_hsl(var(--foreground)/0.03)]">
                   <div className="relative border-b border-border/75 bg-secondary/50 px-6 py-6">

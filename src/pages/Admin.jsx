@@ -67,7 +67,10 @@ const awardFields = [
   { key: 'level', label: '竞赛级别（仅竞赛获奖）', type: 'select', options: [
     { value: 'national', label: '国家级' }, { value: 'provincial', label: '省级' }, { value: 'university', label: '校级' }, { value: 'other', label: '其他' }] },
   { key: 'ccf_level', label: 'CCF等级/会议（如 CCF-A、CVPR、ACL）', type: 'text' },
-  { key: 'doi_url', label: 'DOI链接（仅科研成果）', type: 'text', placeholder: 'https://doi.org/10.xxxx/... 或 10.xxxx/...', helper: '填写后，访客可点击整张科研成果卡片访问论文。', showWhen: (award) => award.type === 'research' },
+  { key: 'doi_url', label: 'DOI链接（仅科研成果）', type: 'text', placeholder: 'https://doi.org/10.xxxx/... 或 10.xxxx/...', helper: '填写后，论文卡片会显示 DOI 访问入口。', showWhen: (award) => award.type === 'research' },
+  { key: 'arxiv_url', label: 'arXiv链接（仅科研成果）', type: 'text', placeholder: 'https://arxiv.org/abs/...', showWhen: (award) => award.type === 'research' },
+  { key: 'project_url', label: '项目主页（仅科研成果）', type: 'text', placeholder: 'https://...', showWhen: (award) => award.type === 'research' },
+  { key: 'code_url', label: '代码仓库（仅科研成果）', type: 'text', placeholder: 'https://github.com/...', showWhen: (award) => award.type === 'research' },
   { key: 'description', label: '详细描述', type: 'textarea', rows: 4 },
   { key: 'notes', label: '其他备注', type: 'textarea', rows: 2 },
   { key: 'image_url', label: '图片', type: 'image' },
@@ -121,6 +124,7 @@ const homeImageFields = [
   { key: 'title', label: '图片名称', type: 'text', required: true, placeholder: '如：实验室合影' },
   { key: 'image_url', label: '主页图片', type: 'image', required: true },
   { key: 'alt_text', label: '图片说明', type: 'text', placeholder: '用于图片无法显示时的文字说明' },
+  { key: 'is_visible', label: '在首页展示', type: 'boolean', defaultValue: true, helper: '关闭后图片仍会保留，可随时重新开启展示。' },
   { key: 'order_index', label: '轮播顺序（数字越小越靠前）', type: 'number' },
 ];
 
@@ -253,7 +257,9 @@ export default function Admin() {
         <TabsContent value="awards" className="mt-6"><EntityManager entityName="Award" label="成果" fields={awardFields} itemTitle={(it) => it.title} /></TabsContent>
         <TabsContent value="activities" className="mt-6"><EntityManager entityName="Activity" label="活动" fields={activityFields} itemTitle={(it) => it.title} /></TabsContent>
         <TabsContent value="clublife" className="mt-6"><EntityManager entityName="ClubLife" label="社团生活" fields={clubLifeFields} sort="-date" itemTitle={(it) => it.title} /></TabsContent>
-        <TabsContent value="home-images" className="mt-6"><EntityManager entityName="HomeImage" label="主页图片" fields={homeImageFields} sort="order_index" itemTitle={(it) => it.title} /></TabsContent>
+        <TabsContent value="home-images" className="mt-6">
+          <EntityManager entityName="HomeImage" label="主页图片" fields={homeImageFields} sort="order_index" itemTitle={(it) => it.title} quickToggle={{ key: 'is_visible', label: '切换首页展示：', onLabel: '展示中', offLabel: '已隐藏' }} />
+        </TabsContent>
         <TabsContent value="videos" className="mt-6"><EntityManager entityName="VideoLink" label="视频" fields={videoFields} itemTitle={(it) => it.title} /></TabsContent>
         <TabsContent value="materials" className="mt-6"><EntityManager entityName="StudyMaterial" label="学习资料" fields={materialFields} itemTitle={(it) => it.title} /></TabsContent>
         <TabsContent value="qa" className="mt-6"><EntityManager entityName="QA" label="问答" fields={qaFields} sort="order_index" itemTitle={(it) => it.question} /></TabsContent>

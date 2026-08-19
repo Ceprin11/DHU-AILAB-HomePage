@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import MediaUpload from '@/components/admin/MediaUpload';
 
-export default function EntityManager({ entityName, label, fields, itemTitle, itemSubtitle = undefined, sort = '-created_date', onItemsChange = undefined }) {
+export default function EntityManager({ entityName, label, fields, itemTitle, itemSubtitle = undefined, sort = '-created_date', onItemsChange = undefined, quickToggle = undefined }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null); // null closed; {} new; record edit
@@ -36,6 +36,19 @@ export default function EntityManager({ entityName, label, fields, itemTitle, it
       blank[f.key] = f.defaultValue ?? (f.type === 'boolean' ? false : f.type === 'number' ? 0 : '');
     });
     setEditing(blank);
+  };
+
+  const toggleItem = async (item, checked) => {
+    const previousItems = items;
+    setItems((current) => current.map((entry) => (
+      entry.id === item.id ? { ...entry, [quickToggle.key]: checked } : entry
+    )));
+    try {
+      await api.entities[entityName].update(item.id, { [quickToggle.key]: checked });
+    } catch (e) {
+      setItems(previousItems);
+      alert('更新失败：' + (e.message || '未知错误'));
+    }
   };
 
   const save = async () => {
@@ -102,7 +115,17 @@ export default function EntityManager({ entityName, label, fields, itemTitle, it
                   </p>
                 )}
               </div>
-              <div className="flex shrink-0 gap-1">
+              <div className="flex shrink-0 items-center gap-2">
+                {quickToggle && (
+                  <label className="flex items-center gap-2 pr-1 text-xs text-muted-foreground">
+                    <Switch
+                      checked={it[quickToggle.key] !== false}
+                      onCheckedChange={(checked) => toggleItem(it, checked)}
+                      aria-label={`${quickToggle.label}${itemTitle ? itemTitle(it) : ''}`}
+                    />
+                    <span className="hidden sm:inline">{it[quickToggle.key] !== false ? quickToggle.onLabel : quickToggle.offLabel}</span>
+                  </label>
+                )}
                 <button onClick={() => setEditing(it)} className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground">
                   <Pencil size={15} />
                 </button>
