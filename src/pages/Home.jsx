@@ -15,13 +15,36 @@ export default function Home() {
   const [notifs, setNotifs] = useState([]);
   const [awards, setAwards] = useState([]);
   const [heroPhotos, setHeroPhotos] = useState([]);
+  const [heroPhotosLoading, setHeroPhotosLoading] = useState(true);
   const stats = useEntityStats();
 
   useEffect(() => {
     api.entities.Notification.list('-date', 3).then(setNotifs).catch(() => {});
     api.entities.Award.list('-date', 3).then(setAwards).catch(() => {});
-    api.public.homePhotos().then((photos) => setHeroPhotos(photos || [])).catch(() => {});
+
+    let cancelled = false;
+    let retryTimer;
+    const loadHeroPhotos = async (attempt = 0) => {
+      try {
+        const photos = await api.public.homePhotos();
+        if (!cancelled) setHeroPhotos(Array.isArray(photos) ? photos : []);
+      } catch {
+        if (!cancelled && attempt < 2) {
+          retryTimer = window.setTimeout(() => loadHeroPhotos(attempt + 1), 600 * (2 ** attempt));
+          return;
+        }
+      }
+      if (!cancelled) setHeroPhotosLoading(false);
+    };
+
+    loadHeroPhotos();
+    return () => {
+      cancelled = true;
+      if (retryTimer) window.clearTimeout(retryTimer);
+    };
   }, []);
+
+  const hasHeroMediaColumn = heroPhotosLoading || heroPhotos.length > 0;
 
   const quickLinks = [
     { to: '/members', label: text('home_team_card_title'), desc: text('home_team_card_desc'), icon: Users },
@@ -44,8 +67,8 @@ export default function Home() {
         <div className="absolute -left-40 top-16 h-80 w-80 rounded-full bg-amber/20 blur-3xl" />
         <div className="absolute -right-32 bottom-0 h-72 w-72 rounded-full bg-primary/10 blur-3xl" />
         <div className="relative mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16 lg:py-20">
-          <div className={`grid items-center gap-10 lg:gap-14 ${heroPhotos.length > 0 ? 'lg:grid-cols-12' : ''}`}>
-            <Reveal className={heroPhotos.length > 0 ? 'lg:col-span-6' : 'max-w-3xl'} amount={0.05}>
+          <div className={`grid items-center gap-10 lg:gap-14 ${hasHeroMediaColumn ? 'lg:grid-cols-12' : ''}`}>
+            <Reveal className={hasHeroMediaColumn ? 'lg:col-span-6' : 'max-w-3xl'} amount={0.05}>
               <div className="flex items-center gap-3 text-amber-foreground">
                 <span className="h-px w-8 bg-amber-foreground/60" />
                 <span className="font-mono-date text-xs uppercase tracking-[0.22em]">{text('home_eyebrow')}</span>

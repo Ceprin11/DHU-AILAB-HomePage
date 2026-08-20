@@ -13,6 +13,7 @@ import {
 
 const LOCAL_IMAGE_WIDTHS = [320, 640, 960, 1440, 1920]
 const MAX_CONCURRENT_IMAGE_LOADS = 2
+const IMAGE_LOAD_TIMEOUT_MS = 12000
 const imageLoadQueue = []
 let activeImageLoads = 0
 let imageLoadSequence = 0
@@ -96,14 +97,20 @@ const QueuedPlainImage = React.forwardRef(({
   ...props
 }, ref) => {
   const imgRef = React.useRef(null)
+  const onErrorRef = React.useRef(onError)
   const releaseRef = React.useRef(null)
   const retryTimerRef = React.useRef(null)
+  const loadTimeoutRef = React.useRef(null)
   const retryAttemptRef = React.useRef(0)
   const [nearViewport, setNearViewport] = React.useState(loading === "eager" || loadPriority === "high")
   const [requestVersion, setRequestVersion] = React.useState(0)
   const [started, setStarted] = React.useState(false)
 
   React.useImperativeHandle(ref, () => imgRef.current)
+
+  React.useEffect(() => {
+    onErrorRef.current = onError
+  }, [onError])
 
   React.useEffect(() => {
     retryAttemptRef.current = 0
@@ -133,15 +140,29 @@ const QueuedPlainImage = React.forwardRef(({
     const cancel = scheduleImageLoad(loadPriority, (release) => {
       releaseRef.current = release
       setStarted(true)
+      loadTimeoutRef.current = window.setTimeout(() => {
+        releaseRef.current?.()
+        releaseRef.current = null
+        setStarted(false)
+        if (retryAttemptRef.current < 3) {
+          retryAttemptRef.current += 1
+          setRequestVersion((current) => current + 1)
+        } else {
+          onErrorRef.current?.({ currentTarget: imgRef.current })
+        }
+      }, IMAGE_LOAD_TIMEOUT_MS)
     })
     return () => {
       cancel()
+      if (loadTimeoutRef.current) window.clearTimeout(loadTimeoutRef.current)
+      loadTimeoutRef.current = null
       releaseRef.current = null
     }
   }, [loadPriority, nearViewport, requestVersion, src])
 
   React.useEffect(() => () => {
     if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current)
+    if (loadTimeoutRef.current) window.clearTimeout(loadTimeoutRef.current)
     releaseRef.current?.()
   }, [])
 
@@ -151,12 +172,16 @@ const QueuedPlainImage = React.forwardRef(({
   }
 
   const handleLoad = (event) => {
+    if (loadTimeoutRef.current) window.clearTimeout(loadTimeoutRef.current)
+    loadTimeoutRef.current = null
     retryAttemptRef.current = 0
     releaseSlot()
     onLoad?.(event)
   }
 
   const handleError = (event) => {
+    if (loadTimeoutRef.current) window.clearTimeout(loadTimeoutRef.current)
+    loadTimeoutRef.current = null
     releaseSlot()
     if (retryAttemptRef.current < 3) {
       const delay = 700 * (2 ** retryAttemptRef.current)

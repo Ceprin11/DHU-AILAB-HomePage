@@ -10,13 +10,52 @@ import { cn } from '@/lib/utils';
 
 export default function PhotoCarousel({ photos = [], interval = 4800, className }) {
   const reduceMotion = useReducedMotion();
+  const containerRef = React.useRef(null);
+  const swiperRef = React.useRef(null);
+  const photoSignature = photos.map((photo) => (
+    typeof photo === 'string' ? photo : `${photo.id || ''}:${photo.url || ''}`
+  )).join('|');
+
+  React.useEffect(() => {
+    const container = containerRef.current;
+    let secondFrame;
+    let updateTimer;
+
+    const updateCarousel = () => {
+      const swiper = swiperRef.current;
+      if (!swiper || swiper.destroyed || !container?.clientWidth || !container?.clientHeight) return;
+      swiper.update();
+    };
+
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(updateCarousel);
+    });
+    updateTimer = window.setTimeout(updateCarousel, 500);
+
+    const resizeObserver = typeof ResizeObserver === 'undefined' || !container
+      ? null
+      : new ResizeObserver(updateCarousel);
+    resizeObserver?.observe(container);
+
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      if (secondFrame) window.cancelAnimationFrame(secondFrame);
+      if (updateTimer) window.clearTimeout(updateTimer);
+      resizeObserver?.disconnect();
+    };
+  }, [photoSignature]);
 
   if (!photos.length) return null;
 
   return (
-    <div className={cn('relative flex aspect-[4/5] w-full select-none items-center justify-center overflow-hidden bg-transparent', className)}>
+    <div ref={containerRef} className={cn('relative flex aspect-[4/5] w-full select-none items-center justify-center overflow-hidden bg-transparent', className)}>
       <Swiper
         modules={[A11y, Autoplay, EffectCoverflow, Pagination]}
+        onSwiper={(swiper) => { swiperRef.current = swiper; }}
+        onImagesReady={(swiper) => swiper.update()}
+        observer
+        observeParents
+        resizeObserver
         className="!-translate-y-2 !h-full !w-full !overflow-visible sm:!-translate-y-4 [&_.swiper-wrapper]:items-center [&_.swiper-pagination]:bottom-2 [&_.swiper-pagination-bullet]:h-1.5 [&_.swiper-pagination-bullet]:w-1.5 [&_.swiper-pagination-bullet]:bg-muted-foreground [&_.swiper-pagination-bullet]:opacity-35 [&_.swiper-pagination-bullet-active]:w-6 [&_.swiper-pagination-bullet-active]:rounded-full [&_.swiper-pagination-bullet-active]:bg-amber-foreground [&_.swiper-pagination-bullet-active]:opacity-100 [&_.swiper-pagination-bullet-active]:transition-[width]"
         style={{ '--swiper-wrapper-transition-timing-function': 'cubic-bezier(0.22, 1, 0.36, 1)' }}
         effect="coverflow"
