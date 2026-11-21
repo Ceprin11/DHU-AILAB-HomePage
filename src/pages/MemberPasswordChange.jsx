@@ -17,7 +17,7 @@ export default function MemberPasswordChange() {
   const [saving, setSaving] = useState(false);
 
   if (!user) return <Navigate to="/admin-login" replace />;
-  if (user.role !== 'member') return <Navigate to="/admin" replace />;
+  if (!user.is_member) return <Navigate to="/admin" replace />;
 
   const handleSubmit = async (event) => {
     event.preventDefault();

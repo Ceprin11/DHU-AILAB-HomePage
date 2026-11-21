@@ -110,6 +110,7 @@ export default function Navbar() {
                 </DropdownMenuLabel>
                 <DropdownMenuLabel className="px-2.5 pb-1 pt-3 font-mono-date text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">账号</DropdownMenuLabel>
                 <AccountMenuLink to={accountLink} icon={user.role === 'admin' ? Settings : UserRound} title={accountLabel} description={user.role === 'admin' ? '管理网站内容与账号' : '维护个人资料与头像'} />
+                {user.role === 'admin' && user.is_member && <AccountMenuLink to="/member-center" icon={UserRound} title="个人中心" description="维护个人资料与头像" />}
                 <DropdownMenuSeparator className="my-2" />
                 <DropdownMenuLabel className="px-2.5 pb-1 pt-1 font-mono-date text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">内容管理</DropdownMenuLabel>
                 <AccountMenuLink to="/gallery" icon={Images} title="相册管理" description={user.role === 'admin' ? '管理相册并选择主页照片' : '上传和整理公共相册'} />
@@ -175,6 +176,7 @@ export default function Navbar() {
                 <div className="px-1 pb-1 pt-2">
                   <p className="px-2 pb-1 font-mono-date text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">账号</p>
                   <MobileAccountLink to={accountLink} icon={user.role === 'admin' ? Settings : UserRound} title={accountLabel} onClick={() => setOpen(false)} />
+                  {user.role === 'admin' && user.is_member && <MobileAccountLink to="/member-center" icon={UserRound} title="个人中心" onClick={() => setOpen(false)} />}
                   <div className="my-2 h-px bg-border" />
                   <p className="px-2 pb-1 font-mono-date text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">内容管理</p>
                   <MobileAccountLink to="/gallery" icon={Images} title="相册管理" onClick={() => setOpen(false)} />

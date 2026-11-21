@@ -44,6 +44,7 @@ const publicAccount = (record) => record ? ({
   account: record.account,
   active: record.active !== false,
   must_change_password: record.must_change_password !== false,
+  is_admin: record.is_admin === true,
   session_version: record.session_version || 1,
   last_login_at: record.last_login_at || '',
   created_date: record.created_date,
@@ -118,7 +119,7 @@ export function createMemberAccountStore(dataDirectory) {
       });
     },
 
-    async createForMember(memberId, account, { active = true } = {}) {
+    async createForMember(memberId, account, { active = true, admin = false } = {}) {
       const normalizedAccount = normalizeAccount(account);
       validateAccount(normalizedAccount);
       return enqueueMutation(async () => {
@@ -131,6 +132,7 @@ export function createMemberAccountStore(dataDirectory) {
           account: normalizedAccount,
           ...await createPasswordRecord(normalizedAccount),
           active: active !== false,
+          is_admin: admin === true,
           must_change_password: true,
           session_version: 1,
           created_date: now,
@@ -142,7 +144,7 @@ export function createMemberAccountStore(dataDirectory) {
       });
     },
 
-    async configureForMember(memberId, { account, active, resetPassword = false }) {
+    async configureForMember(memberId, { account, active, resetPassword = false, admin }) {
       const normalizedAccount = normalizeAccount(account);
       if (normalizedAccount) validateAccount(normalizedAccount);
       return enqueueMutation(async () => {
@@ -157,6 +159,7 @@ export function createMemberAccountStore(dataDirectory) {
             account: normalizedAccount,
             ...await createPasswordRecord(normalizedAccount),
             active: active !== false,
+            is_admin: admin === true,
             must_change_password: true,
             session_version: 1,
             created_date: now,
@@ -172,6 +175,10 @@ export function createMemberAccountStore(dataDirectory) {
           }
           if (typeof active === 'boolean' && active !== record.active) {
             record.active = active;
+            record.session_version = (record.session_version || 1) + 1;
+          }
+          if (typeof admin === 'boolean' && admin !== (record.is_admin === true)) {
+            record.is_admin = admin;
             record.session_version = (record.session_version || 1) + 1;
           }
           if (resetPassword) {

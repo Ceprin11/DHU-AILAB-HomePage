@@ -14,6 +14,7 @@ import express from 'express';
 import multer from 'multer';
 import sharp from 'sharp';
 import { createMemberAccountStore } from './member-account-store.js';
+import { checkMemberAccountChange, checkMemberDeletion, isEffectiveAdmin } from './member-admin-policy.js';
 import { applyHomeSelectionPolicy } from './album-permissions.js';
 import { CONTRIBUTION_ENTITY_NAMES, normalizeContentContribution } from './content-contribution.js';
 import { ASSET_MAX_BYTES, createDocsStore, isInlineAsset, seedContentDirectory } from './docs-store.js';
@@ -455,12 +456,12 @@ const resolveSession = async (req) => {
   const token = parseCookies(req.headers.cookie)[sessionCookie];
   const session = verifySession(token);
   if (!session) return null;
-  if (session.role === 'admin') return { role: 'admin' };
+  if (session.role === 'admin') return { role: 'admin', super: true };
   const account = await memberAccountStore.getByMemberId(session.member_id);
   if (!account || !account.active || account.session_version !== session.session_version) return null;
   const member = await store.get('Member', session.member_id);
   if (!member) return null;
-  return { role: 'member', account, member };
+  return { role: isEffectiveAdmin(account) ? 'admin' : 'member', super: false, account, member };
 };
 
 const requireAuth = async (req, res, next) => {
@@ -477,7 +478,7 @@ const requireAdmin = async (req, res, next) => {
 
 const requireMember = async (req, res, next) => {
   req.auth = await resolveSession(req);
-  if (req.auth?.role !== 'member') return res.status(401).json({ message: '请先登录成员账号' });
+  if (!req.auth?.member) return res.status(401).json({ message: '请先登录成员账号' });
   next();
 };
 
@@ -493,9 +494,11 @@ const setSessionCookie = (res, session) => {
 
 const memberUser = (member, account) => ({
   id: member.id,
-  role: 'member',
+  role: isEffectiveAdmin(account) ? 'admin' : 'member',
+  is_member: true,
+  is_super: false,
   full_name: member.name,
-  headline: member.title || '实验室成员',
+  headline: member.title || (isEffectiveAdmin(account) ? '管理员' : '实验室成员'),
   avatar_url: member.photo_url || '',
   account: account.account,
   must_change_password: account.must_change_password,
@@ -526,7 +529,7 @@ app.post('/api/auth/login', async (req, res) => {
   if (normalizedAccount === adminAccount && password === adminPassword) {
     loginAttempts.delete(clientKey);
     setSessionCookie(res, { role: 'admin' });
-    return res.json({ id: 'ailab-admin', role: 'admin', full_name: 'AILAB 管理员', headline: '管理员' });
+    return res.json({ id: 'ailab-admin', role: 'admin', is_super: true, full_name: 'AILAB 管理员', headline: '管理员' });
   }
 
   const memberAccount = await memberAccountStore.authenticate(normalizedAccount, password || '');
@@ -542,7 +545,7 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 app.get('/api/auth/me', requireAuth, (req, res) => {
-  if (req.auth.role === 'admin') return res.json({ id: 'ailab-admin', role: 'admin', full_name: 'AILAB 管理员', headline: '管理员' });
+  if (req.auth.super) return res.json({ id: 'ailab-admin', role: 'admin', is_super: true, full_name: 'AILAB 管理员', headline: '管理员' });
   res.json(memberUser(req.auth.member, req.auth.account));
 });
 
@@ -567,6 +570,7 @@ const splitMemberAccountPayload = (payload) => {
   const {
     account,
     account_active: accountActive,
+    account_is_admin: accountIsAdmin,
     reset_member_password: resetMemberPassword,
     must_change_password: _mustChangePassword,
     account_last_login_at: _accountLastLoginAt,
@@ -577,6 +581,7 @@ const splitMemberAccountPayload = (payload) => {
     accountConfig: {
       account,
       active: accountActive,
+      admin: typeof accountIsAdmin === 'boolean' ? accountIsAdmin : undefined,
       resetPassword: resetMemberPassword === true,
     },
   };
@@ -586,6 +591,7 @@ const withMemberAccount = (member, account) => ({
   ...member,
   account: account?.account || '',
   account_active: account?.active ?? true,
+  account_is_admin: account?.is_admin === true,
   must_change_password: account?.must_change_password ?? false,
   account_last_login_at: account?.last_login_at || '',
   reset_member_password: false,
@@ -956,12 +962,14 @@ app.post('/api/entities/:entity', requireAdmin, async (req, res, next) => {
     if (req.params.entity !== 'Member') return res.status(201).json(await store.create(req.params.entity, payload));
     const { memberPayload, accountConfig } = splitMemberAccountPayload(payload);
     if (!String(accountConfig.account || '').trim()) return res.status(400).json({ message: '新增成员必须填写学号或工号' });
+    const denied = checkMemberAccountChange({ auth: req.auth, target: null, config: accountConfig });
+    if (denied) return res.status(403).json({ message: denied });
     const member = await store.create('Member', {
       ...memberPayload,
       profile_status: memberPayload.photo_url ? 'published' : 'draft',
     });
     try {
-      const account = await memberAccountStore.createForMember(member.id, accountConfig.account, { active: accountConfig.active });
+      const account = await memberAccountStore.createForMember(member.id, accountConfig.account, { active: accountConfig.active, admin: accountConfig.admin === true });
       res.status(201).json(withMemberAccount(member, account));
     } catch (error) {
       await store.remove('Member', member.id).catch(() => {});
@@ -979,6 +987,8 @@ app.put('/api/entities/:entity/:id', requireAdmin, async (req, res, next) => {
     const previous = await store.get('Member', req.params.id);
     if (!previous) return res.status(404).json({ message: 'Record not found' });
     const { memberPayload, accountConfig } = splitMemberAccountPayload(payload);
+    const denied = checkMemberAccountChange({ auth: req.auth, target: await memberAccountStore.getByMemberId(req.params.id), config: accountConfig });
+    if (denied) return res.status(403).json({ message: denied });
     const resultingPhoto = Object.hasOwn(memberPayload, 'photo_url') ? memberPayload.photo_url : previous.photo_url;
     const nextMemberPayload = {
       ...memberPayload,
@@ -1001,6 +1011,10 @@ app.put('/api/entities/:entity/:id', requireAdmin, async (req, res, next) => {
 
 app.delete('/api/entities/:entity/:id', requireAdmin, async (req, res, next) => {
   try {
+    if (req.params.entity === 'Member') {
+      const denied = checkMemberDeletion({ auth: req.auth, target: await memberAccountStore.getByMemberId(req.params.id) });
+      if (denied) return res.status(403).json({ message: denied });
+    }
     const result = await store.remove(req.params.entity, req.params.id);
     if (req.params.entity === 'Member') await memberAccountStore.removeForMember(req.params.id);
     res.json(result);
@@ -1143,16 +1157,16 @@ const albumPayloadFromRequest = (body = {}) => Object.fromEntries(
 );
 
 const ensureContributorAccountReady = (req, res) => {
-  if (req.auth.role === 'member' && req.auth.account.must_change_password) {
+  if (req.auth.member && req.auth.account.must_change_password) {
     res.status(403).json({ message: '请先修改初始密码，再上传或投稿内容' });
     return false;
   }
   return true;
 };
 
-const contributorIdentity = (auth) => auth.role === 'admin'
+const contributorIdentity = (auth) => (auth.super
   ? { created_by_user_id: 'ailab-admin', created_by_name: 'AILAB 管理员', created_by_role: 'admin' }
-  : { created_by_user_id: auth.member.id, created_by_name: auth.member.name, created_by_role: 'member' };
+  : { created_by_user_id: auth.member.id, created_by_name: auth.member.name, created_by_role: auth.role === 'admin' ? 'admin' : 'member' });
 
 const contributorUploadExtensions = new Set([
   '.png', '.jpg', '.jpeg', '.webp', '.avif',
@@ -1199,7 +1213,7 @@ const validateAlbumContribution = (payload) => {
 };
 
 const canDeleteAlbum = (auth, album) => (
-  auth.role === 'admin' || (auth.role === 'member' && album.created_by_user_id === auth.member.id)
+  auth.role === 'admin' || (Boolean(auth.member) && album.created_by_user_id === auth.member.id)
 );
 
 app.post('/api/album-photos', requireAuth, upload.array('files', 20), async (req, res, next) => {

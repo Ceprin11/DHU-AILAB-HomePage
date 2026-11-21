@@ -63,3 +63,37 @@ test('supports admin reset, disable and unique accounts', async () => {
     assert.equal(authenticated.must_change_password, true);
   });
 });
+
+test('accounts are not administrators unless that is granted explicitly', async () => {
+  await withStore(async (store) => {
+    assert.equal((await store.createForMember('member-1', '20240001')).is_admin, false);
+    assert.equal((await store.createForMember('member-2', '20240002', { admin: true })).is_admin, true);
+    assert.equal((await store.getByMemberId('member-1')).is_admin, false);
+    assert.equal((await store.listSummaries()).filter((account) => account.is_admin).length, 1);
+  });
+});
+
+test('granting or revoking admin rights signs the member out and is persisted', async () => {
+  await withStore(async (store, directory) => {
+    const created = await store.createForMember('member-1', '20240001');
+    const granted = await store.configureForMember('member-1', { account: '20240001', admin: true });
+    assert.equal(granted.is_admin, true);
+    assert.equal(granted.session_version, created.session_version + 1);
+    assert.equal((await readFile(path.join(directory, 'member-accounts.json'), 'utf8')).includes('"is_admin": true'), true);
+
+    const unchanged = await store.configureForMember('member-1', { account: '20240001', admin: true });
+    assert.equal(unchanged.session_version, granted.session_version, 'saving the same value must not sign anyone out');
+    const untouched = await store.configureForMember('member-1', { account: '20240001' });
+    assert.equal(untouched.is_admin, true, 'leaving the field out keeps the rights');
+
+    const revoked = await store.configureForMember('member-1', { account: '20240001', admin: false });
+    assert.equal(revoked.is_admin, false);
+    assert.equal(revoked.session_version, granted.session_version + 1);
+  });
+});
+
+test('can mark an account as administrator while creating it through configure', async () => {
+  await withStore(async (store) => {
+    assert.equal((await store.configureForMember('member-1', { account: '20240001', admin: true })).is_admin, true);
+  });
+});
