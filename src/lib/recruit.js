@@ -1,3 +1,18 @@
+const previewQuery = (preview) => (preview ? '?preview=1' : '');
+
+export const recruitSectionPath = (cohort, section, { preview = false } = {}) => `/recruit/${encodeURIComponent(cohort)}/${section}${previewQuery(preview)}`;
+
+// [{ name: '', pages }, { name: 'CV', pages }, ...] — the pages arrive already ordered, so this only cuts them into blocks.
+export const sectionPages = (pages) => {
+  const sections = [];
+  for (const page of pages) {
+    const last = sections[sections.length - 1];
+    if (last && last.name === (page.group || '')) last.pages.push(page);
+    else sections.push({ name: page.group || '', pages: [page] });
+  }
+  return sections;
+};
+
 export const formatFileSize = (bytes) => {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0)} KB`;
@@ -22,6 +37,29 @@ export const previewFileName = ({ direction, name, student_id: studentId, grade,
 export const submissionFileUrl = (id, { download = false } = {}) => (
   `/api/recruit/submissions/${encodeURIComponent(id)}/file${download ? '?download=1' : ''}`
 );
+
+// Splits a cohort's directions into its field groups (CV / NLP / ...). Directions that belong to no group come last.
+export const groupDirections = (directions = [], groups = []) => {
+  const claimed = new Set(groups.flatMap((group) => group.directions));
+  const sections = groups
+    .map((group) => ({ name: group.name, directions: group.directions.filter((direction) => directions.includes(direction)) }))
+    .filter((section) => section.directions.length > 0);
+  const rest = directions.filter((direction) => !claimed.has(direction));
+  return rest.length ? [...sections, { name: '', directions: rest }] : sections;
+};
+
+export const fieldOfDirection = (groups = [], direction) => groups.find((group) => group.directions.includes(direction))?.name || '';
+
+// Puts the paper groups of the submissions list under their field: [{ name: 'CV', groups: [paper, ...] }, ...].
+export const sectionSubmissionGroups = (paperGroups, groups = []) => {
+  const fieldOf = (direction) => fieldOfDirection(groups, direction);
+  const sections = [];
+  for (const name of [...groups.map((group) => group.name), '']) {
+    const members = paperGroups.filter((paper) => fieldOf(paper.direction) === name);
+    if (members.length) sections.push({ name, groups: members });
+  }
+  return sections;
+};
 
 // One entry per applicant and paper; every re-submission becomes another version of the same entry.
 export const groupSubmissions = (rows, directionOrder = []) => {

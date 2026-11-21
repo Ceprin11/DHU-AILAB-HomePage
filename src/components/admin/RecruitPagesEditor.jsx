@@ -1,13 +1,14 @@
 import React, { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
-import { ExternalLink, FilePlus2, FileUp, ImagePlus, Loader2, Save, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Eye, FilePlus2, FileUp, ImagePlus, Loader2, Save, Trash2 } from 'lucide-react';
 import { api } from '@/api/client';
 import RecruitAssets, { assetSnippet } from '@/components/admin/RecruitAssets';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { IMAGE_EXTENSIONS_BY_TYPE, cleanEditorMarkdown, nameUploadedFile } from '@/lib/recruit';
+import { IMAGE_EXTENSIONS_BY_TYPE, cleanEditorMarkdown, nameUploadedFile, sectionPages } from '@/lib/recruit';
 import { cn } from '@/lib/utils';
 
 const MarkdownEditor = lazy(() => import('@/components/admin/MarkdownEditor'));
@@ -15,8 +16,10 @@ const MarkdownEditor = lazy(() => import('@/components/admin/MarkdownEditor'));
 const NEW = '__new__';
 const VIEWS = [{ id: 'visual', label: '编辑' }, { id: 'source', label: 'Markdown 源码' }];
 
-const emptyForm = () => ({ slug: '', title: '', order: '', summary: '', draft: false, body: '# 新文档\n\n' });
-const toForm = (page) => ({ slug: page.slug, title: page.title, order: page.order === '' ? '' : String(page.order), summary: page.summary, draft: page.draft, body: page.body });
+const NO_GROUP = '__none__';
+
+const emptyForm = () => ({ slug: '', title: '', group: '', summary: '', draft: false, body: '# 新文档\n\n' });
+const toForm = (page) => ({ slug: page.slug, title: page.title, group: page.group || '', summary: page.summary, draft: page.draft, body: page.body });
 const snapshot = (form) => JSON.stringify(form);
 
 function Field({ label, htmlFor, children, className }) {
@@ -36,6 +39,7 @@ export default function RecruitPagesEditor({ cohort }) {
   const [view, setView] = useState('visual');
   const [editorVersion, setEditorVersion] = useState(0);
   const [status, setStatus] = useState({ busy: false, error: '', notice: '' });
+  const [sorting, setSorting] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [uploading, setUploading] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -92,7 +96,7 @@ export default function RecruitPagesEditor({ cohort }) {
     if (!form.slug.trim()) return setStatus({ busy: false, error: '请填写文档名（用于网址，如 gpt-2）', notice: '' });
     setStatus({ busy: true, error: '', notice: '' });
     try {
-      const page = await api.recruitAdmin.savePage(cohort.id, form.slug.trim(), { title: form.title, order: form.order, summary: form.summary, draft: form.draft, body: form.body });
+      const page = await api.recruitAdmin.savePage(cohort.id, form.slug.trim(), { title: form.title, group: form.group, summary: form.summary, draft: form.draft, body: form.body });
       const next = toForm(page);
       setForm(next);
       setSaved(snapshot(next));
@@ -101,6 +105,25 @@ export default function RecruitPagesEditor({ cohort }) {
       loadPages();
     } catch (error) {
       setStatus({ busy: false, error: error.message || '保存失败', notice: '' });
+    }
+  };
+
+  // The list shows pages in their final order; moving one swaps it with its neighbour in the same group.
+  const move = async (slug, step) => {
+    if (!pages || sorting) return;
+    const position = pages.findIndex((page) => page.slug === slug);
+    const neighbour = pages[position + step];
+    if (!neighbour || neighbour.slug === 'index' || (neighbour.group || '') !== (pages[position].group || '')) return;
+    const next = [...pages];
+    [next[position], next[position + step]] = [next[position + step], next[position]];
+    setSorting(true);
+    setStatus((current) => ({ ...current, error: '', notice: '' }));
+    try {
+      setPages(await api.recruitAdmin.reorderPages(cohort.id, next.map((page) => ({ slug: page.slug, group: page.group || '' }))));
+    } catch (error) {
+      setStatus((current) => ({ ...current, error: error.message || '调整顺序失败', notice: '' }));
+    } finally {
+      setSorting(false);
     }
   };
 
@@ -229,26 +252,44 @@ export default function RecruitPagesEditor({ cohort }) {
         </div>
         {!pages && <p className="py-4 text-center text-sm text-muted-foreground">加载中…</p>}
         {pages?.length === 0 && <p className="rounded-lg border border-border/75 bg-secondary/20 px-3 py-6 text-center text-sm text-muted-foreground">这一期还没有文档。点“新建”或“导入 .md”开始。</p>}
-        <ul className="space-y-1">
-          {selected === NEW && <li className="rounded-lg border border-primary bg-accent/50 px-3 py-2 text-sm font-medium text-primary">（新文档）</li>}
-          {pages?.map((page) => (
-            <li key={page.slug}>
-              <button
-                type="button"
-                onClick={() => open(page.slug)}
-                aria-current={page.slug === selected ? 'true' : undefined}
-                className={cn('w-full rounded-lg border px-3 py-2 text-left transition-colors', page.slug === selected ? 'border-primary bg-accent/50' : 'border-border/75 bg-card hover:border-primary/40')}
-              >
-                <span className="flex items-center justify-between gap-2">
-                  <span className="truncate text-sm font-medium text-foreground">{page.title}</span>
-                  {page.draft && <span className="shrink-0 rounded bg-amber/25 px-1.5 text-[11px] font-semibold text-amber-foreground">草稿</span>}
-                </span>
-                <span className="mt-0.5 block truncate font-mono text-xs text-muted-foreground">{page.slug}{page.order !== '' && ` · 排序 ${page.order}`}</span>
-              </button>
-            </li>
+        {selected === NEW && <p className="rounded-lg border border-primary bg-accent/50 px-3 py-2 text-sm font-medium text-primary">（新文档）</p>}
+        <div className="space-y-4">
+          {pages && sectionPages(pages).map((section) => (
+            <section key={section.name || 'top'} aria-label={section.name || '未分组'}>
+              {(section.name || cohort.groups?.length > 0) && <h3 className="mb-1.5 px-1 text-xs font-semibold tracking-[0.04em] text-muted-foreground">{section.name || '未分组'}</h3>}
+              <ul className="space-y-1">
+                {section.pages.map((page, sectionIndex) => {
+                  const movable = page.slug !== 'index';
+                  const canUp = movable && sectionIndex > 0 && section.pages[sectionIndex - 1].slug !== 'index';
+                  const canDown = movable && sectionIndex < section.pages.length - 1;
+                  return (
+                    <li key={page.slug} className="flex items-stretch gap-1">
+                      <button
+                        type="button"
+                        onClick={() => open(page.slug)}
+                        aria-current={page.slug === selected ? 'true' : undefined}
+                        className={cn('min-w-0 flex-1 rounded-lg border px-3 py-2 text-left transition-colors', page.slug === selected ? 'border-primary bg-accent/50' : 'border-border/75 bg-card hover:border-primary/40')}
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="truncate text-sm font-medium text-foreground">{page.title}</span>
+                          {page.draft && <span className="shrink-0 rounded bg-amber/25 px-1.5 text-[11px] font-semibold text-amber-foreground">草稿</span>}
+                        </span>
+                        <span className="mt-0.5 block truncate font-mono text-xs text-muted-foreground">{page.slug}</span>
+                      </button>
+                      {movable && (
+                        <span className="flex shrink-0 flex-col justify-center">
+                          <button type="button" disabled={!canUp || sorting} onClick={() => move(page.slug, -1)} aria-label={`上移 ${page.title}`} className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-25 disabled:hover:bg-transparent"><ArrowUp size={14} aria-hidden="true" /></button>
+                          <button type="button" disabled={!canDown || sorting} onClick={() => move(page.slug, 1)} aria-label={`下移 ${page.title}`} className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-25 disabled:hover:bg-transparent"><ArrowDown size={14} aria-hidden="true" /></button>
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
           ))}
-        </ul>
-        <p className="text-xs leading-5 text-muted-foreground">文档名为 <code>index</code> 的是总招新文档，始终排在最前。其他文档按“排序”数字从小到大排列。</p>
+        </div>
+        <p className="text-xs leading-5 text-muted-foreground">文档名为 <code>index</code> 的是总招新文档，始终排在最前。其他文档用右侧的箭头调整顺序，顺序在同一个分组内生效；换分组请在右侧编辑区修改“分组”。</p>
       </aside>
 
       <section className="min-w-0">
@@ -261,12 +302,24 @@ export default function RecruitPagesEditor({ cohort }) {
           </div>
         ) : (
           <div className="space-y-4" onKeyDown={onKeyDown}>
-            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_6rem]">
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_9rem]">
               <Field label={selected === NEW ? '文档名（网址，保存后不可改）' : '文档名（网址）'} htmlFor="page-slug">
                 <Input id="page-slug" value={form.slug} onChange={update('slug')} disabled={selected !== NEW} placeholder="如 gpt-2 或 index" className="font-mono text-sm" />
               </Field>
               <Field label="标题（留空则使用正文第一个一级标题）" htmlFor="page-title"><Input id="page-title" value={form.title} onChange={update('title')} maxLength={100} /></Field>
-              <Field label="排序" htmlFor="page-order"><Input id="page-order" value={form.order} onChange={update('order')} inputMode="decimal" placeholder="如 2" /></Field>
+              <Field label="分组" htmlFor="page-group">
+                {form.slug === 'index' || !(cohort.groups?.length > 0) ? (
+                  <p className="flex h-9 items-center text-xs text-muted-foreground">{form.slug === 'index' ? '总文档不分组' : '批次设置里添加分组后可选'}</p>
+                ) : (
+                  <Select value={form.group || NO_GROUP} onValueChange={(value) => setForm((current) => ({ ...current, group: value === NO_GROUP ? '' : value }))}>
+                    <SelectTrigger id="page-group" aria-label="分组"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_GROUP}>不分组</SelectItem>
+                      {cohort.groups.map((group) => <SelectItem key={group.name} value={group.name}>{group.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
+              </Field>
             </div>
             <Field label="简介（可选）" htmlFor="page-summary"><Input id="page-summary" value={form.summary} onChange={update('summary')} maxLength={300} /></Field>
 
@@ -276,8 +329,8 @@ export default function RecruitPagesEditor({ cohort }) {
                 草稿<span className="text-xs text-muted-foreground">（开启后访客看不到）</span>
               </label>
               <div className="ml-auto flex flex-wrap items-center gap-2">
-                {selected !== NEW && !form.draft && cohort.status !== 'draft' && (
-                  <Button asChild variant="ghost" size="sm" className="gap-1.5"><a href={`/recruit/${encodeURIComponent(cohort.id)}${form.slug === 'index' ? '' : `/${encodeURIComponent(form.slug)}`}`} target="_blank" rel="noreferrer"><ExternalLink size={14} aria-hidden="true" /> 在站内查看</a></Button>
+                {selected !== NEW && (
+                  <Button asChild variant="ghost" size="sm" className="gap-1.5"><a href={`/recruit/${encodeURIComponent(cohort.id)}${form.slug === 'index' ? '' : `/${encodeURIComponent(form.slug)}`}?preview=1`} target="_blank" rel="noreferrer"><Eye size={14} aria-hidden="true" /> 预览</a></Button>
                 )}
                 {selected !== NEW && <Button type="button" variant="outline" size="sm" className="gap-1.5 text-destructive hover:text-destructive" onClick={remove}><Trash2 size={14} aria-hidden="true" /> 删除</Button>}
                 <Button type="button" size="sm" className="gap-1.5" disabled={status.busy || (!dirty && selected !== NEW)} onClick={save}>

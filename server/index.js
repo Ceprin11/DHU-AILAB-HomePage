@@ -658,9 +658,12 @@ app.get('/api/public/albums', async (req, res, next) => {
   }
 });
 
-app.get('/api/docs/cohorts', async (_req, res, next) => {
+// Administrators can add ?preview=1 to see unpublished cohorts and draft pages as they will look once published.
+const wantsPreview = async (req) => req.query.preview === '1' && (await resolveSession(req))?.role === 'admin';
+
+app.get('/api/docs/cohorts', async (req, res, next) => {
   try {
-    res.json(await docsStore.listCohorts());
+    res.json(await docsStore.listCohorts({ preview: await wantsPreview(req) }));
   } catch (error) {
     next(error);
   }
@@ -668,9 +671,10 @@ app.get('/api/docs/cohorts', async (_req, res, next) => {
 
 app.get('/api/docs/:cohort/pages', async (req, res, next) => {
   try {
-    const cohort = await docsStore.getCohort(req.params.cohort);
+    const preview = await wantsPreview(req);
+    const cohort = await docsStore.getCohort(req.params.cohort, { preview });
     if (!cohort) return res.status(404).json({ message: '没有找到这一期招新' });
-    res.json({ cohort, pages: await docsStore.listPages(cohort.id) });
+    res.json({ cohort, pages: await docsStore.listPages(cohort.id, { preview }) });
   } catch (error) {
     next(error);
   }
@@ -678,8 +682,9 @@ app.get('/api/docs/:cohort/pages', async (req, res, next) => {
 
 app.get('/api/docs/:cohort/pages/:slug', async (req, res, next) => {
   try {
-    const cohort = await docsStore.getCohort(req.params.cohort);
-    const page = cohort && await docsStore.getPage(cohort.id, req.params.slug);
+    const preview = await wantsPreview(req);
+    const cohort = await docsStore.getCohort(req.params.cohort, { preview });
+    const page = cohort && await docsStore.getPage(cohort.id, req.params.slug, { preview });
     if (!page) return res.status(404).json({ message: '没有找到这篇文档' });
     res.json(page);
   } catch (error) {
@@ -854,6 +859,15 @@ app.post('/api/admin/recruit/:cohort/unpublish', requireAdmin, async (req, res, 
 
 app.get('/api/admin/recruit/:cohort/pages', requireAdmin, async (req, res, next) => {
   try {
+    res.json(await docsStore.listPagesForAdmin(req.params.cohort));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put('/api/admin/recruit/:cohort/pages-order', requireAdmin, async (req, res, next) => {
+  try {
+    await docsStore.reorderPages(req.params.cohort, req.body?.pages);
     res.json(await docsStore.listPagesForAdmin(req.params.cohort));
   } catch (error) {
     next(error);

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowDown, ArrowUp, Loader2, Plus, Save, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Loader2, Plus, Save, Trash2, Wand2 } from 'lucide-react';
 import { api } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,11 +15,30 @@ const STATUS_OPTIONS = [
   { value: 'upcoming', label: '即将开始' },
 ];
 
-const toDraft = (cohort) => ({ ...cohort, directionsText: (cohort.directions || []).join('\n'), existing: true });
-const toPayload = ({ directionsText, existing: _existing, ...cohort }) => ({
-  ...cohort,
-  directions: directionsText.split('\n').map((line) => line.trim()).filter(Boolean),
-});
+const lines = (text) => text.split('\n').map((line) => line.trim()).filter(Boolean);
+
+// The form edits the groups and the directions that belong to no group; the cohort stores one list plus the groups.
+const toDraft = (cohort) => {
+  const groups = cohort.groups || [];
+  const claimed = new Set(groups.flatMap((group) => group.directions));
+  return {
+    ...cohort,
+    groupDrafts: groups.map((group) => ({ name: group.name, directionsText: group.directions.join('\n') })),
+    directionsText: (cohort.directions || []).filter((direction) => !claimed.has(direction)).join('\n'),
+    existing: true,
+  };
+};
+const toPayload = ({ groupDrafts, directionsText, existing: _existing, ...cohort }) => {
+  const groups = groupDrafts.map((group) => ({ name: group.name.trim(), directions: lines(group.directionsText) }));
+  return { ...cohort, groups, directions: [...groups.flatMap((group) => group.directions), ...lines(directionsText)] };
+};
+
+// Common fields for this lab's paper list; only names that are already in the cohort are used.
+const SUGGESTED_GROUPS = [
+  { name: 'CV', members: ['ConvNeXt', 'ViT', 'DINOv2', 'U-Net', 'Swin', 'ResNet', 'YOLO', 'SAM', 'MAE'] },
+  { name: 'NLP', members: ['BERT', 'GPT-2', 'GPT-3', 'T5', 'LLaMA', 'Transformer'] },
+  { name: '多模态', members: ['CLIP', 'BLIP', 'LLaVA', 'Flamingo', 'Stable Diffusion'] },
+];
 
 function Field({ label, htmlFor, hint, children }) {
   return (
@@ -43,7 +62,33 @@ export default function RecruitCohortSettings({ cohorts, onSaved }) {
     [next[index], next[index + step]] = [next[index + step], next[index]];
     return next;
   });
-  const add = () => setDrafts((current) => [...current, { id: '', label: '', status: 'draft', description: '', directionsText: '', submissions: true, submission_deadline: '', publish_at: '', publish_drafts: true, existing: false }]);
+  const patchGroup = (index, groupIndex, changes) => patch(index, { groupDrafts: drafts[index].groupDrafts.map((group, position) => (position === groupIndex ? { ...group, ...changes } : group)) });
+  const addGroup = (index, name = '') => patch(index, { groupDrafts: [...drafts[index].groupDrafts, { name, directionsText: '' }] });
+  const removeGroup = (index, groupIndex) => {
+    const group = drafts[index].groupDrafts[groupIndex];
+    // The papers of a removed group are kept as un-grouped ones.
+    patch(index, {
+      groupDrafts: drafts[index].groupDrafts.filter((_, position) => position !== groupIndex),
+      directionsText: [...lines(group.directionsText), ...lines(drafts[index].directionsText)].join('\n'),
+    });
+  };
+  const moveGroup = (index, groupIndex, step) => {
+    const next = [...drafts[index].groupDrafts];
+    [next[groupIndex], next[groupIndex + step]] = [next[groupIndex + step], next[groupIndex]];
+    patch(index, { groupDrafts: next });
+  };
+  const applySuggestedGroups = (index) => {
+    const item = drafts[index];
+    const all = [...item.groupDrafts.flatMap((group) => lines(group.directionsText)), ...lines(item.directionsText)];
+    const used = new Set();
+    const groupDrafts = SUGGESTED_GROUPS.map((suggested) => {
+      const members = all.filter((direction) => suggested.members.some((name) => name.toLowerCase() === direction.toLowerCase()));
+      members.forEach((direction) => used.add(direction));
+      return { name: suggested.name, directionsText: members.join('\n') };
+    }).filter((group) => group.directionsText);
+    patch(index, { groupDrafts, directionsText: all.filter((direction) => !used.has(direction)).join('\n') });
+  };
+  const add = () => setDrafts((current) => [...current, { id: '', label: '', status: 'draft', description: '', groupDrafts: [], directionsText: '', submissions: true, submission_deadline: '', publish_at: '', publish_drafts: true, existing: false }]);
   const remove = (index) => {
     const item = drafts[index];
     if (!window.confirm(`从列表中移除「${item.label || item.id || '新批次'}」？${item.existing ? '\n\n它的文档和附件文件仍保留在服务器上，重新用同一个编号添加即可找回。' : ''}`)) return;
@@ -82,9 +127,31 @@ export default function RecruitCohortSettings({ cohorts, onSaved }) {
           </div>
           <Field label="说明（显示在批次切换器旁，可选）" htmlFor={`cohort-description-${index}`}><Input id={`cohort-description-${index}`} value={item.description} maxLength={100} onChange={(event) => patch(index, { description: event.target.value })} /></Field>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="选择方向（提交表单里的选项，一行一个）" htmlFor={`cohort-directions-${index}`} hint="本次是十篇论文。方向会写进文件名，请用简短名称。">
-              <Textarea id={`cohort-directions-${index}`} value={item.directionsText} rows={5} onChange={(event) => patch(index, { directionsText: event.target.value })} className="font-mono text-sm" placeholder={'ViT\nBERT\nCLIP'} />
-            </Field>
+            <div className="min-w-0 space-y-4">
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium text-muted-foreground">选择方向（论文）和分组</p>
+                <p className="text-xs leading-5 text-muted-foreground">提交表单、文档目录和“收到的提交”都会按分组归类。每个方向一行，会写进文件名，请用简短名称。</p>
+              </div>
+              {item.groupDrafts.map((group, groupIndex) => (
+                <div key={groupIndex} className="min-w-0 space-y-2 rounded-lg border border-border/75 bg-secondary/20 p-3">
+                  <div className="flex items-center gap-1">
+                    <Input value={group.name} maxLength={20} onChange={(event) => patchGroup(index, groupIndex, { name: event.target.value })} placeholder="分组名，如 CV" aria-label="分组名" className="h-8 flex-1 bg-card text-sm font-medium" />
+                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8" disabled={groupIndex === 0} onClick={() => moveGroup(index, groupIndex, -1)} aria-label="分组上移"><ArrowUp size={14} aria-hidden="true" /></Button>
+                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8" disabled={groupIndex === item.groupDrafts.length - 1} onClick={() => moveGroup(index, groupIndex, 1)} aria-label="分组下移"><ArrowDown size={14} aria-hidden="true" /></Button>
+                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => removeGroup(index, groupIndex)} aria-label="删除分组"><Trash2 size={14} aria-hidden="true" /></Button>
+                  </div>
+                  <Textarea value={group.directionsText} rows={Math.min(8, Math.max(3, lines(group.directionsText).length + 1))} onChange={(event) => patchGroup(index, groupIndex, { directionsText: event.target.value })} aria-label={`${group.name || '分组'}的方向`} className="bg-card font-mono text-sm" placeholder={'ViT\nBERT'} />
+                </div>
+              ))}
+              <div className="space-y-1.5">
+                <Label htmlFor={`cohort-directions-${index}`} className="text-xs font-medium text-muted-foreground">{item.groupDrafts.length ? '未分组的方向' : '方向列表'}</Label>
+                <Textarea id={`cohort-directions-${index}`} value={item.directionsText} rows={item.groupDrafts.length ? 3 : 5} onChange={(event) => patch(index, { directionsText: event.target.value })} className="font-mono text-sm" placeholder={'ViT\nBERT\nCLIP'} />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => addGroup(index)}><Plus size={14} aria-hidden="true" /> 添加分组</Button>
+                <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => applySuggestedGroups(index)}><Wand2 size={14} aria-hidden="true" /> 按 CV / NLP / 多模态自动分组</Button>
+              </div>
+            </div>
             <div className="space-y-4">
               <Field label="提交截止时间（北京时间，可选）" htmlFor={`cohort-deadline-${index}`} hint="写 2026-12-06 表示当天 23:59:59，写 2026-12-06 18:00 表示具体时刻。留空表示不设截止。">
                 <Input id={`cohort-deadline-${index}`} value={item.submission_deadline} onChange={(event) => patch(index, { submission_deadline: event.target.value })} placeholder="2026-12-06 18:00" />
