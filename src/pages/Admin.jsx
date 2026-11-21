@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Loader2, LogOut, Save, Settings } from 'lucide-react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { api } from '@/api/client';
@@ -38,13 +38,22 @@ const memberFields = [
   { key: 'research_achievements', label: '个人科研成果（每行一条）', type: 'textarea', rows: 4 },
 ];
 
+const adminRightsField = {
+  key: 'account_is_admin',
+  label: '管理员权限',
+  type: 'boolean',
+  defaultValue: false,
+  helper: '开启后，该成员可以登录管理后台编辑网站内容。仅超级管理员可以授予或收回；成员需要先修改初始密码，权限才会生效。保存后该成员需要重新登录。',
+};
+
 const memberProfileStatus = (member) => {
+  const admin = member.account_is_admin ? ` / 管理员${member.must_change_password ? '（改密后生效）' : ''}` : '';
   if (!member.account) return '未配置登录账号';
-  if (!member.account_active) return `账号 ${member.account} / 已停用`;
-  if (member.profile_status === 'hidden') return `账号 ${member.account} / 已隐藏`;
-  if ((!member.photo_url || member.profile_status === 'draft') && !member.account_last_login_at) return `账号 ${member.account} / 待首次登录`;
-  if (!member.photo_url || member.profile_status === 'draft') return `账号 ${member.account} / 待完善资料`;
-  return `账号 ${member.account} / 已公开`;
+  if (!member.account_active) return `账号 ${member.account} / 已停用${admin}`;
+  if (member.profile_status === 'hidden') return `账号 ${member.account} / 已隐藏${admin}`;
+  if ((!member.photo_url || member.profile_status === 'draft') && !member.account_last_login_at) return `账号 ${member.account} / 待首次登录${admin}`;
+  if (!member.photo_url || member.profile_status === 'draft') return `账号 ${member.account} / 待完善资料${admin}`;
+  return `账号 ${member.account} / 已公开${admin}`;
 };
 
 const notifFields = [
@@ -206,11 +215,14 @@ function SiteSettingsTab() {
 }
 
 function MemberManagementTab() {
+  const { user } = useAuth();
   const [refreshKey, setRefreshKey] = useState(0);
+  // Only the super administrator can hand out administrator rights, so only they get the switch.
+  const fields = useMemo(() => (user?.is_super ? [...memberFields.slice(0, 4), adminRightsField, ...memberFields.slice(4)] : memberFields), [user?.is_super]);
   return (
     <>
       <MemberImportPanel onImported={() => setRefreshKey((key) => key + 1)} />
-      <EntityManager key={refreshKey} entityName="Member" label="成员" fields={memberFields} sort="name" itemTitle={(it) => it.name} itemSubtitle={memberProfileStatus} />
+      <EntityManager key={refreshKey} entityName="Member" label="成员" fields={fields} sort="name" itemTitle={(it) => it.name} itemSubtitle={memberProfileStatus} />
     </>
   );
 }
@@ -235,7 +247,7 @@ export default function Admin() {
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground"><Settings size={18} /></span>
           <div>
             <h1 className="font-display text-2xl font-bold tracking-tight">管理后台</h1>
-            <p className="font-mono-date text-xs text-muted-foreground">AILAB Admin Console</p>
+            <p className="font-mono-date text-xs text-muted-foreground">AILAB Admin Console · {user.is_super ? '超级管理员' : `成员管理员 ${user.full_name}`}</p>
           </div>
         </div>
         <Button variant="outline" size="sm" onClick={handleLogout} className="gap-1.5">

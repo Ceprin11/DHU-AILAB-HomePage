@@ -74,7 +74,7 @@ export default function MemberCenter() {
     && profile?.profile_status !== 'hidden';
 
   useEffect(() => {
-    if (user?.role !== 'member' || user.must_change_password) return;
+    if (!user?.is_member || user.must_change_password) return;
     api.member.profile()
       .then(setProfile)
       .catch((loadError) => setError(loadError.message || '成员资料加载失败'))
@@ -139,7 +139,7 @@ export default function MemberCenter() {
   };
 
   if (!user) return <Navigate to="/admin-login" replace />;
-  if (user.role !== 'member') return <Navigate to="/admin" replace />;
+  if (!user.is_member) return <Navigate to="/admin" replace />;
   if (user.must_change_password) return <Navigate to="/member-password" replace />;
   if (loading) {
     return <div className="flex min-h-[100dvh] items-center justify-center bg-background text-sm text-muted-foreground" role="status">正在加载成员资料</div>;
