@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { groupSubmissions } from '../src/lib/recruit.js';
+import { groupDirections, groupSubmissions, recruitSectionPath, sectionPages, sectionSubmissionGroups } from '../src/lib/recruit.js';
 
 const row = (overrides) => ({
   id: 'x', name: '张三', student_id: '2250001', grade: '大二', major: '人工智能', direction: 'CLIP', version: 1, created_at: '2026-11-21T00:00:00Z', ...overrides,
@@ -45,4 +45,33 @@ test('treats student ids case-insensitively and sorts people by name inside a gr
 
 test('handles an empty list', () => {
   assert.deepEqual(groupSubmissions([]), { people: [], groups: [] });
+});
+
+const FIELDS = [{ name: 'CV', directions: ['ViT'] }, { name: 'NLP', directions: ['BERT', 'T5'] }];
+
+test('splits directions into their fields and keeps the rest at the end', () => {
+  assert.deepEqual(groupDirections(['ViT', 'BERT', 'T5', 'Other'], FIELDS), [
+    { name: 'CV', directions: ['ViT'] },
+    { name: 'NLP', directions: ['BERT', 'T5'] },
+    { name: '', directions: ['Other'] },
+  ]);
+  assert.deepEqual(groupDirections(['ViT', 'BERT'], []), [{ name: '', directions: ['ViT', 'BERT'] }]);
+  assert.deepEqual(groupDirections(['BERT'], FIELDS), [{ name: 'NLP', directions: ['BERT'] }]);
+});
+
+test('puts the paper groups of the submissions list under their field', () => {
+  const papers = [{ direction: 'T5', people: [] }, { direction: 'ViT', people: [] }, { direction: 'Other', people: [] }, { direction: 'BERT', people: [] }];
+  const sections = sectionSubmissionGroups(papers, FIELDS);
+  assert.deepEqual(sections.map((section) => [section.name, section.groups.map((paper) => paper.direction)]), [['CV', ['ViT']], ['NLP', ['T5', 'BERT']], ['', ['Other']]]);
+  assert.deepEqual(sectionSubmissionGroups(papers, []).map((section) => section.name), ['']);
+});
+
+test('cuts an ordered page list into blocks without reordering it', () => {
+  const blocks = sectionPages([{ slug: 'index', group: '' }, { slug: 'a', group: '' }, { slug: 'b', group: 'CV' }, { slug: 'c', group: 'CV' }, { slug: 'd', group: 'NLP' }]);
+  assert.deepEqual(blocks.map((block) => [block.name, block.pages.map((page) => page.slug)]), [['', ['index', 'a']], ['CV', ['b', 'c']], ['NLP', ['d']]]);
+});
+
+test('keeps preview mode in the section links', () => {
+  assert.equal(recruitSectionPath('2026-autumn', 'submit'), '/recruit/2026-autumn/submit');
+  assert.equal(recruitSectionPath('2026-autumn', 'submit', { preview: true }), '/recruit/2026-autumn/submit?preview=1');
 });

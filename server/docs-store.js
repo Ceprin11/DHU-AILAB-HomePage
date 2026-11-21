@@ -64,14 +64,63 @@ const parsePublishAt = (value) => {
 export const getSubmissionState = (cohort, now = new Date()) => {
   const { deadline, valid } = parseDeadline(cohort?.submission_deadline);
   const directions = Array.isArray(cohort?.directions) ? cohort.directions : [];
-  const closed = (reason) => ({ open: false, deadline, reason, directions, grades: SUBMISSION_GRADES });
+  const groups = Array.isArray(cohort?.groups) ? cohort.groups : [];
+  const closed = (reason) => ({ open: false, deadline, reason, directions, groups, grades: SUBMISSION_GRADES });
   if (!cohort || cohort.submissions === false) return closed('本期暂不接收提交');
   if (cohort.status === 'draft') return closed('本期招新尚未发布');
   if (cohort.status === 'upcoming') return closed('本期招新还没有开始');
   if (cohort.status !== 'current') return closed('本期招新已结束');
   if (!valid) return closed('截止时间配置有误，请联系管理员');
   if (deadline && now.getTime() > Date.parse(deadline)) return closed('已过提交截止时间');
-  return { open: true, deadline, reason: '', directions, grades: SUBMISSION_GRADES };
+  return { open: true, deadline, reason: '', directions, groups, grades: SUBMISSION_GRADES };
+};
+
+// Papers are grouped by field (CV / NLP / multimodal). Every direction belongs to at most one group.
+const MAX_GROUPS = 8;
+
+const cleanGroups = (input, directions, { strict }) => {
+  const names = new Set();
+  const claimed = new Set();
+  const groups = [];
+  for (const item of Array.isArray(input) ? input : []) {
+    const name = String(item?.name ?? '').trim();
+    if (!name) {
+      if (strict) throw createError('分组名称不能为空');
+      continue;
+    }
+    if (name.length > 20) throw createError('分组名称不能超过 20 个字');
+    if (names.has(name)) {
+      if (strict) throw createError(`分组“${name}”重复了`);
+      continue;
+    }
+    names.add(name);
+    const members = [];
+    for (const raw of Array.isArray(item?.directions) ? item.directions : []) {
+      const direction = String(raw).trim();
+      if (!direction || members.includes(direction)) continue;
+      if (!directions.includes(direction)) {
+        if (strict) throw createError(`分组“${name}”里的“${direction}”不在选择方向中`);
+        continue;
+      }
+      if (claimed.has(direction)) {
+        if (strict) throw createError(`“${direction}”同时出现在多个分组里`);
+        continue;
+      }
+      claimed.add(direction);
+      members.push(direction);
+    }
+    groups.push({ name, directions: members });
+  }
+  if (groups.length > MAX_GROUPS) throw createError(`分组最多 ${MAX_GROUPS} 个`);
+  return groups;
+};
+
+// Un-grouped pages first (the overview, notices), then one block per group in the configured order.
+const sortPages = (pages, groups) => {
+  const rank = new Map(groups.map((group, index) => [group.name, index + 1]));
+  const blockOf = (page) => (page.slug === 'index' ? -1 : rank.get(page.group) ?? 0);
+  const orderOf = (page) => (page.order === '' || page.order === undefined ? Infinity : page.order);
+  return [...pages].sort((a, b) => blockOf(a) - blockOf(b) || orderOf(a) - orderOf(b) || a.slug.localeCompare(b.slug, 'zh-Hans-CN', { numeric: true }));
 };
 
 const firstHeading = (body) => body.match(/^#\s+(.+?)\s*#*\s*$/m)?.[1]?.trim() || '';
@@ -116,9 +165,10 @@ const yamlText = (value) => {
   return text.includes('"') && !text.includes("'") ? `'${text}'` : `"${text.replace(/"/g, '”')}"`;
 };
 
-export const serializePage = ({ title = '', order = '', summary = '', draft = false, body = '' }) => {
+export const serializePage = ({ title = '', order = '', summary = '', group = '', draft = false, body = '' }) => {
   const lines = [];
   if (String(title).trim()) lines.push(`title: ${yamlText(title)}`);
+  if (String(group).trim()) lines.push(`group: ${yamlText(group)}`);
   if (order !== '' && order !== null && Number.isFinite(Number(order))) lines.push(`order: ${Number(order)}`);
   if (String(summary).trim()) lines.push(`summary: ${yamlText(summary)}`);
   if (draft) lines.push('draft: true');
@@ -185,23 +235,36 @@ export const createDocsStore = (contentDirectory, { now = () => new Date() } = {
     }
     return (Array.isArray(parsed) ? parsed : []).filter((cohort) => (
       COHORT_ID_PATTERN.test(String(cohort?.id)) && String(cohort?.label || '').trim()
-    )).map((cohort) => ({
-      id: cohort.id,
-      label: String(cohort.label).trim(),
-      status: COHORT_STATUSES.has(cohort.status) ? cohort.status : 'archived',
-      description: String(cohort.description || '').trim(),
-      submissions: cohort.submissions,
-      submission_deadline: cohort.submission_deadline,
-      publish_at: cohort.publish_at,
-      publish_drafts: cohort.publish_drafts,
-      directions: (Array.isArray(cohort.directions) ? cohort.directions : [])
-        .map((direction) => String(direction).trim()).filter(Boolean).slice(0, 20),
-    }));
+    )).map((cohort) => {
+      const directions = (Array.isArray(cohort.directions) ? cohort.directions : [])
+        .map((direction) => String(direction).trim()).filter(Boolean).slice(0, 20);
+      let groups = [];
+      try {
+        groups = cleanGroups(cohort.groups, directions, { strict: false });
+      } catch {
+        groups = [];
+      }
+      return {
+        id: cohort.id,
+        label: String(cohort.label).trim(),
+        status: COHORT_STATUSES.has(cohort.status) ? cohort.status : 'archived',
+        description: String(cohort.description || '').trim(),
+        submissions: cohort.submissions,
+        submission_deadline: cohort.submission_deadline,
+        publish_at: cohort.publish_at,
+        publish_drafts: cohort.publish_drafts,
+        directions,
+        groups,
+      };
+    });
   };
 
-  const publicCohort = ({ submissions, submission_deadline: deadline, directions, publish_at: _publishAt, publish_drafts: _publishDrafts, ...cohort }) => ({
+  const publicCohort = ({ submissions, submission_deadline: deadline, directions, groups, publish_at: _publishAt, publish_drafts: _publishDrafts, ...cohort }, { preview = false } = {}) => ({
     ...cohort,
-    submission: getSubmissionState({ ...cohort, submissions, submission_deadline: deadline, directions }),
+    groups,
+    // A preview shows an unpublished cohort the way it will look once it is the current one.
+    submission: getSubmissionState({ ...cohort, status: preview && cohort.status === 'draft' ? 'current' : cohort.status, submissions, submission_deadline: deadline, directions, groups }),
+    ...(preview ? { preview: true } : {}),
   });
 
   const resolveAsset = (cohortId, relativePath) => {
@@ -239,7 +302,7 @@ export const createDocsStore = (contentDirectory, { now = () => new Date() } = {
     return [...attachments.values()];
   };
 
-  const readPageFile = async (cohortId, slug) => {
+  const readPageFile = async (cohortId, slug, { drafts = false } = {}) => {
     const directory = cohortDirectory(cohortId);
     if (!directory || !PAGE_SLUG_PATTERN.test(slug) || RESERVED_SLUGS.has(slug)) return null;
     const filePath = path.join(directory, `${slug}.md`);
@@ -252,12 +315,14 @@ export const createDocsStore = (contentDirectory, { now = () => new Date() } = {
       throw error;
     }
     const { meta, body } = parseFrontmatter(source);
-    if (meta.draft === true) return null;
+    if (meta.draft === true && !drafts) return null;
     return {
       slug,
       title: String(meta.title || firstHeading(body) || slug),
       summary: String(meta.summary || ''),
+      group: slug === 'index' ? '' : String(meta.group || ''),
       order: slug === 'index' ? -1 : toOrder(meta.order),
+      draft: meta.draft === true,
       body,
     };
   };
@@ -274,6 +339,9 @@ export const createDocsStore = (contentDirectory, { now = () => new Date() } = {
     if (!directory || !(await readCohortManifest()).some((cohort) => cohort.id === cohortId)) throw createError('没有找到这一期招新', 404);
     return directory;
   };
+
+  const groupsOf = async (cohortId) => (await readCohortManifest()).find((cohort) => cohort.id === cohortId)?.groups || [];
+  const knownGroup = (groups, name) => (groups.some((group) => group.name === name) ? name : '');
 
   const requireSlug = (slug) => {
     if (!PAGE_SLUG_PATTERN.test(String(slug)) || String(slug).length > 60) throw createError('文档名只能包含字母、数字、中文、下划线和短横线，且不超过 60 个字');
@@ -298,6 +366,7 @@ export const createDocsStore = (contentDirectory, { now = () => new Date() } = {
       heading: firstHeading(body),
       order: meta.order !== undefined && meta.order !== '' && Number.isFinite(order) ? order : '',
       summary: String(meta.summary ?? ''),
+      group: slug === 'index' ? '' : String(meta.group ?? ''),
       draft: meta.draft === true,
       body,
     };
@@ -316,6 +385,7 @@ export const createDocsStore = (contentDirectory, { now = () => new Date() } = {
     const directions = [...new Set((Array.isArray(input?.directions) ? input.directions : []).map((item) => String(item).trim()).filter(Boolean))];
     if (directions.length > 20) throw createError('方向最多 20 个');
     if (directions.some((item) => item.length > 30)) throw createError('每个方向不超过 30 个字');
+    const groups = cleanGroups(input?.groups, directions, { strict: true });
     const publishAt = input.status === 'draft' && String(input.publish_at ?? '').trim() ? parsePublishAt(input.publish_at) : null;
     if (input.status === 'draft' && String(input.publish_at ?? '').trim() && !publishAt) throw createError('定时发布时间格式应为 2026-12-06 09:00（北京时间）');
     return {
@@ -324,6 +394,7 @@ export const createDocsStore = (contentDirectory, { now = () => new Date() } = {
       status: input.status,
       ...(description ? { description } : {}),
       ...(directions.length ? { directions } : {}),
+      ...(groups.length ? { groups } : {}),
       ...(input.submissions === false ? { submissions: false } : {}),
       ...(deadline ? { submission_deadline: deadline } : {}),
       ...(publishAt ? { publish_at: publishAt.text, ...(input.publish_drafts === false ? { publish_drafts: false } : {}) } : {}),
@@ -351,7 +422,7 @@ export const createDocsStore = (contentDirectory, { now = () => new Date() } = {
       for (const slug of (await readdirSafe(cohortDirectory(cohortId))).filter((name) => name.endsWith('.md')).map((name) => name.slice(0, -3))) {
         const page = await readRawPage(cohortId, slug);
         if (page?.draft) {
-          await savePageInternal(cohortId, slug, { ...page, draft: false });
+          await savePageInternal(cohortId, slug, { ...page, group: knownGroup(target.groups, page.group), draft: false });
           published += 1;
         }
       }
@@ -400,9 +471,13 @@ export const createDocsStore = (contentDirectory, { now = () => new Date() } = {
     if (title.length > 100) throw createError('标题不能超过 100 个字');
     if (summary.length > 300) throw createError('简介不能超过 300 个字');
     if (body.length > PAGE_BODY_MAX_CHARS) throw createError('正文太长，请拆分成多篇文档');
-    const order = input?.order === '' || input?.order === null || input?.order === undefined ? '' : Number(input.order);
+    // An editor that does not send a sort number (the list arrows own it) keeps the one the page already has.
+    const kept = input?.order === undefined ? (await readRawPage(cohortId, slug))?.order ?? '' : input.order;
+    const order = kept === '' || kept === null ? '' : Number(kept);
     if (order !== '' && !Number.isFinite(order)) throw createError('排序必须是数字');
-    await atomicWrite(path.join(directory, `${slug}.md`), serializePage({ title, order, summary, draft: input?.draft === true, body }));
+    const group = slug === 'index' ? '' : String(input?.group ?? '').trim();
+    if (group && !(await readCohortManifest()).find((cohort) => cohort.id === cohortId)?.groups.some((item) => item.name === group)) throw createError(`没有“${group}”这个分组，请先在批次设置里添加`);
+    await atomicWrite(path.join(directory, `${slug}.md`), serializePage({ title, order, summary, group, draft: input?.draft === true, body }));
     return slug;
   };
 
@@ -415,6 +490,7 @@ export const createDocsStore = (contentDirectory, { now = () => new Date() } = {
         status: cohort.status,
         description: cohort.description,
         directions: cohort.directions,
+        groups: cohort.groups,
         submissions: cohort.submissions !== false,
         submission_deadline: String(cohort.submission_deadline ?? ''),
         publish_at: String(cohort.publish_at ?? ''),
@@ -444,14 +520,42 @@ export const createDocsStore = (contentDirectory, { now = () => new Date() } = {
       }
       const slugs = entries.filter((entry) => entry.isFile() && entry.name.endsWith('.md')).map((entry) => entry.name.slice(0, -3));
       const pages = (await Promise.all(slugs.map((slug) => readRawPage(cohortId, slug)))).filter(Boolean);
-      return pages
-        .map(({ body, heading, ...page }) => ({ ...page, title: page.title || heading || page.slug, size: body.length }))
-        .sort((a, b) => (a.slug === 'index' ? -1 : b.slug === 'index' ? 1 : (a.order === '' ? Infinity : a.order) - (b.order === '' ? Infinity : b.order) || a.slug.localeCompare(b.slug, 'zh-Hans-CN', { numeric: true })));
+      const groups = await groupsOf(cohortId);
+      return sortPages(
+        pages.map(({ body, heading, ...page }) => ({ ...page, group: knownGroup(groups, page.group), title: page.title || heading || page.slug, size: body.length })),
+        groups,
+      );
     },
 
     async getPageForAdmin(cohortId, slug) {
       await requireCohortDirectory(cohortId);
-      return readRawPage(cohortId, slug);
+      const page = await readRawPage(cohortId, slug);
+      return page && { ...page, group: knownGroup(await groupsOf(cohortId), page.group) };
+    },
+
+    // Applies a new order (and group) to the pages in one go. `items` is the desired order, top to bottom.
+    reorderPages(cohortId, items) {
+      return enqueue(async () => {
+        await requireCohortDirectory(cohortId);
+        if (!Array.isArray(items) || items.length > 500) throw createError('排序数据不正确');
+        const groups = await groupsOf(cohortId);
+        const seen = new Set();
+        const updates = [];
+        for (const item of items) {
+          const slug = String(item?.slug ?? '');
+          requireSlug(slug);
+          if (seen.has(slug)) throw createError('排序数据里有重复的文档');
+          seen.add(slug);
+          if (slug === 'index') continue;
+          const page = await readRawPage(cohortId, slug);
+          if (!page) throw createError(`没有找到文档“${slug}”`, 404);
+          const group = String(item?.group ?? '').trim();
+          if (group && !groups.some((entry) => entry.name === group)) throw createError(`没有“${group}”这个分组`);
+          updates.push({ ...page, group, order: (updates.length + 1) * 10 });
+        }
+        for (const page of updates) await savePageInternal(cohortId, page.slug, page);
+        return updates.length;
+      });
     },
 
     savePage(cohortId, slug, input) {
@@ -468,7 +572,7 @@ export const createDocsStore = (contentDirectory, { now = () => new Date() } = {
         if (!overwrite && await readRawPage(cohortId, slug)) throw createError(`已存在同名文档“${slug}”，请换文件名或选择覆盖`, 409);
         const { meta, body } = parseFrontmatter(text);
         await savePageInternal(cohortId, slug, {
-          title: String(meta.title ?? ''), order: meta.order ?? '', summary: String(meta.summary ?? ''), draft: meta.draft === true, body,
+          title: String(meta.title ?? ''), order: meta.order ?? '', summary: String(meta.summary ?? ''), group: '', draft: meta.draft === true, body,
         });
         return { slug, directory: path.basename(directory) };
       });
@@ -536,21 +640,22 @@ export const createDocsStore = (contentDirectory, { now = () => new Date() } = {
       });
     },
 
-    async listCohorts() {
+    // `preview` is for administrators: unpublished cohorts and draft pages are included, as they will look once published.
+    async listCohorts({ preview = false } = {}) {
       await applyDuePublishes();
-      return (await readCohortManifest()).filter((cohort) => cohort.status !== 'draft').map(publicCohort);
+      return (await readCohortManifest()).filter((cohort) => preview || cohort.status !== 'draft').map((cohort) => publicCohort(cohort, { preview }));
     },
 
-    async getCohort(cohortId) {
+    async getCohort(cohortId, { preview = false } = {}) {
       await applyDuePublishes();
-      const cohort = (await readCohortManifest()).find((item) => item.id === cohortId && item.status !== 'draft');
-      return cohort ? publicCohort(cohort) : null;
+      const cohort = (await readCohortManifest()).find((item) => item.id === cohortId && (preview || item.status !== 'draft'));
+      return cohort ? publicCohort(cohort, { preview }) : null;
     },
 
-    async listPages(cohortId) {
+    async listPages(cohortId, { preview = false } = {}) {
       await applyDuePublishes();
       const directory = cohortDirectory(cohortId);
-      if (!directory || !(await isPublicCohort(cohortId))) return [];
+      if (!directory || !(preview ? (await readCohortManifest()).some((cohort) => cohort.id === cohortId) : await isPublicCohort(cohortId))) return [];
       let entries;
       try {
         entries = await readdir(directory, { withFileTypes: true });
@@ -562,16 +667,18 @@ export const createDocsStore = (contentDirectory, { now = () => new Date() } = {
         .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
         .map((entry) => entry.name.slice(0, -3))
         .filter((slug) => !RESERVED_SLUGS.has(slug));
-      const pages = (await Promise.all(slugs.map((slug) => readPageFile(cohortId, slug)))).filter(Boolean);
-      return pages
-        .map(({ body: _body, ...page }) => page)
-        .sort((a, b) => a.order - b.order || a.slug.localeCompare(b.slug, 'zh-Hans-CN', { numeric: true }));
+      const groups = await groupsOf(cohortId);
+      const pages = (await Promise.all(slugs.map((slug) => readPageFile(cohortId, slug, { drafts: preview })))).filter(Boolean);
+      return sortPages(
+        pages.map(({ body: _body, ...page }) => ({ ...page, group: knownGroup(groups, page.group) })),
+        groups,
+      );
     },
 
-    async getPage(cohortId, slug) {
+    async getPage(cohortId, slug, { preview = false } = {}) {
       await applyDuePublishes();
-      if (!(await isPublicCohort(cohortId))) return null;
-      const page = await readPageFile(cohortId, slug);
+      if (!(preview ? (await readCohortManifest()).some((cohort) => cohort.id === cohortId) : await isPublicCohort(cohortId))) return null;
+      const page = await readPageFile(cohortId, slug, { drafts: preview });
       if (!page) return null;
       return { ...page, attachments: await listAttachments(cohortId, page.body) };
     },

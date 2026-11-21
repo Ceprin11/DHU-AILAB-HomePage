@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CalendarClock, CheckCircle2, EyeOff, Loader2, Rocket, Undo2, XCircle } from 'lucide-react';
+import { CalendarClock, CheckCircle2, Eye, EyeOff, Loader2, Rocket, Undo2, XCircle } from 'lucide-react';
 import { api } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,7 +47,7 @@ export default function RecruitPublishPanel({ cohort, cohorts, onChanged }) {
     const lines = [
       `现在发布「${cohort.label}」？`,
       '',
-      '· 访客立刻可以看到这一期的文档和提交入口。',
+      '· 访客立刻可以看到这一期的文档和提交入口。建议先点“预发布”确认效果。',
       previousCurrent ? `· 原来的“本次招新”「${previousCurrent.label}」会转为“往期”。` : '',
       withDrafts && draftCount ? `· ${draftCount} 篇草稿文档会同时发布。` : '',
       !withDrafts && draftCount ? `· ${draftCount} 篇草稿文档仍保持草稿，访客看不到。` : '',
@@ -85,7 +85,7 @@ export default function RecruitPublishPanel({ cohort, cohorts, onChanged }) {
           <ul className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
             <li>{hasIndex ? '✓' : '○'} 总招新文档（index）</li>
             <li>文档 {pages ? pages.length : '…'} 篇，其中草稿 {pages ? draftCount : '…'} 篇</li>
-            <li>{cohort.directions.length ? `✓ 已配置 ${cohort.directions.length} 个选择方向` : '○ 还没有配置选择方向'}</li>
+            <li>{cohort.directions.length ? `✓ 已配置 ${cohort.directions.length} 个选择方向${cohort.groups?.length ? `，分成 ${cohort.groups.length} 组` : ''}` : '○ 还没有配置选择方向'}</li>
             <li>{cohort.submission_deadline ? `✓ 提交截止 ${cohort.submission_deadline}` : '○ 未设提交截止时间'}</li>
           </ul>
 
@@ -95,6 +95,9 @@ export default function RecruitPublishPanel({ cohort, cohorts, onChanged }) {
           </label>
 
           <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+            <Button asChild variant="outline" className="gap-1.5">
+              <a href={`/recruit/${encodeURIComponent(cohort.id)}?preview=1`} target="_blank" rel="noreferrer"><Eye size={15} aria-hidden="true" /> 预发布（看发布后的样子）</a>
+            </Button>
             <Button type="button" className="gap-1.5" disabled={Boolean(status.busy)} onClick={publishNow}>
               {status.busy === 'publish' ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <Rocket size={15} aria-hidden="true" />} 立即发布
             </Button>

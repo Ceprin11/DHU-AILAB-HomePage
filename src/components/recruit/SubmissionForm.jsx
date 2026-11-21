@@ -4,9 +4,9 @@ import { api } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { formatBeijingTime, formatFileSize, previewFileName } from '@/lib/recruit';
+import { formatBeijingTime, formatFileSize, groupDirections, previewFileName } from '@/lib/recruit';
 
 const ACCEPTED_EXTENSIONS = ['.pdf', '.ppt', '.pptx', '.html', '.htm'];
 const MAX_FILE_BYTES = 30 * 1024 * 1024;
@@ -29,9 +29,10 @@ const extensionOf = (fileName) => {
   return index < 0 ? '' : fileName.slice(index).toLowerCase();
 };
 
-export default function SubmissionForm({ cohort }) {
+export default function SubmissionForm({ cohort, preview = false }) {
   const { submission } = cohort;
   const needsDirection = submission.directions.length > 0;
+  const directionSections = groupDirections(submission.directions, submission.groups);
   const [form, setForm] = useState(EMPTY_FORM);
   const [file, setFile] = useState(null);
   const [status, setStatus] = useState({ phase: 'idle', error: '', result: null });
@@ -70,7 +71,7 @@ export default function SubmissionForm({ cohort }) {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (uploading) return;
+    if (uploading || preview) return;
     const problem = validate();
     if (problem) return setStatus({ phase: 'idle', error: problem, result: null });
     const body = new FormData();
@@ -128,7 +129,14 @@ export default function SubmissionForm({ cohort }) {
           <Field label="选择方向（论文）">
             <Select value={form.direction} onValueChange={choose('direction')}>
               <SelectTrigger aria-label="选择方向"><SelectValue placeholder="请选择论文" /></SelectTrigger>
-              <SelectContent>{submission.directions.map((direction) => <SelectItem key={direction} value={direction}>{direction}</SelectItem>)}</SelectContent>
+              <SelectContent>
+                {directionSections.map((section) => (
+                  <SelectGroup key={section.name || 'rest'}>
+                    {section.name && directionSections.length > 1 && <SelectLabel>{section.name}</SelectLabel>}
+                    {section.directions.map((direction) => <SelectItem key={direction} value={direction}>{direction}</SelectItem>)}
+                  </SelectGroup>
+                ))}
+              </SelectContent>
             </Select>
           </Field>
         )}
@@ -162,8 +170,8 @@ export default function SubmissionForm({ cohort }) {
 
       {status.error && <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">{status.error}</p>}
 
-      <Button type="submit" disabled={uploading} className="w-full gap-2 sm:w-auto">
-        {uploading ? <><Loader2 size={16} className="animate-spin" aria-hidden="true" /> 上传中，请不要关闭页面</> : '提交'}
+      <Button type="submit" disabled={uploading || preview} className="w-full gap-2 sm:w-auto">
+        {uploading ? <><Loader2 size={16} className="animate-spin" aria-hidden="true" /> 上传中，请不要关闭页面</> : preview ? '预览模式下不能提交' : '提交'}
       </Button>
     </form>
   );

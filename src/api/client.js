@@ -194,14 +194,15 @@ export const api = {
     },
   },
   docs: {
-    cohorts() {
-      return request('/api/docs/cohorts');
+    // `preview` asks for the administrator's view: unpublished cohorts and draft pages, as they will look once published.
+    cohorts({ preview = false } = {}) {
+      return request(`/api/docs/cohorts${preview ? '?preview=1' : ''}`);
     },
-    pages(cohort) {
-      return request(`/api/docs/${encodeURIComponent(cohort)}/pages`);
+    pages(cohort, { preview = false } = {}) {
+      return request(`/api/docs/${encodeURIComponent(cohort)}/pages${preview ? '?preview=1' : ''}`);
     },
-    page(cohort, slug) {
-      return request(`/api/docs/${encodeURIComponent(cohort)}/pages/${encodeURIComponent(slug)}`);
+    page(cohort, slug, { preview = false } = {}) {
+      return request(`/api/docs/${encodeURIComponent(cohort)}/pages/${encodeURIComponent(slug)}${preview ? '?preview=1' : ''}`);
     },
   },
   recruit: {
@@ -239,6 +240,9 @@ export const api = {
     },
     page(cohort, slug) {
       return request(`/api/admin/recruit/${encodeURIComponent(cohort)}/pages/${encodeURIComponent(slug)}`);
+    },
+    reorderPages(cohort, pages) {
+      return request(`/api/admin/recruit/${encodeURIComponent(cohort)}/pages-order`, { method: 'PUT', body: JSON.stringify({ pages }) });
     },
     savePage(cohort, slug, payload) {
       return request(`/api/admin/recruit/${encodeURIComponent(cohort)}/pages/${encodeURIComponent(slug)}`, { method: 'PUT', body: JSON.stringify(payload) });

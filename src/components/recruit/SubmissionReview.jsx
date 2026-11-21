@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import useDocumentTitle from '@/hooks/use-document-title';
 import { useAuth } from '@/lib/AuthContext';
-import { formatBeijingTime, formatFileSize, groupSubmissions, submissionFileUrl } from '@/lib/recruit';
+import { fieldOfDirection, formatBeijingTime, formatFileSize, groupSubmissions, sectionSubmissionGroups, submissionFileUrl } from '@/lib/recruit';
 import { cn } from '@/lib/utils';
 
 const FilePreview = lazy(() => import('@/components/recruit/FilePreview'));
@@ -60,6 +60,8 @@ export default function SubmissionReview({ cohort, submissionId }) {
       .filter((group) => group.people.length > 0);
   }, [grouped, query]);
 
+  const sections = useMemo(() => sectionSubmissionGroups(visibleGroups, cohort.submission.groups), [visibleGroups, cohort.submission.groups]);
+
   const person = grouped?.people.find((item) => item.versions.some((version) => version.id === submissionId)) || null;
   const selected = person?.versions.find((version) => version.id === submissionId) || null;
   useDocumentTitle(person ? `${person.name} · 收到的提交 · ${cohort.label} · AILAB` : `收到的提交 · ${cohort.label} · AILAB`);
@@ -106,25 +108,30 @@ export default function SubmissionReview({ cohort, submissionId }) {
         {isAdmin && <button type="button" onClick={() => exportCsv(cohort.id, rows)} className="inline-flex items-center gap-1 font-medium text-primary hover:text-foreground"><Download size={12} aria-hidden="true" /> 导出名单</button>}
       </p>
       {visibleGroups.length === 0 && <p className="px-1 text-sm text-muted-foreground">没有符合条件的同学</p>}
-      <nav aria-label="同学列表" className="space-y-5">
-        {visibleGroups.map((group) => (
-          <section key={group.direction || 'none'} aria-label={groupLabel(group.direction)}>
-            <h3 className="mb-1 flex items-center justify-between pr-2 font-mono-date text-[11px] font-medium tracking-[0.08em] text-muted-foreground">
-              <span>{groupLabel(group.direction)}</span><span>{group.people.length}</span>
-            </h3>
-            <ul className="space-y-0.5 border-l border-border/75">
-              {group.people.map((item) => (
-                <li key={item.key}>
-                  <SidebarLink to={submissionsPath(cohort.id, item.latest.id)} active={item.key === person?.key}>
-                    <span className="flex items-baseline justify-between gap-2">
-                      <span className="truncate">{item.name}<span className="ml-1.5 text-xs font-normal text-muted-foreground">{item.student_id}</span></span>
-                      {item.versions.length > 1 && <span className="shrink-0 rounded bg-amber/25 px-1.5 text-[11px] font-semibold text-amber-foreground">v{item.latest.version}</span>}
-                    </span>
-                  </SidebarLink>
-                </li>
-              ))}
-            </ul>
-          </section>
+      <nav aria-label="同学列表" className="space-y-6">
+        {sections.map((section) => (
+          <div key={section.name || 'rest'} className="space-y-4">
+            {section.name && <h2 className="border-b border-border/75 pb-1 font-display text-sm font-bold tracking-[-0.01em] text-foreground">{section.name}</h2>}
+            {section.groups.map((group) => (
+              <section key={group.direction || 'none'} aria-label={groupLabel(group.direction)}>
+                <h3 className="mb-1 flex items-center justify-between pr-2 font-mono-date text-[11px] font-medium tracking-[0.08em] text-muted-foreground">
+                  <span>{groupLabel(group.direction)}</span><span>{group.people.length}</span>
+                </h3>
+                <ul className="space-y-0.5 border-l border-border/75">
+                  {group.people.map((item) => (
+                    <li key={item.key}>
+                      <SidebarLink to={submissionsPath(cohort.id, item.latest.id)} active={item.key === person?.key}>
+                        <span className="flex items-baseline justify-between gap-2">
+                          <span className="truncate">{item.name}<span className="ml-1.5 text-xs font-normal text-muted-foreground">{item.student_id}</span></span>
+                          {item.versions.length > 1 && <span className="shrink-0 rounded bg-amber/25 px-1.5 text-[11px] font-semibold text-amber-foreground">v{item.latest.version}</span>}
+                        </span>
+                      </SidebarLink>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
         ))}
       </nav>
     </div>
@@ -136,7 +143,7 @@ export default function SubmissionReview({ cohort, submissionId }) {
       <SelectContent>
         {grouped.groups.map((group) => (
           <SelectGroup key={group.direction || 'none'}>
-            <SelectLabel>{groupLabel(group.direction)}</SelectLabel>
+            <SelectLabel>{[fieldOfDirection(cohort.submission.groups, group.direction), groupLabel(group.direction)].filter(Boolean).join(' · ')}</SelectLabel>
             {group.people.map((item) => <SelectItem key={item.key} value={item.key}>{item.name} {item.student_id}</SelectItem>)}
           </SelectGroup>
         ))}

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Eye } from 'lucide-react';
 import { api } from '@/api/client';
 import RecruitAssets from '@/components/admin/RecruitAssets';
 import RecruitCohortSettings from '@/components/admin/RecruitCohortSettings';
@@ -40,6 +40,7 @@ export default function RecruitAdmin() {
           </Select>
         )}
         <div className="ml-auto flex gap-2">
+          {cohort && <Button asChild variant="outline" size="sm" className="gap-1.5"><a href={`/recruit/${encodeURIComponent(cohort.id)}?preview=1`} target="_blank" rel="noreferrer"><Eye size={14} aria-hidden="true" /> 预览发布效果</a></Button>}
           {cohort && cohort.status !== 'draft' && <Button asChild variant="outline" size="sm" className="gap-1.5"><a href={`/recruit/${encodeURIComponent(cohort.id)}`} target="_blank" rel="noreferrer"><ExternalLink size={14} aria-hidden="true" /> 查看招新页面</a></Button>}
           {cohort && cohort.status !== 'draft' && <Button asChild variant="outline" size="sm"><a href={`/recruit/${encodeURIComponent(cohort.id)}/submissions`} target="_blank" rel="noreferrer">收到的提交</a></Button>}
         </div>

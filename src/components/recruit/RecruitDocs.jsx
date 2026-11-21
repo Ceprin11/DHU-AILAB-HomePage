@@ -5,13 +5,19 @@ import { api } from '@/api/client';
 import MarkdownContent, { resolveDocsAssetUrl } from '@/components/docs/MarkdownContent';
 import { ContentLoading, EmptyState } from '@/components/ContentState';
 import { SidebarLayout, SidebarLink } from '@/components/recruit/SidebarLayout';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import useDocumentTitle from '@/hooks/use-document-title';
-import { formatFileSize } from '@/lib/recruit';
+import { formatFileSize, sectionPages } from '@/lib/recruit';
 
 const hasTopLevelHeading = (body) => /^#\s+\S/m.test(body.replace(/^(```|~~~)[\s\S]*?^\1/gm, ''));
 
-export const recruitPath = (cohort, slug) => `/recruit/${encodeURIComponent(cohort)}${slug && slug !== 'index' ? `/${encodeURIComponent(slug)}` : ''}`;
+const previewQuery = (preview) => (preview ? '?preview=1' : '');
+
+export const recruitPath = (cohort, slug, { preview = false } = {}) => `/recruit/${encodeURIComponent(cohort)}${slug && slug !== 'index' ? `/${encodeURIComponent(slug)}` : ''}${previewQuery(preview)}`;
+
+function DraftBadge() {
+  return <span className="ml-1.5 shrink-0 rounded bg-amber/25 px-1.5 text-[11px] font-semibold text-amber-foreground">草稿</span>;
+}
 
 const ATTACHMENT_ICONS = {
   '.doc': FileText, '.docx': FileText, '.pdf': FileText, '.txt': FileText,
@@ -52,17 +58,17 @@ function AttachmentList({ cohort, attachments }) {
   );
 }
 
-function useDocPages(cohortId, slug) {
+function useDocPages(cohortId, slug, preview) {
   const [pagesState, setPagesState] = useState({ cohortId: null, pages: null, error: false });
   const [pageState, setPageState] = useState({ key: null, page: null, error: false });
 
   useEffect(() => {
     let cancelled = false;
-    api.docs.pages(cohortId)
+    api.docs.pages(cohortId, { preview })
       .then((result) => { if (!cancelled) setPagesState({ cohortId, pages: result.pages || [], error: false }); })
       .catch(() => { if (!cancelled) setPagesState({ cohortId, pages: null, error: true }); });
     return () => { cancelled = true; };
-  }, [cohortId]);
+  }, [cohortId, preview]);
 
   const pages = pagesState.cohortId === cohortId ? pagesState.pages : null;
   const activeSlug = slug || (pages?.some((page) => page.slug === 'index') ? 'index' : pages?.[0]?.slug);
@@ -71,11 +77,11 @@ function useDocPages(cohortId, slug) {
     if (!activeSlug) return undefined;
     const key = `${cohortId}/${activeSlug}`;
     let cancelled = false;
-    api.docs.page(cohortId, activeSlug)
+    api.docs.page(cohortId, activeSlug, { preview })
       .then((page) => { if (!cancelled) setPageState({ key, page, error: false }); })
       .catch(() => { if (!cancelled) setPageState({ key, page: null, error: true }); });
     return () => { cancelled = true; };
-  }, [cohortId, activeSlug]);
+  }, [cohortId, activeSlug, preview]);
 
   const pageKey = `${cohortId}/${activeSlug}`;
   return {
@@ -99,9 +105,9 @@ function useHeadings(contentKey) {
   return { containerRef, headings };
 }
 
-export default function RecruitDocs({ cohort, slug }) {
+export default function RecruitDocs({ cohort, slug, preview = false }) {
   const navigate = useNavigate();
-  const { pages, pagesError, activeSlug, page, pageError } = useDocPages(cohort.id, slug);
+  const { pages, pagesError, activeSlug, page, pageError } = useDocPages(cohort.id, slug, preview);
   const { containerRef, headings } = useHeadings(page ? `${cohort.id}/${page.slug}` : null);
   const showTitle = useMemo(() => (page ? !hasTopLevelHeading(page.body) : false), [page]);
   useDocumentTitle(page ? `${page.title} · ${cohort.label} · AILAB` : '');
@@ -126,20 +132,36 @@ export default function RecruitDocs({ cohort, slug }) {
   const previousPage = pageIndex > 0 ? pages[pageIndex - 1] : null;
   const nextPage = pageIndex >= 0 && pageIndex < pages.length - 1 ? pages[pageIndex + 1] : null;
 
+  const sections = sectionPages(pages);
+
   const sidebar = (
-    <nav aria-label="文档目录">
-      <ul className="space-y-0.5 border-l border-border/75">
-        {pages.map((item) => (
-          <li key={item.slug}><SidebarLink to={recruitPath(cohort.id, item.slug)} active={item.slug === activeSlug}>{item.title}</SidebarLink></li>
-        ))}
-      </ul>
+    <nav aria-label="文档目录" className="space-y-5">
+      {sections.map((section) => (
+        <section key={section.name || 'top'} aria-label={section.name || undefined}>
+          {section.name && <h3 className="mb-1 font-mono-date text-[11px] font-medium tracking-[0.08em] text-muted-foreground">{section.name}</h3>}
+          <ul className="space-y-0.5 border-l border-border/75">
+            {section.pages.map((item) => (
+              <li key={item.slug}>
+                <SidebarLink to={recruitPath(cohort.id, item.slug, { preview })} active={item.slug === activeSlug}>
+                  {item.title}{item.draft && <DraftBadge />}
+                </SidebarLink>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
     </nav>
   );
 
   const mobile = (
-    <Select value={activeSlug} onValueChange={(value) => navigate(recruitPath(cohort.id, value))}>
+    <Select value={activeSlug} onValueChange={(value) => navigate(recruitPath(cohort.id, value, { preview }))}>
       <SelectTrigger className="h-10 w-full bg-card" aria-label="选择文档"><SelectValue /></SelectTrigger>
-      <SelectContent>{pages.map((item) => <SelectItem key={item.slug} value={item.slug}>{item.title}</SelectItem>)}</SelectContent>
+      <SelectContent>
+        {sections.map((section) => {
+          const items = section.pages.map((item) => <SelectItem key={item.slug} value={item.slug}>{item.title}{item.draft ? '（草稿）' : ''}</SelectItem>);
+          return section.name ? <SelectGroup key={section.name}><SelectLabel>{section.name}</SelectLabel>{items}</SelectGroup> : <SelectGroup key="top">{items}</SelectGroup>;
+        })}
+      </SelectContent>
     </Select>
   );
 
@@ -173,13 +195,13 @@ export default function RecruitDocs({ cohort, slug }) {
             {(previousPage || nextPage) && (
               <nav aria-label="上一篇和下一篇" className="mt-14 grid gap-3 border-t border-border/75 pt-8 sm:grid-cols-2">
                 {previousPage ? (
-                  <Link to={recruitPath(cohort.id, previousPage.slug)} className="group rounded-xl border border-border/75 bg-card p-4 transition-colors hover:border-primary/40">
+                  <Link to={recruitPath(cohort.id, previousPage.slug, { preview })} className="group rounded-xl border border-border/75 bg-card p-4 transition-colors hover:border-primary/40">
                     <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><ArrowLeft size={13} /> 上一篇</span>
                     <span className="mt-1 block font-display text-base font-semibold text-foreground group-hover:text-primary">{previousPage.title}</span>
                   </Link>
                 ) : <span />}
                 {nextPage && (
-                  <Link to={recruitPath(cohort.id, nextPage.slug)} className="group rounded-xl border border-border/75 bg-card p-4 text-right transition-colors hover:border-primary/40 sm:col-start-2">
+                  <Link to={recruitPath(cohort.id, nextPage.slug, { preview })} className="group rounded-xl border border-border/75 bg-card p-4 text-right transition-colors hover:border-primary/40 sm:col-start-2">
                     <span className="flex items-center justify-end gap-1.5 text-xs text-muted-foreground">下一篇 <ArrowRight size={13} /></span>
                     <span className="mt-1 block font-display text-base font-semibold text-foreground group-hover:text-primary">{nextPage.title}</span>
                   </Link>
