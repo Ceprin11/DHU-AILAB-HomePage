@@ -329,6 +329,16 @@ TRUST_PROXY=false
 | `npm test` | 运行测试 |
 | `npm run optimize:uploads` | 优化历史上传图片 |
 
+## 新增依赖放在哪里
+
+Docker 镜像只安装 `dependencies`（构建完成后会 `npm prune --omit=dev`），所以：
+
+- **`dependencies` 只放服务器运行时 `import` 的包**：目前是 `express`、`multer`、`sharp`、`dotenv`、`compression`。
+- **其他一律放 `devDependencies`**：前端库（React、Radix、编辑器等）在 `npm run build` 时已经打包进 `dist/`，运行时不需要。
+- 在 `server/` 里新增了对某个包的 `import` 时，要把它放进 `dependencies`，否则线上会缺包。
+
+这样生产镜像里的 `node_modules` 约 25MB（原来 500MB 以上），部署时上传很快；如果把前端库放回 `dependencies`，每次改依赖都会重新上传一个很大的镜像层，部署会明显变慢。
+
 ## 修改功能时检查哪些文件
 
 ### 新增公开页面
