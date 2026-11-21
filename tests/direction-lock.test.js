@@ -66,7 +66,11 @@ const records = [
 
 test('after the lock a student keeps the paper of their newest submission', () => {
   assert.doesNotThrow(() => checkDirectionLock(records, 'c', fields({ direction: 'BERT' })));
-  assert.throws(() => checkDirectionLock(records, 'c', fields({ direction: 'ViT' })), /锁定.*BERT/);
+  assert.throws(() => checkDirectionLock(records, 'c', fields({ direction: 'ViT' })), (error) => {
+    assert.match(error.message, /论文已经锁定/);
+    assert.doesNotMatch(error.message, /BERT|ViT/, 'the refusal must not reveal which paper the student chose');
+    return true;
+  });
 });
 
 test('the lock is per student, ignores letter case of the id and spaces in the name', () => {
@@ -87,14 +91,14 @@ test('the store only applies the lock when asked, so students can still change p
     const changed = await store.add({ cohort: 'c', fields: fields({ direction: 'BERT' }), file: pptx() });
     assert.match(changed.final_name, /^BERT_张三_2250001/);
 
-    await rejects(store.add({ cohort: 'c', fields: fields({ direction: 'ViT' }), file: pptx(), lockDirection: true }), /锁定.*BERT/);
+    await rejects(store.add({ cohort: 'c', fields: fields({ direction: 'ViT' }), file: pptx(), lockDirection: true }), /论文已经锁定/);
     const again = await store.add({ cohort: 'c', fields: fields({ direction: 'BERT' }), file: pptx(), lockDirection: true });
     assert.equal(again.version, 2);
 
     // someone who never submitted before the lock may still choose once, and is then locked too
     const late = await store.add({ cohort: 'c', fields: fields({ student_id: '2250077', name: '新同学', direction: 'ViT' }), file: pptx(), lockDirection: true });
     assert.equal(late.version, 1);
-    await rejects(store.add({ cohort: 'c', fields: fields({ student_id: '2250077', name: '新同学', direction: 'BERT' }), file: pptx(), lockDirection: true }), /锁定.*ViT/);
+    await rejects(store.add({ cohort: 'c', fields: fields({ student_id: '2250077', name: '新同学', direction: 'BERT' }), file: pptx(), lockDirection: true }), /论文已经锁定/);
     assert.equal((await store.list('c')).length, 4);
   } finally {
     await rm(root, { recursive: true, force: true });

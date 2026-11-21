@@ -108,7 +108,8 @@ export const checkDirectionLock = (records, cohort, fields) => {
   if (!mine.length) return;
   const latest = mine.reduce((best, record) => (record.created_at >= best.created_at ? record : best));
   if (!sameName(latest.name, fields.name)) throw createError('学号和姓名与之前提交的记录不一致，请核对后再提交', 403);
-  if (latest.direction !== fields.direction) throw createError(`论文已经锁定：你选的是「${latest.direction}」，只能继续提交这一篇`, 409);
+  // The message must not name the paper: someone who only knows a student id and name would learn another person's choice.
+  if (latest.direction !== fields.direction) throw createError('论文已经锁定：只能继续提交你第一次选的那一篇，请重新选择论文', 409);
 };
 
 export const createSubmissionStore = (dataDirectory) => {

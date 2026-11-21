@@ -10,7 +10,7 @@ import { formatBeijingTime, formatFileSize, groupDirections, previewFileName } f
 
 const ACCEPTED_EXTENSIONS = ['.pdf', '.ppt', '.pptx', '.html', '.htm'];
 const MAX_FILE_BYTES = 30 * 1024 * 1024;
-const EMPTY_FORM = { name: '', student_id: '', grade: '', major: '', direction: '', qq: '', wechat: '', email: '', note: '' };
+const EMPTY_FORM = { direction: '', qq: '', wechat: '', email: '', note: '' };
 
 function Field({ label, required = true, hint = null, children, htmlFor }) {
   return (
@@ -29,7 +29,8 @@ const extensionOf = (fileName) => {
   return index < 0 ? '' : fileName.slice(index).toLowerCase();
 };
 
-export default function SubmissionForm({ cohort, preview = false }) {
+// Who is applying (name, student id, grade, major) comes from the signed-in applicant account, not from this form.
+export default function SubmissionForm({ cohort, applicant = null, preview = false }) {
   const { submission } = cohort;
   const needsDirection = submission.directions.length > 0;
   const directionSections = groupDirections(submission.directions, submission.groups);
@@ -53,10 +54,6 @@ export default function SubmissionForm({ cohort, preview = false }) {
   const uploading = status.phase === 'uploading';
 
   const validate = () => {
-    if (!form.name.trim()) return '请填写姓名';
-    if (!/^[A-Za-z0-9]{4,20}$/.test(form.student_id.trim())) return '学号应为 4-20 位字母或数字';
-    if (!form.grade) return '请选择年级';
-    if (!form.major.trim()) return '请填写专业';
     if (needsDirection && !form.direction) return '请选择方向';
     const { qq, wechat, email } = form;
     if (!qq.trim() && !wechat.trim() && !email.trim()) return 'QQ、微信、邮箱至少填写一个';
@@ -87,7 +84,7 @@ export default function SubmissionForm({ cohort, preview = false }) {
   };
 
   const reset = () => {
-    setForm((current) => ({ ...EMPTY_FORM, name: current.name, student_id: current.student_id, grade: current.grade, major: current.major, direction: current.direction, qq: current.qq, wechat: current.wechat, email: current.email }));
+    setForm((current) => ({ ...EMPTY_FORM, direction: current.direction, qq: current.qq, wechat: current.wechat, email: current.email }));
     setFile(null);
     if (fileInput.current) fileInput.current.value = '';
     setStatus({ phase: 'idle', error: '', result: null });
@@ -98,6 +95,7 @@ export default function SubmissionForm({ cohort, preview = false }) {
       <div className="rounded-xl border border-primary/25 bg-accent/40 px-6 py-10 text-center" role="status">
         <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground"><CheckCircle2 size={24} strokeWidth={1.8} aria-hidden="true" /></span>
         <p className="mt-4 font-display text-xl font-bold text-foreground">提交成功</p>
+        {applicant && <p className="mt-3 text-sm text-foreground/90">已记录：{[applicant.name, applicant.student_id, applicant.grade, applicant.major, form.direction].filter(Boolean).join(' · ')}</p>}
         <p className="mt-2 text-sm text-muted-foreground">文件已按统一规则命名并保存：</p>
         <p className="mx-auto mt-2 max-w-full break-all rounded-lg bg-card px-4 py-2.5 font-mono text-sm text-foreground">{status.result.final_name}</p>
         <p className="mt-3 text-xs text-muted-foreground">如需修改，请重新提交，系统会自动递增版本号，之前的提交不会被覆盖。</p>
@@ -107,7 +105,7 @@ export default function SubmissionForm({ cohort, preview = false }) {
   }
 
   const extension = file ? extensionOf(file.name) : '.pptx';
-  const namePreview = previewFileName(form, extension);
+  const namePreview = previewFileName({ ...form, name: applicant?.name, student_id: applicant?.student_id, grade: applicant?.grade, major: applicant?.major }, extension);
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-6">
@@ -123,15 +121,6 @@ export default function SubmissionForm({ cohort, preview = false }) {
       )}
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field label="姓名" htmlFor="submit-name"><Input id="submit-name" value={form.name} onChange={update('name')} maxLength={30} autoComplete="name" /></Field>
-        <Field label="学号" htmlFor="submit-student-id"><Input id="submit-student-id" value={form.student_id} onChange={update('student_id')} maxLength={20} inputMode="numeric" autoComplete="off" /></Field>
-        <Field label="年级">
-          <Select value={form.grade} onValueChange={choose('grade')}>
-            <SelectTrigger aria-label="年级"><SelectValue placeholder="请选择年级" /></SelectTrigger>
-            <SelectContent>{submission.grades.map((grade) => <SelectItem key={grade} value={grade}>{grade}</SelectItem>)}</SelectContent>
-          </Select>
-        </Field>
-        <Field label="专业" htmlFor="submit-major"><Input id="submit-major" value={form.major} onChange={update('major')} maxLength={30} placeholder="如：人工智能" /></Field>
         {needsDirection && (
           <Field label="选择方向（论文）">
             <Select value={form.direction} onValueChange={choose('direction')}>
