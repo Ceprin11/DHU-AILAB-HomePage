@@ -62,7 +62,7 @@ const buildComponents = (cohort) => ({
 
 const FENCED_CODE = /^(```|~~~)[\s\S]*?^\1/gm;
 // A formula needs a pair of dollar signs on one line, or a $$ block; code blocks are ignored.
-export const hasMath = (markdown) => /\$\$|\$[^$\n]+\$/.test(String(markdown).replace(FENCED_CODE, ''));
+const hasMath = (markdown) => /\$\$|\$[^$\n]+\$/.test(String(markdown).replace(FENCED_CODE, ''));
 
 const baseRemark = [remarkGfm];
 const baseRehype = [rehypeSlug, [rehypeHighlight, { detect: false, ignoreMissing: true }]];
