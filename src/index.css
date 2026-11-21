@@ -266,3 +266,103 @@
     mask-composite: intersect;
   }
 }
+
+@layer components {
+  .doc-prose {
+    @apply text-base leading-8 text-foreground/90;
+    overflow-wrap: anywhere;
+  }
+
+  .doc-prose > :first-child { margin-top: 0; }
+  .doc-prose h1, .doc-prose h2, .doc-prose h3, .doc-prose h4 {
+    @apply font-display font-bold tracking-[-0.02em] text-foreground;
+    scroll-margin-top: 6rem;
+  }
+  .doc-prose h1 { @apply mb-6 mt-2 text-3xl leading-tight sm:text-4xl; }
+  .doc-prose h2 { @apply mb-4 mt-12 border-b border-border/75 pb-2 text-2xl leading-snug; }
+  .doc-prose h3 { @apply mb-3 mt-9 text-xl leading-snug; }
+  .doc-prose h4 { @apply mb-2 mt-7 text-lg; }
+  .doc-prose p, .doc-prose ul, .doc-prose ol, .doc-prose blockquote, .doc-prose pre, .doc-prose .doc-table-scroll { @apply my-5; }
+  .doc-prose ul { @apply list-disc pl-6; }
+  .doc-prose ol { @apply list-decimal pl-6; }
+  .doc-prose li { @apply my-1.5; }
+  .doc-prose li > ul, .doc-prose li > ol { @apply my-1.5; }
+  .doc-prose li.task-list-item { @apply list-none; }
+  .doc-prose .contains-task-list { @apply pl-1; }
+  .doc-prose a { @apply font-medium text-primary underline decoration-primary/40 underline-offset-4 transition-colors hover:decoration-primary; }
+  .doc-prose strong { @apply font-semibold text-foreground; }
+  .doc-prose hr { @apply my-10 border-border/75; }
+  .doc-prose blockquote { @apply border-l-4 border-primary/40 bg-secondary/40 py-1 pl-5 pr-4 text-foreground/80; }
+  .doc-prose img { @apply mx-auto my-6 h-auto max-w-full rounded-lg border border-border/60; }
+  .doc-prose :not(pre) > code {
+    @apply rounded bg-muted px-1.5 py-0.5 font-mono text-[0.88em] text-foreground;
+  }
+  .doc-prose pre {
+    @apply overflow-x-auto rounded-xl border border-border/75 bg-secondary/60 p-4 text-sm leading-6;
+  }
+  .doc-prose pre code { @apply bg-transparent p-0 font-mono text-[0.9em] text-foreground; }
+  .doc-prose .doc-table-scroll { @apply overflow-x-auto rounded-lg border border-border/75; }
+  .doc-prose table { @apply w-full min-w-max border-collapse text-sm leading-6; }
+  .doc-prose th { @apply border-b border-border/75 bg-secondary/60 px-3.5 py-2.5 text-left font-semibold text-foreground; }
+  .doc-prose td { @apply border-b border-border/60 px-3.5 py-2.5 align-top; }
+  .doc-prose tr:last-child td { @apply border-b-0; }
+
+  .doc-prose .hljs-comment, .doc-prose .hljs-quote { @apply italic text-muted-foreground; }
+  .doc-prose .hljs-keyword, .doc-prose .hljs-selector-tag, .doc-prose .hljs-literal, .doc-prose .hljs-doctag { @apply font-semibold text-primary; }
+  .doc-prose .hljs-string, .doc-prose .hljs-regexp, .doc-prose .hljs-addition { color: hsl(152 52% 28%); }
+  .doc-prose .hljs-number, .doc-prose .hljs-symbol, .doc-prose .hljs-bullet { color: hsl(24 78% 38%); }
+  .doc-prose .hljs-title, .doc-prose .hljs-section, .doc-prose .hljs-built_in, .doc-prose .hljs-type, .doc-prose .hljs-attr { color: hsl(262 48% 44%); }
+  .doc-prose .hljs-variable, .doc-prose .hljs-params, .doc-prose .hljs-meta { color: hsl(210 28% 30%); }
+  .doc-prose .hljs-deletion { color: hsl(0 66% 42%); }
+  .dark .doc-prose .hljs-string, .dark .doc-prose .hljs-regexp, .dark .doc-prose .hljs-addition { color: hsl(152 48% 62%); }
+  .dark .doc-prose .hljs-number, .dark .doc-prose .hljs-symbol, .dark .doc-prose .hljs-bullet { color: hsl(30 84% 66%); }
+  .dark .doc-prose .hljs-title, .dark .doc-prose .hljs-section, .dark .doc-prose .hljs-built_in, .dark .doc-prose .hljs-type, .dark .doc-prose .hljs-attr { color: hsl(262 70% 78%); }
+  .dark .doc-prose .hljs-variable, .dark .doc-prose .hljs-params, .dark .doc-prose .hljs-meta { color: hsl(210 30% 78%); }
+  .dark .doc-prose .hljs-deletion { color: hsl(0 80% 72%); }
+}
+
+/* WYSIWYG recruitment editor (Milkdown Crepe) tuned to the site palette */
+.crepe-host {
+  overflow: hidden;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--card));
+}
+
+.crepe-host .milkdown {
+  --crepe-color-background: hsl(var(--card));
+  --crepe-color-on-background: hsl(var(--foreground));
+  --crepe-color-surface: hsl(var(--secondary));
+  --crepe-color-surface-low: hsl(var(--muted));
+  --crepe-color-on-surface: hsl(var(--foreground));
+  --crepe-color-on-surface-variant: hsl(var(--muted-foreground));
+  --crepe-color-outline: hsl(var(--border));
+  --crepe-color-primary: hsl(var(--primary));
+  --crepe-color-secondary: hsl(var(--accent));
+  --crepe-color-on-secondary: hsl(var(--accent-foreground));
+  --crepe-color-inverse: hsl(var(--foreground));
+  --crepe-color-on-inverse: hsl(var(--background));
+  --crepe-color-inline-code: hsl(var(--primary));
+  --crepe-color-error: hsl(var(--destructive));
+  --crepe-color-hover: hsl(var(--secondary));
+  --crepe-color-selected: hsl(var(--accent));
+  --crepe-color-inline-area: hsl(var(--muted));
+  --crepe-font-title: var(--font-heading), "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --crepe-font-default: var(--font-body), "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --crepe-font-code: var(--font-mono), ui-monospace, Menlo, Consolas, monospace;
+}
+
+.crepe-host .milkdown .ProseMirror {
+  min-height: 62vh;
+  padding: 2rem 3.5rem;
+}
+
+@media (max-width: 640px) {
+  .crepe-host .milkdown .ProseMirror { padding: 1.25rem 1rem 1.25rem 2.25rem; }
+}
+
+@layer components {
+  .doc-prose .doc-figure { @apply my-6 block text-center; }
+  .doc-prose .doc-figure img { @apply my-0; }
+  .doc-prose .doc-figcaption { @apply mt-2 block text-sm text-muted-foreground; }
+}

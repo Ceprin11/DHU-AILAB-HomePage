@@ -26,6 +26,7 @@ COPY --from=build /build/package*.json ./
 COPY --from=build /build/node_modules ./node_modules
 COPY --from=build /build/dist ./dist
 COPY --from=build /build/server ./server
+COPY --from=build /build/content ./content
 
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \

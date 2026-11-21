@@ -18,6 +18,7 @@ const Awards = lazy(() => import('@/pages/Awards'));
 const Activities = lazy(() => import('@/pages/Activities'));
 const Videos = lazy(() => import('@/pages/Videos'));
 const Join = lazy(() => import('@/pages/Join'));
+const Recruit = lazy(() => import('@/pages/Recruit'));
 const QAPage = lazy(() => import('@/pages/QAPage'));
 const Resources = lazy(() => import('@/pages/Resources'));
 const Admin = lazy(() => import('@/pages/Admin'));
@@ -71,6 +72,10 @@ const AuthenticatedApp = () => {
         <Route path="/activities" element={<Activities />} />
         <Route path="/videos" element={<Videos />} />
         <Route path="/join" element={<Join />} />
+        <Route path="/recruit" element={<Recruit />} />
+        <Route path="/recruit/:cohort" element={<Recruit />} />
+        <Route path="/recruit/:cohort/:slug" element={<Recruit />} />
+        <Route path="/recruit/:cohort/submissions/:submissionId" element={<Recruit />} />
         <Route path="/qa" element={<QAPage />} />
         <Route path="/resources" element={<Resources />} />
         <Route path="/club-life" element={<ClubLife />} />

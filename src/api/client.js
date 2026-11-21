@@ -193,6 +193,78 @@ export const api = {
       return request(`/api/public/albums?${new URLSearchParams({ category })}`);
     },
   },
+  docs: {
+    cohorts() {
+      return request('/api/docs/cohorts');
+    },
+    pages(cohort) {
+      return request(`/api/docs/${encodeURIComponent(cohort)}/pages`);
+    },
+    page(cohort, slug) {
+      return request(`/api/docs/${encodeURIComponent(cohort)}/pages/${encodeURIComponent(slug)}`);
+    },
+  },
+  recruit: {
+    submit(cohort, formData) {
+      return request(`/api/recruit/${encodeURIComponent(cohort)}/submissions`, { method: 'POST', body: formData, timeoutMs: 120000 });
+    },
+    submissions(cohort) {
+      return request(`/api/recruit/${encodeURIComponent(cohort)}/submissions`);
+    },
+    removeSubmission(id) {
+      return request(`/api/recruit/submissions/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    },
+  },
+  recruitAdmin: {
+    cohorts() {
+      return request('/api/admin/recruit/cohorts');
+    },
+    publish(cohort, drafts = true) {
+      return request(`/api/admin/recruit/${encodeURIComponent(cohort)}/publish`, { method: 'POST', body: JSON.stringify({ drafts }) });
+    },
+    schedule(cohort, publishAt, drafts = true) {
+      return request(`/api/admin/recruit/${encodeURIComponent(cohort)}/schedule`, { method: 'POST', body: JSON.stringify({ publish_at: publishAt, drafts }) });
+    },
+    cancelSchedule(cohort) {
+      return request(`/api/admin/recruit/${encodeURIComponent(cohort)}/schedule`, { method: 'DELETE' });
+    },
+    unpublish(cohort) {
+      return request(`/api/admin/recruit/${encodeURIComponent(cohort)}/unpublish`, { method: 'POST' });
+    },
+    saveCohorts(cohorts) {
+      return request('/api/admin/recruit/cohorts', { method: 'PUT', body: JSON.stringify({ cohorts }) });
+    },
+    pages(cohort) {
+      return request(`/api/admin/recruit/${encodeURIComponent(cohort)}/pages`);
+    },
+    page(cohort, slug) {
+      return request(`/api/admin/recruit/${encodeURIComponent(cohort)}/pages/${encodeURIComponent(slug)}`);
+    },
+    savePage(cohort, slug, payload) {
+      return request(`/api/admin/recruit/${encodeURIComponent(cohort)}/pages/${encodeURIComponent(slug)}`, { method: 'PUT', body: JSON.stringify(payload) });
+    },
+    deletePage(cohort, slug) {
+      return request(`/api/admin/recruit/${encodeURIComponent(cohort)}/pages/${encodeURIComponent(slug)}`, { method: 'DELETE' });
+    },
+    importPage(cohort, file, overwrite = false) {
+      const body = new FormData();
+      body.append('overwrite', String(overwrite));
+      body.append('file', file);
+      return request(`/api/admin/recruit/${encodeURIComponent(cohort)}/import`, { method: 'POST', body, timeoutMs: 30000 });
+    },
+    assets(cohort) {
+      return request(`/api/admin/recruit/${encodeURIComponent(cohort)}/assets`);
+    },
+    uploadAssets(cohort, files, directory) {
+      const body = new FormData();
+      body.append('directory', directory);
+      files.forEach((file) => body.append('files', file));
+      return request(`/api/admin/recruit/${encodeURIComponent(cohort)}/assets`, { method: 'POST', body, timeoutMs: 300000 });
+    },
+    deleteAsset(cohort, assetPath) {
+      return request(`/api/admin/recruit/${encodeURIComponent(cohort)}/assets?${new URLSearchParams({ path: assetPath })}`, { method: 'DELETE' });
+    },
+  },
   admin: {
     previewMemberImport(rows) {
       return request('/api/admin/member-import', {

@@ -1,0 +1,8 @@
+[
+  {
+    "id": "2026-autumn",
+    "label": "26 秋季招新",
+    "status": "draft",
+    "directions": ["ConvNeXt", "ViT", "DINOv2", "U-Net", "BERT", "GPT-2", "T5", "CLIP", "BLIP", "LLaVA"]
+  }
+]
