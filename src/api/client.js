@@ -223,6 +223,9 @@ export const api = {
     publish(cohort, drafts = true) {
       return request(`/api/admin/recruit/${encodeURIComponent(cohort)}/publish`, { method: 'POST', body: JSON.stringify({ drafts }) });
     },
+    setSubmissionsOpen(cohort, open) {
+      return request(`/api/admin/recruit/${encodeURIComponent(cohort)}/submissions-open`, { method: 'PUT', body: JSON.stringify({ open }) });
+    },
     schedule(cohort, publishAt, drafts = true) {
       return request(`/api/admin/recruit/${encodeURIComponent(cohort)}/schedule`, { method: 'POST', body: JSON.stringify({ publish_at: publishAt, drafts }) });
     },

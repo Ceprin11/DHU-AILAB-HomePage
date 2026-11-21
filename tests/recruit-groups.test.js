@@ -19,18 +19,31 @@ test('groups applicants under the paper they chose, in the configured order', ()
 
 test('turns re-submissions into versions of one person, newest first', () => {
   const { people, groups } = groupSubmissions([
-    row({ id: 'v1', version: 1 }),
-    row({ id: 'v3', version: 3, major: '软件工程' }),
-    row({ id: 'v2', version: 2 }),
-    row({ id: 'other-paper', direction: 'ViT', version: 1 }),
-    row({ id: 'other-person', student_id: '2250002', name: '李四' }),
+    row({ id: 'v1', version: 1, created_at: '2026-11-21T01:00:00Z' }),
+    row({ id: 'v3', version: 3, major: '软件工程', created_at: '2026-11-21T03:00:00Z' }),
+    row({ id: 'v2', version: 2, created_at: '2026-11-21T02:00:00Z' }),
+    row({ id: 'other-person', student_id: '2250002', name: '李四', direction: 'ViT' }),
   ], ['ViT', 'CLIP']);
-  assert.equal(people.length, 3);
-  const zhang = people.find((person) => person.student_id === '2250001' && person.direction === 'CLIP');
+  assert.equal(people.length, 2);
+  const zhang = people.find((person) => person.student_id === '2250001');
   assert.deepEqual(zhang.versions.map((version) => version.id), ['v3', 'v2', 'v1']);
   assert.equal(zhang.latest.id, 'v3');
   assert.equal(zhang.major, '软件工程');
+  assert.equal(zhang.switchedPaper, false);
   assert.deepEqual(groups.map((group) => group.direction), ['ViT', 'CLIP']);
+});
+
+test('a student who switched paper is listed once, under the paper of the newest submission', () => {
+  const { people, groups } = groupSubmissions([
+    row({ id: 'first', direction: 'ViT', version: 1, created_at: '2026-11-21T01:00:00Z' }),
+    row({ id: 'second', direction: 'CLIP', version: 1, created_at: '2026-11-22T01:00:00Z' }),
+    row({ id: 'third', direction: 'ViT', version: 2, created_at: '2026-11-23T01:00:00Z' }),
+  ], ['ViT', 'CLIP']);
+  assert.equal(people.length, 1);
+  assert.equal(people[0].direction, 'ViT');
+  assert.equal(people[0].switchedPaper, true);
+  assert.deepEqual(people[0].versions.map((version) => version.id), ['third', 'second', 'first']);
+  assert.deepEqual(groups.map((group) => [group.direction, group.people.length]), [['ViT', 1]]);
 });
 
 test('treats student ids case-insensitively and sorts people by name inside a group', () => {

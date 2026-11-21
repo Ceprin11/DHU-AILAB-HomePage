@@ -114,6 +114,13 @@ export default function SubmissionForm({ cohort, preview = false }) {
       {submission.deadline && (
         <p className="rounded-lg border border-amber/60 bg-amber/15 px-4 py-2.5 text-sm text-amber-foreground">截止时间：{formatBeijingTime(submission.deadline)}（北京时间）</p>
       )}
+      {needsDirection && submission.directionLock && (
+        <p className="rounded-lg border border-border/75 bg-secondary/40 px-4 py-2.5 text-sm leading-6 text-foreground/90">
+          {submission.directionLock.locked
+            ? '论文选择已经锁定：之前提交过的同学只能继续提交原来选的那一篇；还没提交过的同学可以选一篇，提交后同样锁定。'
+            : `论文可以随时更换，以你最后一次提交为准。${formatBeijingTime(submission.directionLock.at)}（北京时间）之后论文锁定，不能再更换。`}
+        </p>
+      )}
 
       <div className="grid gap-5 sm:grid-cols-2">
         <Field label="姓名" htmlFor="submit-name"><Input id="submit-name" value={form.name} onChange={update('name')} maxLength={30} autoComplete="name" /></Field>
@@ -142,15 +149,17 @@ export default function SubmissionForm({ cohort, preview = false }) {
         )}
       </div>
 
-      <fieldset className="m-0 min-w-0 space-y-3 rounded-xl border border-border/75 bg-card/60 px-4 pb-5 pt-1 sm:px-5">
-        <legend className="px-2 text-sm font-medium text-foreground">联系方式<span className="ml-0.5 text-destructive" aria-hidden="true">*</span></legend>
-        <p className="text-xs leading-5 text-muted-foreground">QQ、微信、邮箱至少填写一个，仅实验室管理员可见。</p>
+      <div role="group" aria-labelledby="submit-contact-title" className="min-w-0 space-y-3 rounded-xl border border-border/75 bg-card/60 px-4 py-5 sm:px-5">
+        <div>
+          <p id="submit-contact-title" className="text-sm font-medium text-foreground">联系方式<span className="ml-0.5 text-destructive" aria-hidden="true">*</span></p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">QQ、微信、邮箱至少填写一个，仅实验室管理员可见。</p>
+        </div>
         <div className="grid gap-4 sm:grid-cols-3">
           <Field label="QQ" required={false} htmlFor="submit-qq"><Input id="submit-qq" value={form.qq} onChange={update('qq')} maxLength={12} inputMode="numeric" autoComplete="off" /></Field>
           <Field label="微信" required={false} htmlFor="submit-wechat"><Input id="submit-wechat" value={form.wechat} onChange={update('wechat')} maxLength={30} autoComplete="off" /></Field>
           <Field label="邮箱" required={false} htmlFor="submit-email"><Input id="submit-email" type="email" value={form.email} onChange={update('email')} maxLength={80} autoComplete="email" /></Field>
         </div>
-      </fieldset>
+      </div>
 
       <Field label="备注" required={false} htmlFor="submit-note"><Textarea id="submit-note" value={form.note} onChange={update('note')} maxLength={1000} rows={3} placeholder="想对评审说的话，可以不填" /></Field>
 

@@ -741,7 +741,7 @@ const receiveSubmissionFile = (req, res, next) => {
 app.post('/api/recruit/:cohort/submissions', limitSubmissions, requireOpenCohort, receiveSubmissionFile, async (req, res, next) => {
   try {
     const fields = normalizeSubmissionFields(req.body, req.cohort.submission);
-    const record = await submissionStore.add({ cohort: req.cohort.id, fields, file: req.file });
+    const record = await submissionStore.add({ cohort: req.cohort.id, fields, file: req.file, lockDirection: Boolean(req.cohort.submission.directionLock?.locked) });
     res.status(201).json({ id: record.id, created_at: record.created_at, final_name: record.final_name, version: record.version });
   } catch (error) {
     next(error);
@@ -820,6 +820,16 @@ const sendCohortState = async (res, cohortId, extra = {}) => {
   const cohort = (await docsStore.readCohortsForAdmin()).find((item) => item.id === cohortId);
   res.json({ cohort, ...extra });
 };
+
+app.put('/api/admin/recruit/:cohort/submissions-open', requireAdmin, async (req, res, next) => {
+  try {
+    if (typeof req.body?.open !== 'boolean') return res.status(400).json({ message: '请指定开启或关闭' });
+    await docsStore.setSubmissionsOpen(req.params.cohort, req.body.open);
+    res.json((await docsStore.readCohortsForAdmin()).find((cohort) => cohort.id === req.params.cohort));
+  } catch (error) {
+    next(error);
+  }
+});
 
 app.post('/api/admin/recruit/:cohort/publish', requireAdmin, async (req, res, next) => {
   try {
