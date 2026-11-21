@@ -4,6 +4,7 @@ import rehypeHighlight from 'rehype-highlight';
 import rehypeSlug from 'rehype-slug';
 import remarkGfm from 'remark-gfm';
 import { Link } from 'react-router-dom';
+import MermaidDiagram from '@/components/docs/MermaidDiagram';
 
 const EXTERNAL_URL = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i;
 const PAGE_LINK = /^(?:\.\/)?([^/?#:]+)\.md(#.*)?$/;
@@ -44,16 +45,43 @@ const buildComponents = (cohort) => ({
     const image = <img src={resolveDocsAssetUrl(cohort, src)} alt={description || title || ''} loading="lazy" decoding="async" />;
     return title ? <span className="doc-figure">{image}<span className="doc-figcaption">{title}</span></span> : image;
   },
+  // ```mermaid blocks become diagrams; every other code block stays as it is.
+  pre({ node, children }) {
+    const code = node?.children?.[0];
+    const language = Array.isArray(code?.properties?.className) ? code.properties.className : [];
+    if (code?.tagName === 'code' && language.includes('language-mermaid')) {
+      const source = (code.children || []).map((child) => child.value || '').join('').replace(/\n$/, '');
+      return <MermaidDiagram source={source} />;
+    }
+    return <pre>{children}</pre>;
+  },
   table({ children }) {
     return <div className="doc-table-scroll"><table>{children}</table></div>;
   },
 });
 
-const remarkPlugins = [remarkGfm];
-const rehypePlugins = [rehypeSlug, [rehypeHighlight, { detect: false, ignoreMissing: true }]];
+const FENCED_CODE = /^(```|~~~)[\s\S]*?^\1/gm;
+// A formula needs a pair of dollar signs on one line, or a $$ block; code blocks are ignored.
+export const hasMath = (markdown) => /\$\$|\$[^$\n]+\$/.test(String(markdown).replace(FENCED_CODE, ''));
+
+const baseRemark = [remarkGfm];
+const baseRehype = [rehypeSlug, [rehypeHighlight, { detect: false, ignoreMissing: true }]];
 
 export default function MarkdownContent({ cohort, children }) {
   const components = React.useMemo(() => buildComponents(cohort), [cohort]);
+  const needsMath = React.useMemo(() => hasMath(children), [children]);
+  const [math, setMath] = React.useState(null);
+
+  React.useEffect(() => {
+    if (!needsMath || math) return undefined;
+    let cancelled = false;
+    import('@/components/docs/math-plugins').then((module) => { if (!cancelled) setMath(module.default); });
+    return () => { cancelled = true; };
+  }, [needsMath, math]);
+
+  const remarkPlugins = needsMath && math ? [...baseRemark, ...math.remark] : baseRemark;
+  const rehypePlugins = needsMath && math ? [baseRehype[0], ...math.rehype, baseRehype[1]] : baseRehype;
+
   return (
     <div className="doc-prose">
       <ReactMarkdown remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins} components={components} skipHtml>
