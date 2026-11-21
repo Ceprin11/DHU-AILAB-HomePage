@@ -9,14 +9,21 @@ on:
 permissions:
   contents: read
 
+# 同一时间只部署一次，后面的排队，不要中途打断正在进行的上传。
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 env:
-  REGISTRY: crpi-o9yt3hdv6ozp2o64.cn-heyuan.personal.cr.aliyuncs.com
+  # 与服务器 docker-compose.yml 里的镜像名保持一致，这样服务器端不用改配置。
+  # 镜像不再经过阿里云 ACR，而是直接通过 SSH 传到服务器上 `docker load`。
   IMAGE_NAME: crpi-o9yt3hdv6ozp2o64.cn-heyuan.personal.cr.aliyuncs.com/dhu-ailab/ailab-homepage
 
 jobs:
   build-and-deploy:
-    name: Build linux/amd64 image and Deploy via SSH
+    name: Build linux/amd64 image and deploy over SSH
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Check out repository
@@ -25,36 +32,49 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Alibaba Cloud ACR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.ALIYUN_REGISTRY_USERNAME }}
-          password: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
-
-      - name: Build and push image
+      - name: Build image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
           platforms: linux/amd64
-          push: true
+          load: true
+          push: false
           provenance: false
           sbom: false
-          tags: |
-            ${{ env.IMAGE_NAME }}:latest
-            ${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+          tags: ${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=min
-      
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          script: |
-            cd /data/compose/ailab
-            docker login -u ${{ secrets.ALIYUN_REGISTRY_USERNAME }} -p ${{ secrets.ALIYUN_REGISTRY_PASSWORD }} ${{ secrets.ALIYUN_REGISTRY_HOST }}
-            docker pull ${{ env.IMAGE_NAME }}:latest
-            docker compose up -d
+
+      - name: Export image archive
+        run: |
+          docker save "$IMAGE_NAME:latest" | gzip -3 > ailab-image.tar.gz
+          ls -lh ailab-image.tar.gz
+
+      - name: Prepare SSH
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SERVER_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -T 20 -H "$SERVER_HOST" >> ~/.ssh/known_hosts
+
+      - name: Upload image to the server
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          export DEPLOY_TARGET="$SERVER_USER@$SERVER_HOST"
+          export SSH_OPTS="-i $HOME/.ssh/deploy_key -o BatchMode=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=8 -o ConnectTimeout=20"
+          bash .github/scripts/upload-image.sh ailab-image.tar.gz "ailab-deploy/image-${GITHUB_SHA}.tar.gz"
+
+      - name: Load image and restart the site
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          ssh -i "$HOME/.ssh/deploy_key" -o BatchMode=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=8 -o ConnectTimeout=20 \
+            "$SERVER_USER@$SERVER_HOST" \
+            "bash -s -- '$IMAGE_NAME' 'ailab-deploy/image-${GITHUB_SHA}.tar.gz'" < .github/scripts/remote-deploy.sh
