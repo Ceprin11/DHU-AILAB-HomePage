@@ -47,7 +47,7 @@ export default function Navbar() {
   const userHeadline = user?.headline || (user?.role === 'admin' ? '管理员' : '实验室成员');
   const nav = [
     { to: '/', label: text('nav_home'), end: true }, { to: '/members', label: text('nav_team') },
-    { to: '/ai-guide', label: text('nav_guide') }, { to: '/notifications', label: text('nav_notice') },
+    { to: '/ai-guide', label: text('nav_guide') }, { to: '/recruit', label: text('nav_recruit') }, { to: '/notifications', label: text('nav_notice') },
     { to: '/awards', label: text('nav_awards') }, { to: '/activities', label: text('nav_activities') },
     { to: '/club-life', label: text('nav_club_life') }, { to: '/videos', label: text('nav_videos') },
     { to: '/resources', label: text('nav_resources') }, { to: '/qa', label: text('nav_qa') },

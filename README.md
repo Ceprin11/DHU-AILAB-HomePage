@@ -58,9 +58,11 @@ DHU-AILAB-HomePage/
 ├─ server/
 │  ├─ index.js                      # API、认证、上传和静态服务
 │  ├─ store.js                      # 内容存储与数据校验
+│  ├─ docs-store.js                 # 招新文档读取与路径校验
 │  ├─ member-account-store.js       # 成员账号与密码
 │  ├─ member-import.js              # 成员批量导入
 │  └─ member-visibility.js          # 成员公开规则
+├─ content/recruit/                 # 招新内容的初始数据，仅首次启动时复制到 data/recruit-content
 ├─ tests/                           # 自动化测试
 ├─ public/                          # 公共静态资源
 ├─ data/                            # 运行数据，不提交 Git
@@ -91,6 +93,12 @@ DHU-AILAB-HomePage/
 | `/ai-guide` | AI 入门指南 | 公开 |
 | `/notifications` | 通知 | 公开 |
 | `/join` | 加入我们 | 公开 |
+| `/recruit` | 招新专区，自动进入本次招新 | 公开 |
+| `/recruit/:cohort` | “文档”分栏：某一期招新的总文档 | 公开 |
+| `/recruit/:cohort/:slug` | “文档”分栏：单篇文档 | 公开 |
+| `/recruit/:cohort/submit` | “提交”分栏：提交表单 | 公开，批次开放时 |
+| `/recruit/:cohort/submissions` | “收到的提交”分栏 | 已登录账号 |
+| `/recruit/:cohort/submissions/:id` | 某位同学的某个版本，带文件预览 | 已登录账号 |
 | `/qa` | 常见问题 | 公开 |
 | `/admin-login` | 统一登录 | 公开 |
 | `/admin` | 内容管理 | 管理员 |
@@ -150,6 +158,18 @@ await api.entities.Activity.delete(id);
 | `GET /api/public/members` | 公开成员 | 公开 |
 | `GET /api/public/home-photos` | 仅返回主页精选照片 | 公开 |
 | `GET /api/public/albums?category=...` | 返回活动或社团生活页面所需的公开相册字段 | 公开 |
+| `GET /api/docs/cohorts` | 招新批次列表 | 公开 |
+| `GET /api/docs/:cohort/pages` | 某批次的文档目录 | 公开 |
+| `GET /api/docs/:cohort/pages/:slug` | 某篇文档的 Markdown 正文 | 公开 |
+| `GET /docs-assets/:cohort/*` | 文档引用的图片和附件，Word、PPT 等一律以附件下载；未发布批次的文件仅管理员可访问 | 公开 |
+| `GET/PUT /api/admin/recruit/cohorts` | 读取、保存批次设置 | 管理员 |
+| `POST /api/admin/recruit/:cohort/publish` | 立即发布；`schedule` 设置定时、`DELETE schedule` 取消、`unpublish` 撤回 | 管理员 |
+| `/api/admin/recruit/:cohort/pages[/:slug]` | 文档列表（含草稿）、读取、保存、删除；`POST .../import` 导入 `.md` | 管理员 |
+| `/api/admin/recruit/:cohort/assets` | 列出、上传、删除图片和附件 | 管理员 |
+| `POST /api/recruit/:cohort/submissions` | 提交 PDF、PPT 或 HTML，每个 IP 每小时最多 10 次 | 公开，批次开放时 |
+| `GET /api/recruit/:cohort/submissions` | 提交列表；联系方式仅管理员可见 | 已登录账号 |
+| `GET /api/recruit/submissions/:id/file` | 预览或下载提交的文件 | 已登录账号 |
+| `DELETE /api/recruit/submissions/:id` | 删除一份提交 | 管理员 |
 | `GET /api/entities/:entity` | 查询实体 | 公开读取 |
 | `POST /api/entities/:entity` | 新增实体 | 管理员 |
 | `PUT /api/entities/:entity/:id` | 修改实体 | 管理员 |
@@ -168,6 +188,36 @@ await api.entities.Activity.delete(id);
 | `POST /api/contributions/:entity` | 投稿 `StudyMaterial`、`QA` 或 `Award` | 已登录账号 |
 
 权限必须由后端验证，不能只依赖前端隐藏按钮或路由跳转。
+
+## 招新文档
+
+招新总文档和教程以 Markdown 文件形式保存在服务器的 `data/recruit-content/`，由管理后台的“招新”标签页编辑，**不需要改代码、不需要重新部署**。仓库里的 `content/recruit/` 只是首次启动时的初始数据：`data/recruit-content/` 不存在时复制一次，之后不再读取。
+
+- **批次**：清单在 `cohorts.json`，页面顶部的下拉菜单据此切换。状态有“未发布、本次招新、即将开始、往期”。未发布的批次对访客完全不可见（切换器、文档、附件、提交入口都不可访问），只有管理员能在后台编辑；`/recruit` 自动进入状态为 `current` 的批次。
+- **发布**：后台的“立即发布”会把批次设为本次招新，原来的本次招新转为往期，并可同时发布所有草稿文档；“定时发布”设置一个北京时间，到点自动执行同样的操作。定时发布在有人访问时检查并落盘，服务器重启或到点时恰好宕机，也会在下一次访问时补上。
+- **后台能力**：所见即所得地编辑文档（输入 `/` 选标题、列表、代码块、表格、图片，选中文字出现格式工具栏，直接粘贴或拖入图片即上传并显示；从网页、飞书复制整篇内容粘贴进来时，格式和代码语言会保留，外链图片会自动转存到本站）；也可切换到 Markdown 源码、导入 `.md`；上传图片和附件并插入引用；草稿开关；批次设置（名称、状态、选择方向、提交截止、开放提交）。写操作都经过校验：文档名、文件类型和文件头、路径、大小限制，同名附件不会被覆盖。
+- **编辑器**：`src/components/admin/MarkdownEditor.jsx`，基于开源的 [Milkdown Crepe](https://milkdown.dev)（MIT）。存储格式仍是标准 Markdown，所以前台渲染不变。编辑器会按自己的风格重写 Markdown（如无序列表符号 `-` 变 `*`、表格竖线对齐、下划线转义），渲染结果一样；图片的描述文字会转成图注保存。只在管理后台的文档编辑页按需加载，不影响其他页面。
+- **读取**：`server/docs-store.js` 读写文件并校验路径；前端 `src/pages/Recruit.jsx` 渲染页面，`src/components/docs/MarkdownContent.jsx` 负责 Markdown（原始 HTML 会被丢弃）。页面是懒加载分包，不影响首页体积。
+- **备份**：内容、附件和提交都在 `data/` 下，请整个目录一起备份。写法和日常用法见 `content/recruit/README.md`。
+
+### 页面结构
+
+招新专区仿照 MkDocs Material：顶部是批次切换和分栏（文档、提交、收到的提交），每个分栏有自己的侧边栏。
+
+- **文档**：侧边栏是文档目录，右侧是本页章节目录，底部是附件下载和上一篇、下一篇。
+- **提交**：没有侧边栏，只有表单。
+- **收到的提交**：登录后才会出现。侧边栏按论文分组列出同学，点谁看谁；同一位同学提交多次时在右侧用版本按钮切换。手机上侧边栏变成下拉选择。
+
+### 提交与审阅
+
+申请人在 `/recruit/:cohort/submit` 填写姓名、学号、年级、专业、选择方向（论文），并至少留一个 QQ、微信或邮箱，再上传文件。只接受 PDF、PPT、HTML，单个文件不超过 30MB。
+
+- **强制命名**：文件统一保存为 `方向_姓名_学号_年级_专业_v版本.扩展名`，不使用上传时的文件名。同一人同一方向再次提交会递增版本号，旧文件不会被覆盖。
+- **开放条件**：批次状态为 `current` 且未过 `submission_deadline`。可选项（方向、截止时间）在 `content/recruit/cohorts.json` 配置；年级固定为大一、大二。
+- **存放位置**：`data/recruit-submissions/`（索引 `index.json` 与 `files/`），不通过任何公开路径提供，也不在 `/api/entities` 中。
+- **权限**：已登录的成员和管理员可以列表、预览、下载；联系方式、导出名单和删除仅管理员。
+- **预览**：PDF 使用浏览器内置查看器；PPTX 和 HTML 在浏览器里渲染后，经 DOMPurify 清理，放入没有任何权限、禁止脚本和联网的 `sandbox` iframe；旧版 `.ppt` 只能下载。服务端永远不会把提交的 HTML 以 `text/html` 提供。
+- **校验**：除扩展名外还检查文件头，防止改后缀；字段长度、年级与方向白名单、联系方式格式都在服务端校验。
 
 ## 数据模型
 

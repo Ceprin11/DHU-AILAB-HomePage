@@ -1,6 +1,7 @@
 import React from 'react';
 import { m, useReducedMotion } from 'framer-motion';
-import { Mail, Play, MessageCircle, Check } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowRight, Mail, Play, MessageCircle, Check } from 'lucide-react';
 import { useSiteSettings } from '@/lib/site';
 import SectionHeading from '@/components/SectionHeading';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -74,6 +75,9 @@ export default function Join() {
             <p className="mt-5 text-lg leading-relaxed text-muted-foreground text-balance">
               {text('join_description')}
             </p>
+            <Link to="/recruit" className="interactive-link mt-8 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
+              {text('join_recruit_button')} <ArrowRight size={15} strokeWidth={2} aria-hidden="true" />
+            </Link>
           </Reveal>
         </div>
       </section>

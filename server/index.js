@@ -16,6 +16,8 @@ import sharp from 'sharp';
 import { createMemberAccountStore } from './member-account-store.js';
 import { applyHomeSelectionPolicy } from './album-permissions.js';
 import { CONTRIBUTION_ENTITY_NAMES, normalizeContentContribution } from './content-contribution.js';
+import { ASSET_MAX_BYTES, createDocsStore, isInlineAsset, seedContentDirectory } from './docs-store.js';
+import { createSubmissionStore, MARKUP_EXTENSIONS, normalizeSubmissionFields, SUBMISSION_MAX_FILE_BYTES } from './recruit-submissions.js';
 import { executeMemberImport, planMemberImport } from './member-import.js';
 import { isPublicMember } from './member-visibility.js';
 import { isPublicAlbumCategory, serializePublicAlbum } from './public-albums.js';
@@ -27,6 +29,8 @@ const uploadsDirectory = path.join(dataDirectory, 'uploads');
 const originalUploadsDirectory = path.join(uploadsDirectory, 'originals');
 const imageVariantsDirectory = path.join(uploadsDirectory, 'variants');
 const distDirectory = path.join(rootDirectory, 'dist');
+const recruitSeedDirectory = path.join(rootDirectory, 'content', 'recruit');
+const recruitContentDirectory = path.join(dataDirectory, 'recruit-content');
 const isDevelopment = process.argv.includes('--dev');
 const isProduction = process.env.NODE_ENV === 'production';
 const port = Number(process.env.PORT || 3000);
@@ -54,11 +58,17 @@ await Promise.all([
 ]);
 const store = createStore(dataDirectory);
 const memberAccountStore = createMemberAccountStore(dataDirectory);
+if (await seedContentDirectory(recruitSeedDirectory, recruitContentDirectory)) console.log('Recruitment content seeded from content/recruit');
+const docsStore = createDocsStore(recruitContentDirectory);
+const submissionStore = createSubmissionStore(dataDirectory);
 const app = express();
 const httpServer = createHttpServer(app);
 const loginAttempts = new Map();
 const loginWindowMs = 15 * 60 * 1000;
 const maxLoginAttempts = 10;
+const submissionAttempts = new Map();
+const submissionWindowMs = 60 * 60 * 1000;
+const maxSubmissionsPerWindow = 10;
 const allowedUploadExtensions = new Set([
   '.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif',
   '.mp4', '.webm', '.ogg', '.mov', '.m4v',
@@ -390,6 +400,25 @@ app.use('/uploads', express.static(uploadsDirectory, {
   immutable: true,
   maxAge: '30d',
 }));
+app.get('/docs-assets/:cohort/*assetPath', async (req, res, next) => {
+  try {
+    const relativePath = req.params.assetPath.join('/');
+    // Files of an unpublished cohort are visible to administrators only (editor preview).
+    const isAdminRequest = (await resolveSession(req))?.role === 'admin';
+    const filePath = isAdminRequest ? docsStore.resolveAsset(req.params.cohort, relativePath) : await docsStore.resolvePublicAsset(req.params.cohort, relativePath);
+    if (!filePath) return res.status(404).end();
+    const onError = (error) => {
+      if (error && !res.headersSent) res.status(404).end();
+    };
+    if (isAdminRequest) res.setHeader('Cache-Control', 'private, no-store');
+    if (req.query.download === '1' || !isInlineAsset(filePath)) {
+      return res.download(filePath, path.basename(filePath), { maxAge: isAdminRequest ? 0 : '1h' }, onError);
+    }
+    res.sendFile(filePath, { maxAge: isAdminRequest ? 0 : '1h' }, onError);
+  } catch (error) {
+    next(error);
+  }
+});
 app.use('/api', (_req, res, next) => {
   res.setHeader('Cache-Control', 'no-store');
   next();
@@ -618,6 +647,285 @@ app.get('/api/public/albums', async (req, res, next) => {
       .filter((album) => album.category === category)
       .map(serializePublicAlbum)
       .filter(Boolean));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/docs/cohorts', async (_req, res, next) => {
+  try {
+    res.json(await docsStore.listCohorts());
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/docs/:cohort/pages', async (req, res, next) => {
+  try {
+    const cohort = await docsStore.getCohort(req.params.cohort);
+    if (!cohort) return res.status(404).json({ message: '没有找到这一期招新' });
+    res.json({ cohort, pages: await docsStore.listPages(cohort.id) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/docs/:cohort/pages/:slug', async (req, res, next) => {
+  try {
+    const cohort = await docsStore.getCohort(req.params.cohort);
+    const page = cohort && await docsStore.getPage(cohort.id, req.params.slug);
+    if (!page) return res.status(404).json({ message: '没有找到这篇文档' });
+    res.json(page);
+  } catch (error) {
+    next(error);
+  }
+});
+
+const limitSubmissions = (req, res, next) => {
+  const now = Date.now();
+  for (const [key, timestamps] of submissionAttempts) {
+    const recent = timestamps.filter((time) => now - time < submissionWindowMs);
+    if (recent.length) submissionAttempts.set(key, recent);
+    else submissionAttempts.delete(key);
+  }
+  const clientKey = req.ip || req.socket.remoteAddress || 'unknown';
+  const recent = submissionAttempts.get(clientKey) || [];
+  if (recent.length >= maxSubmissionsPerWindow) {
+    res.setHeader('Retry-After', String(Math.ceil((recent[0] + submissionWindowMs - now) / 1000)));
+    return res.status(429).json({ message: '提交过于频繁，请稍后再试' });
+  }
+  submissionAttempts.set(clientKey, [...recent, now]);
+  next();
+};
+
+const requireOpenCohort = async (req, res, next) => {
+  try {
+    const cohort = await docsStore.getCohort(req.params.cohort);
+    if (!cohort) return res.status(404).json({ message: '没有找到这一期招新' });
+    if (!cohort.submission.open) return res.status(403).json({ message: cohort.submission.reason || '当前不接收提交' });
+    req.cohort = cohort;
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+const submissionUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: SUBMISSION_MAX_FILE_BYTES, files: 1, fields: 10, fieldSize: 8 * 1024 },
+  defParamCharset: 'utf8',
+});
+
+const receiveSubmissionFile = (req, res, next) => {
+  submissionUpload.single('file')(req, res, (error) => {
+    if (!error) return next();
+    if (!(error instanceof multer.MulterError)) return next(error);
+    const message = error.code === 'LIMIT_FILE_SIZE'
+      ? `文件不能超过 ${SUBMISSION_MAX_FILE_BYTES / 1024 / 1024}MB`
+      : error.code === 'LIMIT_UNEXPECTED_FILE' || error.code === 'LIMIT_FILE_COUNT' ? '一次只能提交一个文件' : '提交失败，请检查表单后重试';
+    res.status(error.code === 'LIMIT_FILE_SIZE' ? 413 : 400).json({ message });
+  });
+};
+
+app.post('/api/recruit/:cohort/submissions', limitSubmissions, requireOpenCohort, receiveSubmissionFile, async (req, res, next) => {
+  try {
+    const fields = normalizeSubmissionFields(req.body, req.cohort.submission);
+    const record = await submissionStore.add({ cohort: req.cohort.id, fields, file: req.file });
+    res.status(201).json({ id: record.id, created_at: record.created_at, final_name: record.final_name, version: record.version });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/recruit/:cohort/submissions', requireAuth, async (req, res, next) => {
+  try {
+    if (!await docsStore.getCohort(req.params.cohort)) return res.status(404).json({ message: '没有找到这一期招新' });
+    res.json(await submissionStore.list(req.params.cohort, { includeContact: req.auth.role === 'admin' }));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/recruit/submissions/:id/file', requireAuth, async (req, res, next) => {
+  try {
+    const entry = await submissionStore.getFile(req.params.id);
+    if (!entry) return res.status(404).json({ message: '没有找到这份提交' });
+    const onError = (error) => {
+      if (error && !res.headersSent) res.status(404).json({ message: '文件不存在' });
+    };
+    const extension = path.extname(entry.downloadName).toLowerCase();
+    const isMarkup = MARKUP_EXTENSIONS.has(extension);
+    res.setHeader('Cache-Control', 'private, no-store');
+    // Submitted HTML is untrusted: it must never be served as a page on this origin.
+    if (isMarkup) res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'");
+    if (req.query.download === '1') return res.download(entry.filePath, entry.downloadName, onError);
+    res.type(isMarkup ? '.txt' : extension);
+    res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(entry.downloadName)}`);
+    res.sendFile(entry.filePath, { headers: { 'Content-Type': res.get('Content-Type') } }, onError);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete('/api/recruit/submissions/:id', requireAdmin, async (req, res, next) => {
+  try {
+    if (!await submissionStore.remove(req.params.id)) return res.status(404).json({ message: '没有找到这份提交' });
+    res.status(204).end();
+  } catch (error) {
+    next(error);
+  }
+});
+
+const runUpload = (middleware, tooLargeMessage) => (req, res, next) => {
+  middleware(req, res, (error) => {
+    if (!error) return next();
+    if (!(error instanceof multer.MulterError)) return next(error);
+    const message = error.code === 'LIMIT_FILE_SIZE' ? tooLargeMessage
+      : error.code === 'LIMIT_FILE_COUNT' || error.code === 'LIMIT_UNEXPECTED_FILE' ? '一次上传的文件太多' : '上传失败，请检查后重试';
+    res.status(error.code === 'LIMIT_FILE_SIZE' ? 413 : 400).json({ message });
+  });
+};
+
+const markdownUpload = runUpload(multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024, files: 1, fields: 5 }, defParamCharset: 'utf8' }).single('file'), 'Markdown 文件不能超过 2MB');
+const assetUpload = runUpload(multer({ storage: multer.memoryStorage(), limits: { fileSize: ASSET_MAX_BYTES, files: 20, fields: 5 }, defParamCharset: 'utf8' }).array('files', 20), `单个文件不能超过 ${ASSET_MAX_BYTES / 1024 / 1024}MB`);
+
+app.get('/api/admin/recruit/cohorts', requireAdmin, async (_req, res, next) => {
+  try {
+    res.json(await docsStore.readCohortsForAdmin());
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put('/api/admin/recruit/cohorts', requireAdmin, async (req, res, next) => {
+  try {
+    res.json(await docsStore.saveCohorts(req.body?.cohorts));
+  } catch (error) {
+    next(error);
+  }
+});
+
+const sendCohortState = async (res, cohortId, extra = {}) => {
+  const cohort = (await docsStore.readCohortsForAdmin()).find((item) => item.id === cohortId);
+  res.json({ cohort, ...extra });
+};
+
+app.post('/api/admin/recruit/:cohort/publish', requireAdmin, async (req, res, next) => {
+  try {
+    const result = await docsStore.publishCohort(req.params.cohort, { drafts: req.body?.drafts !== false });
+    await sendCohortState(res, req.params.cohort, result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/admin/recruit/:cohort/schedule', requireAdmin, async (req, res, next) => {
+  try {
+    await docsStore.scheduleCohort(req.params.cohort, { publishAt: req.body?.publish_at, drafts: req.body?.drafts !== false });
+    await sendCohortState(res, req.params.cohort);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete('/api/admin/recruit/:cohort/schedule', requireAdmin, async (req, res, next) => {
+  try {
+    await docsStore.cancelSchedule(req.params.cohort);
+    await sendCohortState(res, req.params.cohort);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/admin/recruit/:cohort/unpublish', requireAdmin, async (req, res, next) => {
+  try {
+    await docsStore.unpublishCohort(req.params.cohort);
+    await sendCohortState(res, req.params.cohort);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/admin/recruit/:cohort/pages', requireAdmin, async (req, res, next) => {
+  try {
+    res.json(await docsStore.listPagesForAdmin(req.params.cohort));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/admin/recruit/:cohort/pages/:slug', requireAdmin, async (req, res, next) => {
+  try {
+    const page = await docsStore.getPageForAdmin(req.params.cohort, req.params.slug);
+    if (!page) return res.status(404).json({ message: '没有找到这篇文档' });
+    res.json(page);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put('/api/admin/recruit/:cohort/pages/:slug', requireAdmin, async (req, res, next) => {
+  try {
+    await docsStore.savePage(req.params.cohort, req.params.slug, req.body || {});
+    res.json(await docsStore.getPageForAdmin(req.params.cohort, req.params.slug));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete('/api/admin/recruit/:cohort/pages/:slug', requireAdmin, async (req, res, next) => {
+  try {
+    if (!await docsStore.deletePage(req.params.cohort, req.params.slug)) return res.status(404).json({ message: '没有找到这篇文档' });
+    res.status(204).end();
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/admin/recruit/:cohort/import', requireAdmin, markdownUpload, async (req, res, next) => {
+  try {
+    const file = req.file;
+    if (!file?.buffer?.length) return res.status(400).json({ message: '请选择 .md 文件' });
+    if (!/\.(md|markdown)$/i.test(file.originalname)) return res.status(400).json({ message: '只能导入 .md 文件' });
+    if (file.buffer.subarray(0, 8192).includes(0)) return res.status(400).json({ message: '这不是文本文件' });
+    const result = await docsStore.importPage(req.params.cohort, { filename: file.originalname, text: file.buffer.toString('utf8'), overwrite: req.body?.overwrite === 'true' });
+    res.status(201).json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/admin/recruit/:cohort/assets', requireAdmin, async (req, res, next) => {
+  try {
+    res.json(await docsStore.listAssets(req.params.cohort));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/admin/recruit/:cohort/assets', requireAdmin, assetUpload, async (req, res, next) => {
+  try {
+    if (!req.files?.length) return res.status(400).json({ message: '请选择要上传的文件' });
+    const uploaded = [];
+    const failed = [];
+    for (const file of req.files) {
+      try {
+        uploaded.push(await docsStore.saveAsset(req.params.cohort, { directory: req.body?.directory || 'assets', filename: file.originalname, buffer: file.buffer }));
+      } catch (error) {
+        if (!error.status) throw error;
+        failed.push({ name: file.originalname, message: error.message });
+      }
+    }
+    res.status(uploaded.length ? 201 : 400).json({ uploaded, failed, message: uploaded.length ? '' : failed[0]?.message || '上传失败' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete('/api/admin/recruit/:cohort/assets', requireAdmin, async (req, res, next) => {
+  try {
+    if (!await docsStore.deleteAsset(req.params.cohort, String(req.query.path || ''))) return res.status(404).json({ message: '没有找到这个文件' });
+    res.status(204).end();
   } catch (error) {
     next(error);
   }

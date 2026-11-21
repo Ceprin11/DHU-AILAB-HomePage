@@ -8,7 +8,7 @@ export const SITE_TEXT_GROUPS = [
     fields: [
       ['lab_name_cn', '实验室中文名称', '东华大学人工智能创新实验室'],
       ['lab_name_en', '实验室英文名称', 'AI Innovation Laboratory · AILAB'],
-      ['nav_home', '导航：首页', '首页'], ['nav_team', '导航：团队', '团队'], ['nav_guide', '导航：AI入门', 'AI入门'],
+      ['nav_home', '导航：首页', '首页'], ['nav_team', '导航：团队', '团队'], ['nav_guide', '导航：AI入门', 'AI入门'], ['nav_recruit', '导航：招新', '招新'],
       ['nav_notice', '导航：通知', '通知'], ['nav_awards', '导航：成果', '成果'], ['nav_activities', '导航：活动', '活动'],
       ['nav_club_life', '导航：社团生活', '社团生活'], ['nav_gallery', '导航：相册', '相册'], ['nav_videos', '导航：视频', '视频'], ['nav_resources', '导航：资料', '资料'],
       ['nav_qa', '导航：问答', '问答'], ['nav_admin', '管理入口', '管理'], ['nav_join', '加入入口', '加入我们'],
@@ -121,7 +121,7 @@ export const SITE_TEXT_GROUPS = [
   },
   {
     id: 'join', label: '加入我们', fields: [
-      ['join_eyebrow', '顶部英文小字', 'How to join us'], ['join_title', '页面标题', '加入我们，开启 AI 之旅'],
+      ['join_recruit_button', '招新专区按钮', '查看招新'], ['join_eyebrow', '顶部英文小字', 'How to join us'], ['join_title', '页面标题', '加入我们，开启 AI 之旅'],
       ['join_description', '页面说明', 'AILAB 每年设有秋季招新与暑期招新两个批次，要求与流程各有不同，请选择对应批次查看。', 'textarea'],
       ['join_autumn', '秋季招新名称', '秋季招新'], ['join_summer', '暑期招新名称', '暑期招新'],
       ['join_requirements', '要求标题后缀', '加入要求'], ['join_process', '流程标题后缀', '加入流程'],

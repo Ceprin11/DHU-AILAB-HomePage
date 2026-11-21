@@ -12,6 +12,7 @@ import EntityManager from '@/components/admin/EntityManager';
 import GuideAdmin from '@/components/admin/GuideAdmin';
 import PageTextAdmin from '@/components/admin/PageTextAdmin';
 import MemberImportPanel from '@/components/admin/MemberImportPanel';
+import RecruitAdmin from '@/components/admin/RecruitAdmin';
 
 const memberFields = [
   { key: 'name', label: '姓名', type: 'text', required: true, helper: '只填写姓名和学号或工号即可先创建账号；未上传照片前不会显示在团队页面。' },
@@ -246,6 +247,7 @@ export default function Admin() {
         <TabsList className="flex w-full flex-wrap justify-start gap-1 h-auto bg-secondary/50 p-1">
           <TabsTrigger value="members">团队成员</TabsTrigger>
           <TabsTrigger value="ai-guide">AI入门</TabsTrigger>
+          <TabsTrigger value="recruit">招新</TabsTrigger>
           <TabsTrigger value="notifications">通知</TabsTrigger>
           <TabsTrigger value="awards">成果展示</TabsTrigger>
           <TabsTrigger value="activities">活动</TabsTrigger>
@@ -260,6 +262,7 @@ export default function Admin() {
 
         <TabsContent value="members" className="mt-6"><MemberManagementTab /></TabsContent>
         <TabsContent value="ai-guide" className="mt-6"><GuideAdmin /></TabsContent>
+        <TabsContent value="recruit" className="mt-6"><RecruitAdmin /></TabsContent>
         <TabsContent value="notifications" className="mt-6"><EntityManager entityName="Notification" label="通知" fields={notifFields} itemTitle={(it) => it.title} /></TabsContent>
         <TabsContent value="awards" className="mt-6"><EntityManager entityName="Award" label="成果" fields={awardFields} itemTitle={(it) => it.title} /></TabsContent>
         <TabsContent value="activities" className="mt-6"><EntityManager entityName="Activity" label="活动" fields={activityFields} itemTitle={(it) => it.title} /></TabsContent>
