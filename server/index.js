@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { Buffer } from 'node:buffer';
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { createServer as createHttpServer } from 'node:http';
 import path from 'node:path';
 import process from 'node:process';
@@ -19,7 +19,7 @@ import { applyHomeSelectionPolicy } from './album-permissions.js';
 import { CONTRIBUTION_ENTITY_NAMES, normalizeContentContribution } from './content-contribution.js';
 import { ASSET_MAX_BYTES, createDocsStore, isInlineAsset, seedContentDirectory } from './docs-store.js';
 import { createApplicantStore, normalizeApplicantProfile, validatePassword } from './applicant-store.js';
-import { createSubmissionStore, MARKUP_EXTENSIONS, normalizeSubmissionFields, SUBMISSION_MAX_FILE_BYTES } from './recruit-submissions.js';
+import { ATTACHMENT_MAX_FILE_BYTES, createSubmissionStore, MARKUP_EXTENSIONS, normalizeSubmissionFields, SUBMISSION_MAX_FILE_BYTES } from './recruit-submissions.js';
 import { executeMemberImport, planMemberImport } from './member-import.js';
 import { isPublicMember } from './member-visibility.js';
 import { isPublicAlbumCategory, serializePublicAlbum } from './public-albums.js';
@@ -848,19 +848,32 @@ const requireOpenCohort = async (req, res, next) => {
   }
 };
 
+// Uploads go to a temporary folder on disk (next to the stored files, so moving them is a rename), not into memory:
+// the code-and-results zip can be 100MB and several students may upload at once.
+const submissionTemporaryDirectory = path.join(dataDirectory, 'recruit-submissions', 'tmp');
 const submissionUpload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: SUBMISSION_MAX_FILE_BYTES, files: 1, fields: 10, fieldSize: 8 * 1024 },
+  storage: multer.diskStorage({
+    destination: (_req, _file, done) => { mkdir(submissionTemporaryDirectory, { recursive: true }).then(() => done(null, submissionTemporaryDirectory), done); },
+    filename: (_req, _file, done) => done(null, `${crypto.randomUUID()}.upload`),
+  }),
+  limits: { fileSize: ATTACHMENT_MAX_FILE_BYTES, files: 2, fields: 10, fieldSize: 8 * 1024 },
   defParamCharset: 'utf8',
 });
 
+// Leftovers from an upload that was cut off by a restart.
+rm(submissionTemporaryDirectory, { recursive: true, force: true }).catch(() => {});
+
+const uploadedFiles = (req) => [...(req.files?.file || []), ...(req.files?.attachment || [])];
+const removeUploads = (req) => Promise.all(uploadedFiles(req).map((file) => rm(file.path, { force: true })));
+
 const receiveSubmissionFile = (req, res, next) => {
-  submissionUpload.single('file')(req, res, (error) => {
+  submissionUpload.fields([{ name: 'file', maxCount: 1 }, { name: 'attachment', maxCount: 1 }])(req, res, (error) => {
     if (!error) return next();
+    removeUploads(req).catch(() => {});
     if (!(error instanceof multer.MulterError)) return next(error);
     const message = error.code === 'LIMIT_FILE_SIZE'
-      ? `文件不能超过 ${SUBMISSION_MAX_FILE_BYTES / 1024 / 1024}MB`
-      : error.code === 'LIMIT_UNEXPECTED_FILE' || error.code === 'LIMIT_FILE_COUNT' ? '一次只能提交一个文件' : '提交失败，请检查表单后重试';
+      ? `单个文件不能超过 ${ATTACHMENT_MAX_FILE_BYTES / 1024 / 1024}MB`
+      : error.code === 'LIMIT_UNEXPECTED_FILE' || error.code === 'LIMIT_FILE_COUNT' ? '只能提交一份报告和一个压缩包' : '提交失败，请检查表单后重试';
     res.status(error.code === 'LIMIT_FILE_SIZE' ? 413 : 400).json({ message });
   });
 };
@@ -870,8 +883,35 @@ app.post('/api/recruit/:cohort/submissions', requireApplicant, limitSubmissions,
     // Who is applying comes from the account, never from the form: the same person always submits under the same identity.
     const { name, student_id: studentId, grade, major } = req.applicant;
     const fields = normalizeSubmissionFields({ ...req.body, name, student_id: studentId, grade, major }, req.cohort.submission);
-    const record = await submissionStore.add({ cohort: req.cohort.id, fields, file: req.file, applicantId: req.applicant.id, lockDirection: Boolean(req.cohort.submission.directionLock?.locked) });
-    res.status(201).json({ id: record.id, created_at: record.created_at, final_name: record.final_name, version: record.version });
+    const [report] = req.files?.file || [];
+    const [attachment] = req.files?.attachment || [];
+    if (!report) return res.status(400).json({ message: '请选择要提交的报告文件' });
+    if (report.size > SUBMISSION_MAX_FILE_BYTES) return res.status(413).json({ message: `报告文件不能超过 ${SUBMISSION_MAX_FILE_BYTES / 1024 / 1024}MB` });
+    const file = { originalname: report.originalname, buffer: await readFile(report.path) };
+    const record = await submissionStore.add({
+      cohort: req.cohort.id,
+      fields,
+      file,
+      attachment: attachment ? { path: attachment.path, originalname: attachment.originalname, size: attachment.size } : null,
+      applicantId: req.applicant.id,
+      lockDirection: Boolean(req.cohort.submission.directionLock?.locked),
+    });
+    res.status(201).json({ id: record.id, created_at: record.created_at, final_name: record.final_name, attachment_name: record.attachment_name || '', version: record.version });
+  } catch (error) {
+    next(error);
+  } finally {
+    removeUploads(req).catch(() => {});
+  }
+});
+
+app.get('/api/recruit/submissions/:id/attachment', requireAuth, async (req, res, next) => {
+  try {
+    const entry = await submissionStore.getAttachment(req.params.id);
+    if (!entry) return res.status(404).json({ message: '这份提交没有压缩包' });
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.download(entry.filePath, entry.downloadName, (error) => {
+      if (error && !res.headersSent) res.status(404).json({ message: '文件不存在' });
+    });
   } catch (error) {
     next(error);
   }

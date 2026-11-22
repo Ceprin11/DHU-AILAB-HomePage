@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { CheckCircle2, FileText, Loader2, Lock, UploadCloud } from 'lucide-react';
+import { CheckCircle2, FileArchive, FileText, Loader2, Lock, UploadCloud } from 'lucide-react';
 import { api } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { formatBeijingTime, formatFileSize, groupDirections, previewFileName } f
 
 const ACCEPTED_EXTENSIONS = ['.pdf', '.ppt', '.pptx', '.html', '.htm'];
 const MAX_FILE_BYTES = 30 * 1024 * 1024;
+const MAX_ATTACHMENT_BYTES = 100 * 1024 * 1024;
 const EMPTY_FORM = { direction: '', qq: '', wechat: '', email: '', note: '' };
 
 function Field({ label, required = true, optional = false, hint = null, children, htmlFor }) {
@@ -37,8 +38,10 @@ export default function SubmissionForm({ cohort, applicant = null, preview = fal
   const directionSections = groupDirections(submission.directions, submission.groups);
   const [form, setForm] = useState(EMPTY_FORM);
   const [file, setFile] = useState(null);
+  const [attachment, setAttachment] = useState(null);
   const [status, setStatus] = useState({ phase: 'idle', error: '', result: null });
   const fileInput = useRef(null);
+  const attachmentInput = useRef(null);
   // The applicant's own earlier submissions: shown as a history, used to pre-fill contact details and to fix the paper once it is locked.
   const [mine, setMine] = useState({ submissions: [], locked_direction: '' });
   const signedIn = Boolean(applicant) && !preview;
@@ -79,9 +82,11 @@ export default function SubmissionForm({ cohort, applicant = null, preview = fal
     if (qq.trim() && !/^[0-9]{5,12}$/.test(qq.trim())) return 'QQ 号应为 5-12 位数字';
     if (wechat.trim() && !/^[A-Za-z0-9_-]{3,30}$/.test(wechat.trim())) return '微信号只能包含字母、数字、下划线和短横线';
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return '邮箱格式不正确';
-    if (!file) return '请选择要提交的文件';
-    if (!ACCEPTED_EXTENSIONS.includes(extensionOf(file.name))) return '文件类型不支持，仅支持 PDF、PPT、HTML';
-    if (file.size > MAX_FILE_BYTES) return `文件不能超过 ${MAX_FILE_BYTES / 1024 / 1024}MB`;
+    if (!file) return '请选择要提交的报告';
+    if (!ACCEPTED_EXTENSIONS.includes(extensionOf(file.name))) return '报告文件类型不支持，仅支持 PDF、PPT、HTML';
+    if (file.size > MAX_FILE_BYTES) return `报告文件不能超过 ${MAX_FILE_BYTES / 1024 / 1024}MB`;
+    if (attachment && extensionOf(attachment.name) !== '.zip') return '代码与结果请打包成一个 .zip 文件';
+    if (attachment && attachment.size > MAX_ATTACHMENT_BYTES) return `压缩包不能超过 ${MAX_ATTACHMENT_BYTES / 1024 / 1024}MB`;
     return '';
   };
 
@@ -93,6 +98,7 @@ export default function SubmissionForm({ cohort, applicant = null, preview = fal
     const body = new FormData();
     Object.entries(form).forEach(([key, value]) => body.append(key, value.trim()));
     body.append('file', file);
+    if (attachment) body.append('attachment', attachment);
     setStatus({ phase: 'uploading', error: '', result: null });
     try {
       const result = await api.recruit.submit(cohort.id, body);
@@ -108,7 +114,9 @@ export default function SubmissionForm({ cohort, applicant = null, preview = fal
   const reset = () => {
     setForm((current) => ({ ...EMPTY_FORM, direction: current.direction, qq: current.qq, wechat: current.wechat, email: current.email }));
     setFile(null);
+    setAttachment(null);
     if (fileInput.current) fileInput.current.value = '';
+    if (attachmentInput.current) attachmentInput.current.value = '';
     setStatus({ phase: 'idle', error: '', result: null });
   };
 
@@ -120,6 +128,7 @@ export default function SubmissionForm({ cohort, applicant = null, preview = fal
         {applicant && <p className="mt-3 text-sm text-foreground/90">已记录：{[applicant.name, applicant.student_id, applicant.grade, applicant.major, form.direction].filter(Boolean).join(' · ')}</p>}
         <p className="mt-2 text-sm text-muted-foreground">文件已按统一规则命名并保存：</p>
         <p className="mx-auto mt-2 max-w-full break-all rounded-lg bg-card px-4 py-2.5 font-mono text-sm text-foreground">{status.result.final_name}</p>
+        {status.result.attachment_name && <p className="mx-auto mt-2 max-w-full break-all rounded-lg bg-card px-4 py-2.5 font-mono text-sm text-foreground">{status.result.attachment_name}</p>}
         <p className="mt-3 text-xs text-muted-foreground">如需修改，请重新提交，系统会自动递增版本号，之前的提交不会被覆盖。</p>
         <Button type="button" variant="outline" className="mt-6" onClick={reset}>再提交一份</Button>
       </div>
@@ -165,18 +174,29 @@ export default function SubmissionForm({ cohort, applicant = null, preview = fal
 
       <Field label="备注" required={false} optional htmlFor="submit-note"><Textarea id="submit-note" value={form.note} onChange={update('note')} maxLength={1000} rows={3} placeholder="想对评审说的话，可以不填" /></Field>
 
-      <Field label="文件" hint={`仅支持 PDF、PPT、HTML，不超过 ${MAX_FILE_BYTES / 1024 / 1024}MB。`}>
+      <Field label="报告" hint={`仅支持 PDF、PPT、HTML，不超过 ${MAX_FILE_BYTES / 1024 / 1024}MB。用 Word 或 LaTeX 模版写好后导出为 PDF。`}>
         <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-card px-5 py-7 text-center transition-colors hover:border-primary/50 hover:bg-secondary/30 focus-within:border-primary">
           <UploadCloud size={22} strokeWidth={1.8} className="text-primary" aria-hidden="true" />
-          <span className="text-sm font-medium text-foreground">{file ? file.name : '点击选择文件'}</span>
+          <span className="text-sm font-medium text-foreground">{file ? file.name : '点击选择报告文件'}</span>
           {file && <span className="text-xs text-muted-foreground">{formatFileSize(file.size)}</span>}
           <input ref={fileInput} type="file" accept={ACCEPTED_EXTENSIONS.join(',')} className="sr-only" onChange={(event) => setFile(event.target.files?.[0] || null)} />
         </label>
       </Field>
 
+      <Field label="代码与结果" required={false} optional hint={`把代码、README、预测结果 CSV、实验日志等打包成一个 .zip，不超过 ${MAX_ATTACHMENT_BYTES / 1024 / 1024}MB。题目要求交代码或预测结果的，请一定附上。`}>
+        <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-card px-5 py-6 text-center transition-colors hover:border-primary/50 hover:bg-secondary/30 focus-within:border-primary">
+          <FileArchive size={22} strokeWidth={1.8} className="text-primary" aria-hidden="true" />
+          <span className="text-sm font-medium text-foreground">{attachment ? attachment.name : '点击选择 .zip 压缩包'}</span>
+          {attachment && <span className="text-xs text-muted-foreground">{formatFileSize(attachment.size)}</span>}
+          <input ref={attachmentInput} type="file" accept=".zip,application/zip" className="sr-only" onChange={(event) => setAttachment(event.target.files?.[0] || null)} />
+        </label>
+        {attachment && <button type="button" className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline" onClick={() => { setAttachment(null); if (attachmentInput.current) attachmentInput.current.value = ''; }}>不附带压缩包</button>}
+      </Field>
+
       <div className="rounded-lg bg-secondary/40 px-4 py-3">
         <p className="text-xs text-muted-foreground">提交后文件会被统一命名为（版本号由系统自动生成，不使用你上传时的文件名）：</p>
         <p className="mt-1 break-all font-mono text-sm text-foreground">{namePreview}</p>
+        {attachment && <p className="mt-1 break-all font-mono text-sm text-foreground">{namePreview.replace(/\.[^.]+$/, '')}_代码与结果.zip</p>}
       </div>
 
       {status.error && <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">{status.error}</p>}
@@ -202,6 +222,7 @@ function MySubmissions({ submissions }) {
             <FileText size={16} strokeWidth={1.8} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
             <div className="min-w-0 flex-1">
               <p className="break-all font-mono text-xs text-foreground">{item.final_name}</p>
+              {item.attachment_name && <p className="mt-0.5 break-all font-mono text-xs text-foreground">{item.attachment_name}</p>}
               <p className="mt-0.5 text-xs text-muted-foreground">{formatBeijingTime(item.created_at)} · {formatFileSize(item.size)}{index === 0 && ' · 最新'}</p>
             </div>
           </li>

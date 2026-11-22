@@ -38,6 +38,8 @@ export const submissionFileUrl = (id, { download = false } = {}) => (
   `/api/recruit/submissions/${encodeURIComponent(id)}/file${download ? '?download=1' : ''}`
 );
 
+export const submissionAttachmentUrl = (id) => `/api/recruit/submissions/${encodeURIComponent(id)}/attachment`;
+
 // Splits a cohort's directions into its field groups (CV / NLP / ...). Directions that belong to no group come last.
 export const groupDirections = (directions = [], groups = []) => {
   const claimed = new Set(groups.flatMap((group) => group.directions));
