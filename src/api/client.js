@@ -216,12 +216,42 @@ export const api = {
       return request(`/api/recruit/submissions/${encodeURIComponent(id)}`, { method: 'DELETE' });
     },
   },
+  // Accounts for applicants: separate from member accounts, only good for filling in the application.
+  applicant: {
+    me() {
+      return request('/api/recruit/me');
+    },
+    register(payload) {
+      return request('/api/recruit/register', { method: 'POST', body: JSON.stringify(payload) });
+    },
+    login(studentId, password) {
+      return request('/api/recruit/login', { method: 'POST', body: JSON.stringify({ student_id: studentId, password }) });
+    },
+    logout() {
+      return request('/api/recruit/logout', { method: 'POST' });
+    },
+    changePassword(currentPassword, newPassword) {
+      return request('/api/recruit/password', { method: 'POST', body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }) });
+    },
+  },
   recruitAdmin: {
+    applicants() {
+      return request('/api/admin/recruit/applicants');
+    },
+    resetApplicantPassword(id) {
+      return request(`/api/admin/recruit/applicants/${encodeURIComponent(id)}/reset-password`, { method: 'POST' });
+    },
+    removeApplicant(id) {
+      return request(`/api/admin/recruit/applicants/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    },
     cohorts() {
       return request('/api/admin/recruit/cohorts');
     },
     publish(cohort, drafts = true) {
       return request(`/api/admin/recruit/${encodeURIComponent(cohort)}/publish`, { method: 'POST', body: JSON.stringify({ drafts }) });
+    },
+    setSubmissionsOpen(cohort, open) {
+      return request(`/api/admin/recruit/${encodeURIComponent(cohort)}/submissions-open`, { method: 'PUT', body: JSON.stringify({ open }) });
     },
     schedule(cohort, publishAt, drafts = true) {
       return request(`/api/admin/recruit/${encodeURIComponent(cohort)}/schedule`, { method: 'POST', body: JSON.stringify({ publish_at: publishAt, drafts }) });
