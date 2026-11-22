@@ -61,7 +61,7 @@ export default function RecruitAdmin() {
         <TabsContent value="applicants" className="mt-5"><RecruitApplicants /></TabsContent>
         <TabsContent value="cohorts" className="mt-5">
           {cohorts.length === 0 && <p className="mb-4 rounded-lg border border-border/75 bg-secondary/20 px-4 py-3 text-sm text-muted-foreground">还没有招新批次。先添加一个，再回来写文档。</p>}
-          <RecruitCohortSettings cohorts={cohorts} onSaved={(saved) => { setCohorts(saved.map((item) => ({ description: '', directions: [], submissions: true, submission_deadline: '', ...item }))); load(); }} />
+          <RecruitCohortSettings cohorts={cohorts} onRenamed={(id, list) => { setCohorts(list); setCohortId(id); }} onSaved={(saved) => { setCohorts(saved.map((item) => ({ description: '', directions: [], submissions: true, submission_deadline: '', ...item }))); load(); }} />
         </TabsContent>
       </Tabs>
     </div>

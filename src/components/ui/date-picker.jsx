@@ -6,6 +6,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 
 const pad = (value) => String(value).padStart(2, '0');
+const HOURS = Array.from({ length: 24 }, (_, index) => pad(index));
+const MINUTES = Array.from({ length: 60 }, (_, index) => pad(index));
+const TIME_SELECT = 'h-9 rounded-md border border-border/85 bg-background px-2 font-medium shadow-sm outline-none focus:ring-1 focus:ring-ring';
 const localDateValue = (date = new Date()) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 
 const parseDateValue = (value) => {
@@ -22,10 +25,10 @@ const formatDateLabel = (value, includeTime) => {
   return includeTime && String(value).includes('T') ? `${label} ${String(value).slice(11, 16)}` : label;
 };
 
-export function DatePicker({ id, value, onChange, includeTime = false, placeholder = '选择日期', className, disabled = false }) {
+export function DatePicker({ id, value, onChange, includeTime = false, defaultTime = '09:00', disablePast = false, placeholder = '选择日期', className, disabled = false }) {
   const [open, setOpen] = useState(false);
   const selected = parseDateValue(value);
-  const timeValue = includeTime && String(value || '').includes('T') ? String(value).slice(11, 16) : '09:00';
+  const timeValue = includeTime && String(value || '').includes('T') ? String(value).slice(11, 16) : defaultTime;
 
   const selectDate = (date) => {
     if (!date) return;
@@ -40,10 +43,9 @@ export function DatePicker({ id, value, onChange, includeTime = false, placehold
     if (!includeTime) setOpen(false);
   };
 
-  const changeTime = (event) => {
-    const nextTime = event.target.value;
-    if (!nextTime) return;
-    onChange(`${String(value || '').slice(0, 10) || localDateValue()}T${nextTime}`);
+  const [hour, minute] = timeValue.split(':');
+  const changeTime = (nextHour, nextMinute) => {
+    onChange(`${String(value || '').slice(0, 10) || localDateValue()}T${nextHour}:${nextMinute}`);
   };
 
   return (
@@ -74,6 +76,7 @@ export function DatePicker({ id, value, onChange, includeTime = false, placehold
           defaultMonth={selected}
           onSelect={selectDate}
           locale={zhCN}
+          disabled={disablePast ? { before: parseDateValue(localDateValue()) } : undefined}
           initialFocus
           className="rounded-xl bg-secondary/30"
           classNames={{
@@ -84,8 +87,17 @@ export function DatePicker({ id, value, onChange, includeTime = false, placehold
         {includeTime && (
           <div className="mx-2 flex items-center gap-3 border-t border-border py-3">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-primary"><Clock3 size={15} /></span>
-            <label htmlFor={`${id || 'date'}-time`} className="text-xs font-medium text-muted-foreground">具体时间</label>
-            <input id={`${id || 'date'}-time`} type="time" value={timeValue} onChange={changeTime} className="ml-auto h-9 rounded-md border border-border/85 bg-background px-2.5 text-sm font-medium shadow-sm outline-none focus:ring-1 focus:ring-ring" />
+            <label htmlFor={`${id || 'date'}-hour`} className="text-xs font-medium text-muted-foreground">具体时间</label>
+            {/* Two 24-hour dropdowns: the browser's own time field may show AM/PM depending on the system locale. */}
+            <div className="ml-auto flex items-center gap-1 font-mono text-sm">
+              <select id={`${id || 'date'}-hour`} aria-label="时" value={hour} onChange={(event) => changeTime(event.target.value, minute)} className={TIME_SELECT}>
+                {HOURS.map((item) => <option key={item} value={item}>{item}</option>)}
+              </select>
+              <span className="text-muted-foreground">:</span>
+              <select aria-label="分" value={minute} onChange={(event) => changeTime(hour, event.target.value)} className={TIME_SELECT}>
+                {MINUTES.map((item) => <option key={item} value={item}>{item}</option>)}
+              </select>
+            </div>
           </div>
         )}
         <div className="flex items-center justify-between gap-2 border-t border-border px-2 pt-2">

@@ -7,6 +7,7 @@ import RecruitDocs, { recruitPath } from '@/components/recruit/RecruitDocs';
 import { recruitSectionPath } from '@/lib/recruit';
 import ApplicantGate from '@/components/recruit/ApplicantGate';
 import SubmissionForm from '@/components/recruit/SubmissionForm';
+import SubmissionTimes from '@/components/recruit/SubmissionTimes';
 import SubmissionReview from '@/components/recruit/SubmissionReview';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import useDocumentTitle from '@/hooks/use-document-title';
@@ -152,7 +153,8 @@ export default function Recruit() {
       {view === 'submit' && (
         <div className="mx-auto mt-8 w-full max-w-2xl">
           <h1 className="font-display text-3xl font-bold leading-tight tracking-[-0.025em] text-foreground sm:text-4xl">提交</h1>
-          <p className="mb-8 mt-3 text-sm leading-6 text-muted-foreground">请如实填写信息。文件会按“方向_姓名_学号_年级_专业_版本”统一命名，方便实验室整理。</p>
+          <p className="mb-8 mt-3 text-sm leading-6 text-muted-foreground">先注册或登录报名账号，再选论文、填联系方式、上传文件。姓名、学号、年级、专业来自账号，文件会按“方向_姓名_学号_年级_专业_版本”统一命名，方便实验室整理。</p>
+          <SubmissionTimes submission={cohort.submission} />
           {cohort.submission.open ? (
             <ApplicantGate grades={cohort.submission.grades} preview={preview}>
               {(applicant) => <SubmissionForm cohort={cohort} applicant={applicant} preview={preview} />}

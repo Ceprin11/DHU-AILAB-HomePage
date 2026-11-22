@@ -8,10 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import useApplicant from '@/hooks/use-applicant';
 import { cn } from '@/lib/utils';
 
-function Field({ label, htmlFor, hint = null, children }) {
+function Field({ label, htmlFor, hint = null, required = false, children }) {
   return (
     <div className="min-w-0 space-y-2">
-      <Label htmlFor={htmlFor} className="text-sm font-medium text-foreground">{label}</Label>
+      <Label htmlFor={htmlFor} className="text-sm font-medium text-foreground">
+        {label}{required && <span className="ml-0.5 text-destructive" aria-hidden="true">*</span>}
+      </Label>
       {children}
       {hint && <p className="text-xs leading-5 text-muted-foreground">{hint}</p>}
     </div>
@@ -76,7 +78,7 @@ function SignInCard({ grades, onSignedIn }) {
         ))}
       </div>
       <p className="mt-4 text-sm leading-6 text-muted-foreground">
-        提交需要先注册报名账号。这个账号只用来提交报名材料，不是实验室成员账号，看不到任何人的提交。
+        提交需要先注册报名账号。这个账号只用来提交报名材料，不是实验室成员账号，只能看到自己的提交记录。
       </p>
 
       {mode === 'login' ? (
@@ -88,18 +90,19 @@ function SignInCard({ grades, onSignedIn }) {
         </form>
       ) : (
         <form onSubmit={submitRegister} noValidate className="mt-5 space-y-5">
+          <p className="text-xs text-muted-foreground">以下各项都必须填写（<span className="text-destructive">*</span>）。</p>
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field label="姓名" htmlFor="applicant-name"><Input id="applicant-name" value={register.name} onChange={updateRegister('name')} maxLength={30} autoComplete="name" /></Field>
-            <Field label="学号" htmlFor="applicant-student-id"><Input id="applicant-student-id" value={register.student_id} onChange={updateRegister('student_id')} maxLength={20} autoComplete="username" /></Field>
-            <Field label="年级">
+            <Field required label="姓名" htmlFor="applicant-name"><Input id="applicant-name" value={register.name} onChange={updateRegister('name')} maxLength={30} autoComplete="name" /></Field>
+            <Field required label="学号" htmlFor="applicant-student-id"><Input id="applicant-student-id" value={register.student_id} onChange={updateRegister('student_id')} maxLength={20} autoComplete="username" /></Field>
+            <Field required label="年级">
               <Select value={register.grade} onValueChange={(value) => setRegister((current) => ({ ...current, grade: value }))}>
                 <SelectTrigger aria-label="年级"><SelectValue placeholder="请选择年级" /></SelectTrigger>
                 <SelectContent>{grades.map((grade) => <SelectItem key={grade} value={grade}>{grade}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
-            <Field label="专业" htmlFor="applicant-major"><Input id="applicant-major" value={register.major} onChange={updateRegister('major')} maxLength={30} placeholder="如：人工智能" /></Field>
-            <Field label="密码" htmlFor="applicant-password" hint="至少 8 位。"><Input id="applicant-password" type="password" value={register.password} onChange={updateRegister('password')} maxLength={64} autoComplete="new-password" /></Field>
-            <Field label="确认密码" htmlFor="applicant-confirm"><Input id="applicant-confirm" type="password" value={register.confirm} onChange={updateRegister('confirm')} maxLength={64} autoComplete="new-password" /></Field>
+            <Field required label="专业" htmlFor="applicant-major"><Input id="applicant-major" value={register.major} onChange={updateRegister('major')} maxLength={30} placeholder="如：人工智能" /></Field>
+            <Field required label="密码" htmlFor="applicant-password" hint="至少 8 位。"><Input id="applicant-password" type="password" value={register.password} onChange={updateRegister('password')} maxLength={64} autoComplete="new-password" /></Field>
+            <Field required label="确认密码" htmlFor="applicant-confirm"><Input id="applicant-confirm" type="password" value={register.confirm} onChange={updateRegister('confirm')} maxLength={64} autoComplete="new-password" /></Field>
           </div>
           <p className="rounded-lg bg-secondary/40 px-4 py-2.5 text-xs leading-5 text-muted-foreground">姓名、学号、年级、专业注册后不能修改，提交的文件会按这些信息统一命名，请如实填写。</p>
           <ErrorLine message={status.error} />
@@ -147,7 +150,7 @@ function PasswordForm({ onDone }) {
   );
 }
 
-function AccountBar({ applicant, onSignedOut }) {
+function AccountBar({ applicant, onSignedOut, preview = false }) {
   const [changing, setChanging] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -170,8 +173,8 @@ function AccountBar({ applicant, onSignedOut }) {
           <p className="truncate text-xs text-muted-foreground">{[applicant.grade, applicant.major].filter(Boolean).join(' · ')} · 这些信息来自你的报名账号，不能在表单里修改</p>
         </div>
         <div className="flex shrink-0 gap-1">
-          <Button type="button" variant="ghost" size="sm" className="gap-1.5" onClick={() => setChanging((value) => !value)}><KeyRound size={14} aria-hidden="true" /> 修改密码</Button>
-          <Button type="button" variant="ghost" size="sm" className="gap-1.5" disabled={busy} onClick={signOut}><LogOut size={14} aria-hidden="true" /> 退出登录</Button>
+          <Button type="button" variant="ghost" size="sm" className="gap-1.5" disabled={preview} onClick={() => setChanging((value) => !value)}><KeyRound size={14} aria-hidden="true" /> 修改密码</Button>
+          <Button type="button" variant="ghost" size="sm" className="gap-1.5" disabled={busy || preview} onClick={signOut}><LogOut size={14} aria-hidden="true" /> 退出登录</Button>
         </div>
       </div>
       {changing && <PasswordForm onDone={() => setChanging(false)} />}
@@ -185,7 +188,13 @@ export default function ApplicantGate({ grades = [], preview = false, children }
   const { loading, applicant, setApplicant } = useApplicant();
 
   if (preview) {
-    return children({ name: '（预览）', student_id: '预览', grade: grades[grades.length - 1] || '', major: '' });
+    const sample = { name: '示例同学', student_id: '000000', grade: grades[0] || '大一', major: '示例专业' };
+    return (
+      <div className="space-y-6">
+        <AccountBar applicant={sample} onSignedOut={() => {}} preview />
+        {children(sample)}
+      </div>
+    );
   }
   if (loading) return <p className="py-10 text-center text-sm text-muted-foreground">加载中…</p>;
   if (!applicant) return <SignInCard grades={grades} onSignedIn={setApplicant} />;

@@ -218,6 +218,9 @@ export const api = {
   },
   // Accounts for applicants: separate from member accounts, only good for filling in the application.
   applicant: {
+    mySubmissions(cohort) {
+      return request(`/api/recruit/${encodeURIComponent(cohort)}/my-submissions`);
+    },
     me() {
       return request('/api/recruit/me');
     },
@@ -249,6 +252,9 @@ export const api = {
     },
     publish(cohort, drafts = true) {
       return request(`/api/admin/recruit/${encodeURIComponent(cohort)}/publish`, { method: 'POST', body: JSON.stringify({ drafts }) });
+    },
+    renameCohort(cohort, id) {
+      return request(`/api/admin/recruit/${encodeURIComponent(cohort)}/rename`, { method: 'PUT', body: JSON.stringify({ id }) });
     },
     setSubmissionsOpen(cohort, open) {
       return request(`/api/admin/recruit/${encodeURIComponent(cohort)}/submissions-open`, { method: 'PUT', body: JSON.stringify({ open }) });

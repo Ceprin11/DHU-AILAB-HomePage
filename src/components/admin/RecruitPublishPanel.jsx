@@ -2,15 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { CalendarClock, CheckCircle2, Eye, EyeOff, Loader2, Rocket, Undo2, XCircle } from 'lucide-react';
 import { api } from '@/api/client';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Switch } from '@/components/ui/switch';
 
 const STATUS_TEXT = { draft: '未发布', current: '本次招新', upcoming: '即将开始', archived: '往期' };
-
-const localInputValue = (date) => {
-  const pad = (value) => String(value).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-};
 
 export default function RecruitPublishPanel({ cohort, cohorts, onChanged }) {
   const [pages, setPages] = useState(null);
@@ -130,7 +125,7 @@ export default function RecruitPublishPanel({ cohort, cohorts, onChanged }) {
             <div className="flex flex-wrap items-end gap-2">
               <div className="space-y-1">
                 <label htmlFor="publish-at" className="block text-xs font-medium text-muted-foreground">定时发布（北京时间）</label>
-                <Input id="publish-at" type="datetime-local" value={when} min={localInputValue(new Date())} onChange={(event) => setWhen(event.target.value)} className="h-9 w-auto" />
+                <DatePicker id="publish-at" includeTime value={when} onChange={setWhen} placeholder="选择发布时间" disablePast className="h-9 w-56" />
               </div>
               <Button type="button" variant="outline" className="gap-1.5" disabled={Boolean(status.busy)} onClick={schedule}>
                 {status.busy === 'schedule' ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <CalendarClock size={15} aria-hidden="true" />} {cohort.publish_at ? '改期' : '设置定时'}

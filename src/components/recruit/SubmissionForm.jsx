@@ -1,5 +1,5 @@
-import React, { useRef, useState } from 'react';
-import { CheckCircle2, Loader2, Lock, UploadCloud } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { CheckCircle2, FileText, Loader2, Lock, UploadCloud } from 'lucide-react';
 import { api } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,11 +12,12 @@ const ACCEPTED_EXTENSIONS = ['.pdf', '.ppt', '.pptx', '.html', '.htm'];
 const MAX_FILE_BYTES = 30 * 1024 * 1024;
 const EMPTY_FORM = { direction: '', qq: '', wechat: '', email: '', note: '' };
 
-function Field({ label, required = true, hint = null, children, htmlFor }) {
+function Field({ label, required = true, optional = false, hint = null, children, htmlFor }) {
   return (
     <div className="min-w-0 space-y-2">
       <Label htmlFor={htmlFor} className="text-sm font-medium text-foreground">
         {label}{required && <span className="ml-0.5 text-destructive" aria-hidden="true">*</span>}
+        {optional && <span className="ml-1.5 text-xs font-normal text-muted-foreground">选填</span>}
       </Label>
       {children}
       {hint && <p className="text-xs leading-5 text-muted-foreground">{hint}</p>}
@@ -38,6 +39,24 @@ export default function SubmissionForm({ cohort, applicant = null, preview = fal
   const [file, setFile] = useState(null);
   const [status, setStatus] = useState({ phase: 'idle', error: '', result: null });
   const fileInput = useRef(null);
+  // The applicant's own earlier submissions: shown as a history, used to pre-fill contact details and to fix the paper once it is locked.
+  const [mine, setMine] = useState({ submissions: [], locked_direction: '' });
+  const signedIn = Boolean(applicant) && !preview;
+
+  const loadMine = useCallback(() => {
+    if (!signedIn) return Promise.resolve();
+    return api.applicant.mySubmissions(cohort.id).then((result) => {
+      setMine(result);
+      const [latest] = result.submissions;
+      setForm((current) => ({
+        ...current,
+        direction: result.locked_direction || current.direction,
+        ...(latest && !current.qq && !current.wechat && !current.email ? { qq: latest.qq, wechat: latest.wechat, email: latest.email } : {}),
+      }));
+    }).catch(() => {});
+  }, [cohort.id, signedIn]);
+
+  useEffect(() => { loadMine(); }, [loadMine]);
 
   if (!submission.open) {
     return (
@@ -78,6 +97,7 @@ export default function SubmissionForm({ cohort, applicant = null, preview = fal
     try {
       const result = await api.recruit.submit(cohort.id, body);
       setStatus({ phase: 'done', error: '', result });
+      loadMine();
     } catch (error) {
       setStatus({ phase: 'idle', error: error.message || '提交失败，请稍后重试', result: null });
     }
@@ -109,21 +129,12 @@ export default function SubmissionForm({ cohort, applicant = null, preview = fal
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-6">
-      {submission.deadline && (
-        <p className="rounded-lg border border-amber/60 bg-amber/15 px-4 py-2.5 text-sm text-amber-foreground">截止时间：{formatBeijingTime(submission.deadline)}（北京时间）</p>
-      )}
-      {needsDirection && submission.directionLock && (
-        <p className="rounded-lg border border-border/75 bg-secondary/40 px-4 py-2.5 text-sm leading-6 text-foreground/90">
-          {submission.directionLock.locked
-            ? '论文选择已经锁定：之前提交过的同学只能继续提交原来选的那一篇；还没提交过的同学可以选一篇，提交后同样锁定。'
-            : `论文可以随时更换，以你最后一次提交为准。${formatBeijingTime(submission.directionLock.at)}（北京时间）之后论文锁定，不能再更换。`}
-        </p>
-      )}
+      <p className="text-xs text-muted-foreground">带 <span className="text-destructive">*</span> 的为必填项。</p>
 
       <div className="grid gap-5 sm:grid-cols-2">
         {needsDirection && (
-          <Field label="选择方向（论文）">
-            <Select value={form.direction} onValueChange={choose('direction')}>
+          <Field label="选择方向（论文）" hint={mine.locked_direction ? `论文已锁定，你只能继续提交「${mine.locked_direction}」。` : null}>
+            <Select value={form.direction} onValueChange={choose('direction')} disabled={Boolean(mine.locked_direction)}>
               <SelectTrigger aria-label="选择方向"><SelectValue placeholder="请选择论文" /></SelectTrigger>
               <SelectContent>
                 {directionSections.map((section) => (
@@ -140,8 +151,8 @@ export default function SubmissionForm({ cohort, applicant = null, preview = fal
 
       <div role="group" aria-labelledby="submit-contact-title" className="min-w-0 space-y-3 rounded-xl border border-border/75 bg-card/60 px-4 py-5 sm:px-5">
         <div>
-          <p id="submit-contact-title" className="text-sm font-medium text-foreground">联系方式<span className="ml-0.5 text-destructive" aria-hidden="true">*</span></p>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">QQ、微信、邮箱至少填写一个，仅实验室管理员可见。</p>
+          <p id="submit-contact-title" className="text-sm font-medium text-foreground">联系方式<span className="ml-0.5 text-destructive" aria-hidden="true">*</span><span className="ml-1.5 text-xs font-normal text-muted-foreground">三项至少填一项</span></p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">方便实验室联系你，仅实验室管理员可见。{mine.submissions.length > 0 && '已按你上一次提交的内容填好，可以修改。'}</p>
         </div>
         <div className="grid gap-4 sm:grid-cols-3">
           <Field label="QQ" required={false} htmlFor="submit-qq"><Input id="submit-qq" value={form.qq} onChange={update('qq')} maxLength={12} inputMode="numeric" autoComplete="off" /></Field>
@@ -150,7 +161,7 @@ export default function SubmissionForm({ cohort, applicant = null, preview = fal
         </div>
       </div>
 
-      <Field label="备注" required={false} htmlFor="submit-note"><Textarea id="submit-note" value={form.note} onChange={update('note')} maxLength={1000} rows={3} placeholder="想对评审说的话，可以不填" /></Field>
+      <Field label="备注" required={false} optional htmlFor="submit-note"><Textarea id="submit-note" value={form.note} onChange={update('note')} maxLength={1000} rows={3} placeholder="想对评审说的话，可以不填" /></Field>
 
       <Field label="文件" hint={`仅支持 PDF、PPT、HTML，不超过 ${MAX_FILE_BYTES / 1024 / 1024}MB。`}>
         <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-card px-5 py-7 text-center transition-colors hover:border-primary/50 hover:bg-secondary/30 focus-within:border-primary">
@@ -171,6 +182,29 @@ export default function SubmissionForm({ cohort, applicant = null, preview = fal
       <Button type="submit" disabled={uploading || preview} className="w-full gap-2 sm:w-auto">
         {uploading ? <><Loader2 size={16} className="animate-spin" aria-hidden="true" /> 上传中，请不要关闭页面</> : preview ? '预览模式下不能提交' : '提交'}
       </Button>
+
+      <MySubmissions submissions={mine.submissions} />
     </form>
+  );
+}
+
+// Only the signed-in applicant's own records; nobody else's submissions are ever sent to this page.
+function MySubmissions({ submissions }) {
+  if (!submissions.length) return null;
+  return (
+    <section aria-labelledby="my-submissions-title" className="border-t border-border/75 pt-6">
+      <h2 id="my-submissions-title" className="text-sm font-semibold text-foreground">我的提交记录<span className="ml-2 font-normal text-muted-foreground">共 {submissions.length} 次</span></h2>
+      <ul className="mt-3 space-y-2">
+        {submissions.map((item, index) => (
+          <li key={item.id} className="flex items-start gap-3 rounded-lg border border-border/70 bg-card/60 px-3.5 py-2.5">
+            <FileText size={16} strokeWidth={1.8} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
+            <div className="min-w-0 flex-1">
+              <p className="break-all font-mono text-xs text-foreground">{item.final_name}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{formatBeijingTime(item.created_at)} · {formatFileSize(item.size)}{index === 0 && ' · 最新'}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
