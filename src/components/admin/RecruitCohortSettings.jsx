@@ -35,8 +35,8 @@ const toPayload = ({ groupDrafts, directionsText, existing: _existing, ...cohort
 
 // Common fields for this lab's paper list; only names that are already in the cohort are used.
 const SUGGESTED_GROUPS = [
-  { name: 'CV', members: ['ConvNeXt', 'ViT', 'DINOv2', 'U-Net', 'Swin', 'ResNet', 'YOLO', 'SAM', 'MAE'] },
-  { name: 'NLP', members: ['BERT', 'GPT-2', 'GPT-3', 'T5', 'LLaMA', 'Transformer'] },
+  { name: '计算机视觉', members: ['ConvNeXt', 'ViT', 'DINOv2', 'U-Net', 'Swin', 'ResNet', 'YOLO', 'SAM', 'MAE'] },
+  { name: '自然语言处理', members: ['BERT', 'GPT-2', 'GPT-3', 'T5', 'LLaMA', 'Transformer'] },
   { name: '多模态', members: ['CLIP', 'BLIP', 'LLaVA', 'Flamingo', 'Stable Diffusion'] },
 ];
 
@@ -88,7 +88,7 @@ export default function RecruitCohortSettings({ cohorts, onSaved }) {
     }).filter((group) => group.directionsText);
     patch(index, { groupDrafts, directionsText: all.filter((direction) => !used.has(direction)).join('\n') });
   };
-  const add = () => setDrafts((current) => [...current, { id: '', label: '', status: 'draft', description: '', groupDrafts: [], directionsText: '', submissions: true, submission_deadline: '', publish_at: '', publish_drafts: true, existing: false }]);
+  const add = () => setDrafts((current) => [...current, { id: '', label: '', status: 'draft', description: '', groupDrafts: [], directionsText: '', submissions: true, submission_deadline: '', direction_lock_at: '', publish_at: '', publish_drafts: true, existing: false }]);
   const remove = (index) => {
     const item = drafts[index];
     if (!window.confirm(`从列表中移除「${item.label || item.id || '新批次'}」？${item.existing ? '\n\n它的文档和附件文件仍保留在服务器上，重新用同一个编号添加即可找回。' : ''}`)) return;
@@ -135,7 +135,7 @@ export default function RecruitCohortSettings({ cohorts, onSaved }) {
               {item.groupDrafts.map((group, groupIndex) => (
                 <div key={groupIndex} className="min-w-0 space-y-2 rounded-lg border border-border/75 bg-secondary/20 p-3">
                   <div className="flex items-center gap-1">
-                    <Input value={group.name} maxLength={20} onChange={(event) => patchGroup(index, groupIndex, { name: event.target.value })} placeholder="分组名，如 CV" aria-label="分组名" className="h-8 flex-1 bg-card text-sm font-medium" />
+                    <Input value={group.name} maxLength={20} onChange={(event) => patchGroup(index, groupIndex, { name: event.target.value })} placeholder="分组名，如 计算机视觉" aria-label="分组名" className="h-8 flex-1 bg-card text-sm font-medium" />
                     <Button type="button" variant="ghost" size="icon" className="h-8 w-8" disabled={groupIndex === 0} onClick={() => moveGroup(index, groupIndex, -1)} aria-label="分组上移"><ArrowUp size={14} aria-hidden="true" /></Button>
                     <Button type="button" variant="ghost" size="icon" className="h-8 w-8" disabled={groupIndex === item.groupDrafts.length - 1} onClick={() => moveGroup(index, groupIndex, 1)} aria-label="分组下移"><ArrowDown size={14} aria-hidden="true" /></Button>
                     <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => removeGroup(index, groupIndex)} aria-label="删除分组"><Trash2 size={14} aria-hidden="true" /></Button>
@@ -149,12 +149,15 @@ export default function RecruitCohortSettings({ cohorts, onSaved }) {
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => addGroup(index)}><Plus size={14} aria-hidden="true" /> 添加分组</Button>
-                <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => applySuggestedGroups(index)}><Wand2 size={14} aria-hidden="true" /> 按 CV / NLP / 多模态自动分组</Button>
+                <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => applySuggestedGroups(index)}><Wand2 size={14} aria-hidden="true" /> 按 计算机视觉 / 自然语言处理 / 多模态 自动分组</Button>
               </div>
             </div>
             <div className="space-y-4">
               <Field label="提交截止时间（北京时间，可选）" htmlFor={`cohort-deadline-${index}`} hint="写 2026-12-06 表示当天 23:59:59，写 2026-12-06 18:00 表示具体时刻。留空表示不设截止。">
                 <Input id={`cohort-deadline-${index}`} value={item.submission_deadline} onChange={(event) => patch(index, { submission_deadline: event.target.value })} placeholder="2026-12-06 18:00" />
+              </Field>
+              <Field label="论文锁定时间（北京时间，可选）" htmlFor={`cohort-lock-${index}`} hint="到这个时间后，已经提交过的同学只能继续提交原来选的论文，不能再换；在这之前可以随便换，以最后一次提交为准。写法：2026-11-28 23:59，留空表示不锁定。">
+                <Input id={`cohort-lock-${index}`} value={item.direction_lock_at || ''} onChange={(event) => patch(index, { direction_lock_at: event.target.value })} placeholder="2026-11-28 23:59" />
               </Field>
               <label className="flex items-center gap-2 text-sm text-foreground">
                 <Switch checked={item.submissions} onCheckedChange={(value) => patch(index, { submissions: value })} aria-label="开放提交" />

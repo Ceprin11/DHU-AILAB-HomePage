@@ -98,6 +98,20 @@ export const validateSubmissionFile = (file) => {
   return extension;
 };
 
+const sameStudent = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
+const sameName = (a, b) => String(a).replace(/\s+/g, '').toLowerCase() === String(b).replace(/\s+/g, '').toLowerCase();
+
+// After the paper choice is locked, a student keeps the paper of their newest submission.
+// People who never submitted before the lock may still pick one; their first submission then locks them too.
+export const checkDirectionLock = (records, cohort, fields) => {
+  const mine = records.filter((record) => record.cohort === cohort && sameStudent(record.student_id, fields.student_id));
+  if (!mine.length) return;
+  const latest = mine.reduce((best, record) => (record.created_at >= best.created_at ? record : best));
+  if (!sameName(latest.name, fields.name)) throw createError('学号和姓名与之前提交的记录不一致，请核对后再提交', 403);
+  // The message must not name the paper: someone who only knows a student id and name would learn another person's choice.
+  if (latest.direction !== fields.direction) throw createError('论文已经锁定：只能继续提交你第一次选的那一篇，请重新选择论文', 409);
+};
+
 export const createSubmissionStore = (dataDirectory) => {
   const directory = path.join(dataDirectory, 'recruit-submissions');
   const filesDirectory = path.join(directory, 'files');
@@ -134,10 +148,11 @@ export const createSubmissionStore = (dataDirectory) => {
   };
 
   return {
-    add({ cohort, fields, file }) {
+    add({ cohort, fields, file, lockDirection = false }) {
       const extension = validateSubmissionFile(file);
       return enqueue(async () => {
         const records = await readIndex();
+        if (lockDirection) checkDirectionLock(records, cohort, fields);
         if (records.filter((record) => record.cohort === cohort).length >= MAX_SUBMISSIONS_PER_COHORT) {
           throw createError('本期提交数量已达上限，请联系实验室', 429);
         }

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ExternalLink, Eye } from 'lucide-react';
 import { api } from '@/api/client';
+import RecruitApplicants from '@/components/admin/RecruitApplicants';
 import RecruitAssets from '@/components/admin/RecruitAssets';
 import RecruitCohortSettings from '@/components/admin/RecruitCohortSettings';
 import RecruitPagesEditor from '@/components/admin/RecruitPagesEditor';
@@ -53,9 +54,11 @@ export default function RecruitAdmin() {
           {cohort && <TabsTrigger value="pages">文档</TabsTrigger>}
           {cohort && <TabsTrigger value="assets">图片与附件</TabsTrigger>}
           <TabsTrigger value="cohorts">批次设置</TabsTrigger>
+          <TabsTrigger value="applicants">报名账号</TabsTrigger>
         </TabsList>
         {cohort && <TabsContent value="pages" className="mt-5"><RecruitPagesEditor key={cohort.id} cohort={cohort} /></TabsContent>}
         {cohort && <TabsContent value="assets" className="mt-5"><RecruitAssets key={cohort.id} cohortId={cohort.id} /></TabsContent>}
+        <TabsContent value="applicants" className="mt-5"><RecruitApplicants /></TabsContent>
         <TabsContent value="cohorts" className="mt-5">
           {cohorts.length === 0 && <p className="mb-4 rounded-lg border border-border/75 bg-secondary/20 px-4 py-3 text-sm text-muted-foreground">还没有招新批次。先添加一个，再回来写文档。</p>}
           <RecruitCohortSettings cohorts={cohorts} onSaved={(saved) => { setCohorts(saved.map((item) => ({ description: '', directions: [], submissions: true, submission_deadline: '', ...item }))); load(); }} />

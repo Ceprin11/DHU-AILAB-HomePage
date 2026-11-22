@@ -61,6 +61,19 @@ export default function RecruitPublishPanel({ cohort, cohorts, onChanged }) {
     run('schedule', () => api.recruitAdmin.schedule(cohort.id, when, withDrafts), '已设置定时发布。');
   };
 
+  const submissionsOn = cohort.submissions !== false;
+  const submissionNote = !submissionsOn
+    ? (cohort.status === 'current' ? '已关闭：访客打开“提交”页只会看到“本期暂不接收提交”，不能上传文件。' : '已关闭：这一期成为本次招新后也不会开放提交。')
+    : isDraft ? '发布后对访客开放。'
+      : cohort.status === 'current' ? (cohort.submission_state?.open ? '访客现在可以提交。' : `开关已打开，但访客现在不能提交：${cohort.submission_state?.reason || '未知原因'}。`)
+        : '只有“本次招新”接收提交。';
+
+  const toggleSubmissions = (open) => run(
+    'submissions',
+    () => api.recruitAdmin.setSubmissionsOpen(cohort.id, open),
+    open ? '已打开提交入口。' : '已关闭提交入口，访客现在不能提交。',
+  );
+
   const unpublish = () => {
     if (!window.confirm(`撤回「${cohort.label}」？\n\n撤回后访客立刻看不到这一期的文档和提交入口，已收到的提交不会丢失。\n\n注意：之前因为发布而转为“往期”的批次不会自动恢复，需要的话到“批次设置”里手动改回。`)) return;
     run('unpublish', () => api.recruitAdmin.unpublish(cohort.id), '已撤回为未发布。');
@@ -78,6 +91,18 @@ export default function RecruitPublishPanel({ cohort, cohorts, onChanged }) {
             : '已对访客公开。'}
         </p>
         {!isDraft && <Button type="button" variant="outline" size="sm" className="ml-auto gap-1.5" disabled={Boolean(status.busy)} onClick={unpublish}>{status.busy === 'unpublish' ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Undo2 size={14} aria-hidden="true" />} 撤回发布</Button>}
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border/75 pt-4">
+        <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+          <Switch checked={submissionsOn} disabled={Boolean(status.busy)} onCheckedChange={toggleSubmissions} aria-label="开放提交入口" />
+          开放提交入口
+          {status.busy === 'submissions' && <Loader2 size={14} className="animate-spin text-muted-foreground" aria-hidden="true" />}
+        </label>
+        <p className="min-w-0 flex-1 text-xs leading-5 text-muted-foreground">
+          {submissionNote}
+          {cohort.direction_lock_at ? ` 论文锁定时间：${cohort.direction_lock_at}（北京时间）。` : ' 未设置论文锁定时间。'}
+        </p>
       </div>
 
       {isDraft && (

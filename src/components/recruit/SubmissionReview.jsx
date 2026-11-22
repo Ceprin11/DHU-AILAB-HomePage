@@ -184,7 +184,7 @@ export default function SubmissionReview({ cohort, submissionId }) {
                     version.id === selected.id ? 'border-primary bg-accent/50 font-semibold text-primary' : 'border-border/75 bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground'
                   )}
                 >
-                  v{version.version}{version.id === person.latest.id && '（最新）'} · {formatBeijingTime(version.created_at)}
+                  {person.switchedPaper && `${version.direction} `}v{version.version}{version.id === person.latest.id && '（最新）'} · {formatBeijingTime(version.created_at)}
                 </Link>
               ))}
             </nav>

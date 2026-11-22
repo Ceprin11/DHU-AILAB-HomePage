@@ -61,19 +61,21 @@ export const sectionSubmissionGroups = (paperGroups, groups = []) => {
   return sections;
 };
 
-// One entry per applicant and paper; every re-submission becomes another version of the same entry.
+// One entry per applicant. Until the paper choice is locked a student may switch papers, so the newest submission decides
+// which paper they are listed under; their earlier submissions (also of other papers) stay available as versions.
 export const groupSubmissions = (rows, directionOrder = []) => {
   const people = new Map();
   for (const row of rows) {
-    const key = `${row.direction}|${String(row.student_id).toLowerCase()}`;
-    const person = people.get(key) || { key, direction: row.direction, versions: [] };
+    const key = String(row.student_id).toLowerCase();
+    const person = people.get(key) || { key, versions: [] };
     person.versions.push(row);
     people.set(key, person);
   }
   for (const person of people.values()) {
-    person.versions.sort((a, b) => b.version - a.version);
+    person.versions.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)) || b.version - a.version);
     person.latest = person.versions[0];
-    Object.assign(person, { name: person.latest.name, student_id: person.latest.student_id, grade: person.latest.grade, major: person.latest.major });
+    Object.assign(person, { direction: person.latest.direction, name: person.latest.name, student_id: person.latest.student_id, grade: person.latest.grade, major: person.latest.major });
+    person.switchedPaper = new Set(person.versions.map((version) => version.direction)).size > 1;
   }
   const byDirection = new Map();
   for (const person of people.values()) byDirection.set(person.direction, [...(byDirection.get(person.direction) || []), person]);

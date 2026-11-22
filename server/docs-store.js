@@ -65,14 +65,17 @@ export const getSubmissionState = (cohort, now = new Date()) => {
   const { deadline, valid } = parseDeadline(cohort?.submission_deadline);
   const directions = Array.isArray(cohort?.directions) ? cohort.directions : [];
   const groups = Array.isArray(cohort?.groups) ? cohort.groups : [];
-  const closed = (reason) => ({ open: false, deadline, reason, directions, groups, grades: SUBMISSION_GRADES });
+  // From this moment on a student can only keep submitting the paper they have already chosen.
+  const lockAt = parsePublishAt(cohort?.direction_lock_at);
+  const directionLock = lockAt ? { at: new Date(lockAt.time).toISOString(), locked: now.getTime() >= lockAt.time } : null;
+  const closed = (reason) => ({ open: false, deadline, reason, directions, groups, directionLock, grades: SUBMISSION_GRADES });
   if (!cohort || cohort.submissions === false) return closed('本期暂不接收提交');
   if (cohort.status === 'draft') return closed('本期招新尚未发布');
   if (cohort.status === 'upcoming') return closed('本期招新还没有开始');
   if (cohort.status !== 'current') return closed('本期招新已结束');
   if (!valid) return closed('截止时间配置有误，请联系管理员');
   if (deadline && now.getTime() > Date.parse(deadline)) return closed('已过提交截止时间');
-  return { open: true, deadline, reason: '', directions, groups, grades: SUBMISSION_GRADES };
+  return { open: true, deadline, reason: '', directions, groups, directionLock, grades: SUBMISSION_GRADES };
 };
 
 // Papers are grouped by field (CV / NLP / multimodal). Every direction belongs to at most one group.
@@ -253,17 +256,18 @@ export const createDocsStore = (contentDirectory, { now = () => new Date() } = {
         submission_deadline: cohort.submission_deadline,
         publish_at: cohort.publish_at,
         publish_drafts: cohort.publish_drafts,
+        direction_lock_at: cohort.direction_lock_at,
         directions,
         groups,
       };
     });
   };
 
-  const publicCohort = ({ submissions, submission_deadline: deadline, directions, groups, publish_at: _publishAt, publish_drafts: _publishDrafts, ...cohort }, { preview = false } = {}) => ({
+  const publicCohort = ({ submissions, submission_deadline: deadline, directions, groups, direction_lock_at: lockAt, publish_at: _publishAt, publish_drafts: _publishDrafts, ...cohort }, { preview = false } = {}) => ({
     ...cohort,
     groups,
     // A preview shows an unpublished cohort the way it will look once it is the current one.
-    submission: getSubmissionState({ ...cohort, status: preview && cohort.status === 'draft' ? 'current' : cohort.status, submissions, submission_deadline: deadline, directions, groups }),
+    submission: getSubmissionState({ ...cohort, status: preview && cohort.status === 'draft' ? 'current' : cohort.status, submissions, submission_deadline: deadline, directions, groups, direction_lock_at: lockAt }, now()),
     ...(preview ? { preview: true } : {}),
   });
 
@@ -386,6 +390,9 @@ export const createDocsStore = (contentDirectory, { now = () => new Date() } = {
     if (directions.length > 20) throw createError('方向最多 20 个');
     if (directions.some((item) => item.length > 30)) throw createError('每个方向不超过 30 个字');
     const groups = cleanGroups(input?.groups, directions, { strict: true });
+    const lockText = String(input?.direction_lock_at ?? '').trim();
+    const lockAt = lockText ? parsePublishAt(lockText) : null;
+    if (lockText && !lockAt) throw createError('论文锁定时间格式应为 2026-12-06 23:59（北京时间）');
     const publishAt = input.status === 'draft' && String(input.publish_at ?? '').trim() ? parsePublishAt(input.publish_at) : null;
     if (input.status === 'draft' && String(input.publish_at ?? '').trim() && !publishAt) throw createError('定时发布时间格式应为 2026-12-06 09:00（北京时间）');
     return {
@@ -397,6 +404,7 @@ export const createDocsStore = (contentDirectory, { now = () => new Date() } = {
       ...(groups.length ? { groups } : {}),
       ...(input.submissions === false ? { submissions: false } : {}),
       ...(deadline ? { submission_deadline: deadline } : {}),
+      ...(lockAt ? { direction_lock_at: lockAt.text } : {}),
       ...(publishAt ? { publish_at: publishAt.text, ...(input.publish_drafts === false ? { publish_drafts: false } : {}) } : {}),
     };
   };
@@ -492,7 +500,10 @@ export const createDocsStore = (contentDirectory, { now = () => new Date() } = {
         directions: cohort.directions,
         groups: cohort.groups,
         submissions: cohort.submissions !== false,
+        // What visitors get right now (the switch, the deadline and the publication state combined).
+        submission_state: (({ open, reason }) => ({ open, reason }))(getSubmissionState(cohort, now())),
         submission_deadline: String(cohort.submission_deadline ?? ''),
+        direction_lock_at: String(cohort.direction_lock_at ?? ''),
         publish_at: String(cohort.publish_at ?? ''),
         publish_drafts: cohort.publish_drafts !== false,
       }));
@@ -706,6 +717,16 @@ export const createDocsStore = (contentDirectory, { now = () => new Date() } = {
         if (at.time <= now().getTime()) throw createError('定时发布的时间必须晚于现在');
         await writeManifest(manifest.map((cohort) => normalizeCohortInput(cohort.id === cohortId ? { ...cohort, publish_at: at.text, publish_drafts: drafts !== false } : cohort)));
         return { publish_at: at.text, publish_drafts: drafts !== false };
+      });
+    },
+
+    // The switch that opens or closes the submit page for a cohort; it takes effect immediately.
+    setSubmissionsOpen(cohortId, open) {
+      return enqueue(async () => {
+        const manifest = await readCohortManifest();
+        if (!manifest.some((cohort) => cohort.id === cohortId)) throw createError('没有找到这一期招新', 404);
+        await writeManifest(manifest.map((cohort) => normalizeCohortInput(cohort.id === cohortId ? { ...cohort, submissions: open !== false } : cohort)));
+        return open !== false;
       });
     },
 

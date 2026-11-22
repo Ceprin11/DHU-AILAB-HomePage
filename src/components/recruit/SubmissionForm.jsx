@@ -10,7 +10,7 @@ import { formatBeijingTime, formatFileSize, groupDirections, previewFileName } f
 
 const ACCEPTED_EXTENSIONS = ['.pdf', '.ppt', '.pptx', '.html', '.htm'];
 const MAX_FILE_BYTES = 30 * 1024 * 1024;
-const EMPTY_FORM = { name: '', student_id: '', grade: '', major: '', direction: '', qq: '', wechat: '', email: '', note: '' };
+const EMPTY_FORM = { direction: '', qq: '', wechat: '', email: '', note: '' };
 
 function Field({ label, required = true, hint = null, children, htmlFor }) {
   return (
@@ -29,7 +29,8 @@ const extensionOf = (fileName) => {
   return index < 0 ? '' : fileName.slice(index).toLowerCase();
 };
 
-export default function SubmissionForm({ cohort, preview = false }) {
+// Who is applying (name, student id, grade, major) comes from the signed-in applicant account, not from this form.
+export default function SubmissionForm({ cohort, applicant = null, preview = false }) {
   const { submission } = cohort;
   const needsDirection = submission.directions.length > 0;
   const directionSections = groupDirections(submission.directions, submission.groups);
@@ -53,10 +54,6 @@ export default function SubmissionForm({ cohort, preview = false }) {
   const uploading = status.phase === 'uploading';
 
   const validate = () => {
-    if (!form.name.trim()) return '请填写姓名';
-    if (!/^[A-Za-z0-9]{4,20}$/.test(form.student_id.trim())) return '学号应为 4-20 位字母或数字';
-    if (!form.grade) return '请选择年级';
-    if (!form.major.trim()) return '请填写专业';
     if (needsDirection && !form.direction) return '请选择方向';
     const { qq, wechat, email } = form;
     if (!qq.trim() && !wechat.trim() && !email.trim()) return 'QQ、微信、邮箱至少填写一个';
@@ -87,7 +84,7 @@ export default function SubmissionForm({ cohort, preview = false }) {
   };
 
   const reset = () => {
-    setForm((current) => ({ ...EMPTY_FORM, name: current.name, student_id: current.student_id, grade: current.grade, major: current.major, direction: current.direction, qq: current.qq, wechat: current.wechat, email: current.email }));
+    setForm((current) => ({ ...EMPTY_FORM, direction: current.direction, qq: current.qq, wechat: current.wechat, email: current.email }));
     setFile(null);
     if (fileInput.current) fileInput.current.value = '';
     setStatus({ phase: 'idle', error: '', result: null });
@@ -98,6 +95,7 @@ export default function SubmissionForm({ cohort, preview = false }) {
       <div className="rounded-xl border border-primary/25 bg-accent/40 px-6 py-10 text-center" role="status">
         <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground"><CheckCircle2 size={24} strokeWidth={1.8} aria-hidden="true" /></span>
         <p className="mt-4 font-display text-xl font-bold text-foreground">提交成功</p>
+        {applicant && <p className="mt-3 text-sm text-foreground/90">已记录：{[applicant.name, applicant.student_id, applicant.grade, applicant.major, form.direction].filter(Boolean).join(' · ')}</p>}
         <p className="mt-2 text-sm text-muted-foreground">文件已按统一规则命名并保存：</p>
         <p className="mx-auto mt-2 max-w-full break-all rounded-lg bg-card px-4 py-2.5 font-mono text-sm text-foreground">{status.result.final_name}</p>
         <p className="mt-3 text-xs text-muted-foreground">如需修改，请重新提交，系统会自动递增版本号，之前的提交不会被覆盖。</p>
@@ -107,24 +105,22 @@ export default function SubmissionForm({ cohort, preview = false }) {
   }
 
   const extension = file ? extensionOf(file.name) : '.pptx';
-  const namePreview = previewFileName(form, extension);
+  const namePreview = previewFileName({ ...form, name: applicant?.name, student_id: applicant?.student_id, grade: applicant?.grade, major: applicant?.major }, extension);
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-6">
       {submission.deadline && (
         <p className="rounded-lg border border-amber/60 bg-amber/15 px-4 py-2.5 text-sm text-amber-foreground">截止时间：{formatBeijingTime(submission.deadline)}（北京时间）</p>
       )}
+      {needsDirection && submission.directionLock && (
+        <p className="rounded-lg border border-border/75 bg-secondary/40 px-4 py-2.5 text-sm leading-6 text-foreground/90">
+          {submission.directionLock.locked
+            ? '论文选择已经锁定：之前提交过的同学只能继续提交原来选的那一篇；还没提交过的同学可以选一篇，提交后同样锁定。'
+            : `论文可以随时更换，以你最后一次提交为准。${formatBeijingTime(submission.directionLock.at)}（北京时间）之后论文锁定，不能再更换。`}
+        </p>
+      )}
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field label="姓名" htmlFor="submit-name"><Input id="submit-name" value={form.name} onChange={update('name')} maxLength={30} autoComplete="name" /></Field>
-        <Field label="学号" htmlFor="submit-student-id"><Input id="submit-student-id" value={form.student_id} onChange={update('student_id')} maxLength={20} inputMode="numeric" autoComplete="off" /></Field>
-        <Field label="年级">
-          <Select value={form.grade} onValueChange={choose('grade')}>
-            <SelectTrigger aria-label="年级"><SelectValue placeholder="请选择年级" /></SelectTrigger>
-            <SelectContent>{submission.grades.map((grade) => <SelectItem key={grade} value={grade}>{grade}</SelectItem>)}</SelectContent>
-          </Select>
-        </Field>
-        <Field label="专业" htmlFor="submit-major"><Input id="submit-major" value={form.major} onChange={update('major')} maxLength={30} placeholder="如：人工智能" /></Field>
         {needsDirection && (
           <Field label="选择方向（论文）">
             <Select value={form.direction} onValueChange={choose('direction')}>
@@ -142,15 +138,17 @@ export default function SubmissionForm({ cohort, preview = false }) {
         )}
       </div>
 
-      <fieldset className="m-0 min-w-0 space-y-3 rounded-xl border border-border/75 bg-card/60 px-4 pb-5 pt-1 sm:px-5">
-        <legend className="px-2 text-sm font-medium text-foreground">联系方式<span className="ml-0.5 text-destructive" aria-hidden="true">*</span></legend>
-        <p className="text-xs leading-5 text-muted-foreground">QQ、微信、邮箱至少填写一个，仅实验室管理员可见。</p>
+      <div role="group" aria-labelledby="submit-contact-title" className="min-w-0 space-y-3 rounded-xl border border-border/75 bg-card/60 px-4 py-5 sm:px-5">
+        <div>
+          <p id="submit-contact-title" className="text-sm font-medium text-foreground">联系方式<span className="ml-0.5 text-destructive" aria-hidden="true">*</span></p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">QQ、微信、邮箱至少填写一个，仅实验室管理员可见。</p>
+        </div>
         <div className="grid gap-4 sm:grid-cols-3">
           <Field label="QQ" required={false} htmlFor="submit-qq"><Input id="submit-qq" value={form.qq} onChange={update('qq')} maxLength={12} inputMode="numeric" autoComplete="off" /></Field>
           <Field label="微信" required={false} htmlFor="submit-wechat"><Input id="submit-wechat" value={form.wechat} onChange={update('wechat')} maxLength={30} autoComplete="off" /></Field>
           <Field label="邮箱" required={false} htmlFor="submit-email"><Input id="submit-email" type="email" value={form.email} onChange={update('email')} maxLength={80} autoComplete="email" /></Field>
         </div>
-      </fieldset>
+      </div>
 
       <Field label="备注" required={false} htmlFor="submit-note"><Textarea id="submit-note" value={form.note} onChange={update('note')} maxLength={1000} rows={3} placeholder="想对评审说的话，可以不填" /></Field>
 

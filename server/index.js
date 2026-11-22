@@ -18,6 +18,7 @@ import { checkMemberAccountChange, checkMemberDeletion, isEffectiveAdmin } from 
 import { applyHomeSelectionPolicy } from './album-permissions.js';
 import { CONTRIBUTION_ENTITY_NAMES, normalizeContentContribution } from './content-contribution.js';
 import { ASSET_MAX_BYTES, createDocsStore, isInlineAsset, seedContentDirectory } from './docs-store.js';
+import { createApplicantStore, normalizeApplicantProfile, validatePassword } from './applicant-store.js';
 import { createSubmissionStore, MARKUP_EXTENSIONS, normalizeSubmissionFields, SUBMISSION_MAX_FILE_BYTES } from './recruit-submissions.js';
 import { executeMemberImport, planMemberImport } from './member-import.js';
 import { isPublicMember } from './member-visibility.js';
@@ -39,6 +40,8 @@ const adminAccount = process.env.ADMIN_ACCOUNT || 'AILAB';
 const adminPassword = process.env.ADMIN_PASSWORD || 'AILAB123';
 const sessionSecret = process.env.SESSION_SECRET || 'change-this-session-secret-before-production';
 const sessionCookie = 'ailab_session';
+const applicantCookie = 'ailab_applicant';
+const applicantSessionMs = 7 * 24 * 60 * 60 * 1000;
 const cookieSecure = isProduction && process.env.COOKIE_SECURE !== 'false';
 const execFileAsync = promisify(execFile);
 
@@ -61,6 +64,7 @@ const store = createStore(dataDirectory);
 const memberAccountStore = createMemberAccountStore(dataDirectory);
 if (await seedContentDirectory(recruitSeedDirectory, recruitContentDirectory)) console.log('Recruitment content seeded from content/recruit');
 const docsStore = createDocsStore(recruitContentDirectory);
+const applicantStore = createApplicantStore(dataDirectory);
 const submissionStore = createSubmissionStore(dataDirectory);
 const app = express();
 const httpServer = createHttpServer(app);
@@ -432,20 +436,20 @@ const parseCookies = (header = '') => Object.fromEntries(
   })
 );
 
-const createSession = (session) => {
-  const payload = Buffer.from(JSON.stringify({ ...session, exp: Date.now() + 12 * 60 * 60 * 1000 })).toString('base64url');
+const createSession = (session, ttlMs = 12 * 60 * 60 * 1000) => {
+  const payload = Buffer.from(JSON.stringify({ ...session, exp: Date.now() + ttlMs })).toString('base64url');
   const signature = crypto.createHmac('sha256', sessionSecret).update(payload).digest('base64url');
   return `${payload}.${signature}`;
 };
 
-const verifySession = (token = '') => {
+const verifySession = (token = '', roles = ['admin', 'member']) => {
   const [payload, signature] = token.split('.');
   if (!payload || !signature) return false;
   const expected = crypto.createHmac('sha256', sessionSecret).update(payload).digest('base64url');
   if (signature.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return false;
   try {
     const session = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
-    if (!['admin', 'member'].includes(session.role) || session.exp <= Date.now()) return null;
+    if (!roles.includes(session.role) || session.exp <= Date.now()) return null;
     return session;
   } catch {
     return null;
@@ -480,6 +484,31 @@ const requireMember = async (req, res, next) => {
   req.auth = await resolveSession(req);
   if (!req.auth?.member) return res.status(401).json({ message: '请先登录成员账号' });
   next();
+};
+
+// Applicants have their own cookie and their own role. resolveSession only accepts admin and member tokens,
+// so an applicant session never satisfies requireAuth, requireMember or requireAdmin.
+const applicantCookieOptions = { httpOnly: true, sameSite: 'lax', secure: cookieSecure, path: '/' };
+
+const setApplicantCookie = (res, applicant) => {
+  res.cookie(applicantCookie, createSession({ role: 'applicant', applicant_id: applicant.id, session_version: applicant.session_version }, applicantSessionMs), { ...applicantCookieOptions, maxAge: applicantSessionMs });
+};
+
+const resolveApplicant = async (req) => {
+  const session = verifySession(parseCookies(req.headers.cookie)[applicantCookie], ['applicant']);
+  if (!session) return null;
+  const applicant = await applicantStore.getById(session.applicant_id);
+  return applicant && applicant.session_version === session.session_version ? applicant : null;
+};
+
+const requireApplicant = async (req, res, next) => {
+  try {
+    req.applicant = await resolveApplicant(req);
+    if (!req.applicant) return res.status(401).json({ message: '请先登录报名账号' });
+    next();
+  } catch (error) {
+    next(error);
+  }
 };
 
 const setSessionCookie = (res, session) => {
@@ -692,6 +721,85 @@ app.get('/api/docs/:cohort/pages/:slug', async (req, res, next) => {
   }
 });
 
+// --- applicant accounts: register, sign in, sign out ---
+const applicantRegistrations = new Map();
+const applicantLoginFailures = new Map();
+const registrationWindowMs = 60 * 60 * 1000;
+const maxRegistrationsPerWindow = 10;
+
+const limitRegistration = (req, res, next) => {
+  const now = Date.now();
+  for (const [key, timestamps] of applicantRegistrations) {
+    const recent = timestamps.filter((time) => now - time < registrationWindowMs);
+    if (recent.length) applicantRegistrations.set(key, recent);
+    else applicantRegistrations.delete(key);
+  }
+  const clientKey = req.ip || req.socket.remoteAddress || 'unknown';
+  const recent = applicantRegistrations.get(clientKey) || [];
+  if (recent.length >= maxRegistrationsPerWindow) {
+    res.setHeader('Retry-After', String(Math.ceil((recent[0] + registrationWindowMs - now) / 1000)));
+    return res.status(429).json({ message: '注册过于频繁，请稍后再试' });
+  }
+  applicantRegistrations.set(clientKey, [...recent, now]);
+  next();
+};
+
+const applicantUser = ({ id, student_id: studentId, name, grade, major }) => ({ id, student_id: studentId, name, grade, major });
+
+app.post('/api/recruit/register', limitRegistration, async (req, res, next) => {
+  try {
+    const profile = normalizeApplicantProfile(req.body);
+    const applicant = await applicantStore.register(profile, validatePassword(req.body?.password));
+    setApplicantCookie(res, applicant);
+    res.status(201).json(applicantUser(applicant));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/recruit/login', async (req, res, next) => {
+  try {
+    const now = Date.now();
+    for (const [key, attempt] of applicantLoginFailures) {
+      if (attempt.resetAt <= now) applicantLoginFailures.delete(key);
+    }
+    const studentId = String(req.body?.student_id ?? '').trim();
+    const clientKey = `${req.ip || req.socket.remoteAddress || 'unknown'}:${studentId.toLowerCase()}`;
+    const attempt = applicantLoginFailures.get(clientKey);
+    if (attempt && attempt.count >= maxLoginAttempts) {
+      res.setHeader('Retry-After', String(Math.ceil((attempt.resetAt - now) / 1000)));
+      return res.status(429).json({ message: '登录尝试次数过多，请稍后再试' });
+    }
+    const applicant = await applicantStore.authenticate(studentId, req.body?.password);
+    if (!applicant) {
+      applicantLoginFailures.set(clientKey, { count: (attempt?.count || 0) + 1, resetAt: attempt?.resetAt || now + loginWindowMs });
+      return res.status(401).json({ message: '学号或密码错误' });
+    }
+    applicantLoginFailures.delete(clientKey);
+    setApplicantCookie(res, applicant);
+    res.json(applicantUser(applicant));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/recruit/logout', (_req, res) => {
+  res.clearCookie(applicantCookie, applicantCookieOptions);
+  res.status(204).end();
+});
+
+app.get('/api/recruit/me', requireApplicant, (req, res) => res.json(applicantUser(req.applicant)));
+
+app.post('/api/recruit/password', requireApplicant, async (req, res, next) => {
+  try {
+    const applicant = await applicantStore.changePassword(req.applicant.id, req.body?.current_password, req.body?.new_password);
+    setApplicantCookie(res, applicant);
+    res.json(applicantUser(applicant));
+  } catch (error) {
+    next(error);
+  }
+});
+
 const limitSubmissions = (req, res, next) => {
   const now = Date.now();
   for (const [key, timestamps] of submissionAttempts) {
@@ -699,7 +807,7 @@ const limitSubmissions = (req, res, next) => {
     if (recent.length) submissionAttempts.set(key, recent);
     else submissionAttempts.delete(key);
   }
-  const clientKey = req.ip || req.socket.remoteAddress || 'unknown';
+  const clientKey = req.applicant?.id || req.ip || req.socket.remoteAddress || 'unknown';
   const recent = submissionAttempts.get(clientKey) || [];
   if (recent.length >= maxSubmissionsPerWindow) {
     res.setHeader('Retry-After', String(Math.ceil((recent[0] + submissionWindowMs - now) / 1000)));
@@ -738,10 +846,12 @@ const receiveSubmissionFile = (req, res, next) => {
   });
 };
 
-app.post('/api/recruit/:cohort/submissions', limitSubmissions, requireOpenCohort, receiveSubmissionFile, async (req, res, next) => {
+app.post('/api/recruit/:cohort/submissions', requireApplicant, limitSubmissions, requireOpenCohort, receiveSubmissionFile, async (req, res, next) => {
   try {
-    const fields = normalizeSubmissionFields(req.body, req.cohort.submission);
-    const record = await submissionStore.add({ cohort: req.cohort.id, fields, file: req.file });
+    // Who is applying comes from the account, never from the form: the same person always submits under the same identity.
+    const { name, student_id: studentId, grade, major } = req.applicant;
+    const fields = normalizeSubmissionFields({ ...req.body, name, student_id: studentId, grade, major }, req.cohort.submission);
+    const record = await submissionStore.add({ cohort: req.cohort.id, fields, file: req.file, lockDirection: Boolean(req.cohort.submission.directionLock?.locked) });
     res.status(201).json({ id: record.id, created_at: record.created_at, final_name: record.final_name, version: record.version });
   } catch (error) {
     next(error);
@@ -800,6 +910,38 @@ const runUpload = (middleware, tooLargeMessage) => (req, res, next) => {
 const markdownUpload = runUpload(multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024, files: 1, fields: 5 }, defParamCharset: 'utf8' }).single('file'), 'Markdown 文件不能超过 2MB');
 const assetUpload = runUpload(multer({ storage: multer.memoryStorage(), limits: { fileSize: ASSET_MAX_BYTES, files: 20, fields: 5 }, defParamCharset: 'utf8' }).array('files', 20), `单个文件不能超过 ${ASSET_MAX_BYTES / 1024 / 1024}MB`);
 
+app.get('/api/admin/recruit/applicants', requireAdmin, async (_req, res, next) => {
+  try {
+    const [applicants, submissions] = await Promise.all([applicantStore.list(), submissionStore.list()]);
+    const counts = new Map();
+    for (const submission of submissions) {
+      const key = String(submission.student_id).toLowerCase();
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    res.json(applicants.map(({ session_version: _version, ...applicant }) => ({ ...applicant, submission_count: counts.get(applicant.student_id.toLowerCase()) || 0 })));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/admin/recruit/applicants/:id/reset-password', requireAdmin, async (req, res, next) => {
+  try {
+    const { applicant, password } = await applicantStore.resetPassword(req.params.id);
+    res.json({ student_id: applicant.student_id, name: applicant.name, password });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete('/api/admin/recruit/applicants/:id', requireAdmin, async (req, res, next) => {
+  try {
+    if (!await applicantStore.remove(req.params.id)) return res.status(404).json({ message: '没有找到这个账号' });
+    res.status(204).end();
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get('/api/admin/recruit/cohorts', requireAdmin, async (_req, res, next) => {
   try {
     res.json(await docsStore.readCohortsForAdmin());
@@ -820,6 +962,16 @@ const sendCohortState = async (res, cohortId, extra = {}) => {
   const cohort = (await docsStore.readCohortsForAdmin()).find((item) => item.id === cohortId);
   res.json({ cohort, ...extra });
 };
+
+app.put('/api/admin/recruit/:cohort/submissions-open', requireAdmin, async (req, res, next) => {
+  try {
+    if (typeof req.body?.open !== 'boolean') return res.status(400).json({ message: '请指定开启或关闭' });
+    await docsStore.setSubmissionsOpen(req.params.cohort, req.body.open);
+    res.json((await docsStore.readCohortsForAdmin()).find((cohort) => cohort.id === req.params.cohort));
+  } catch (error) {
+    next(error);
+  }
+});
 
 app.post('/api/admin/recruit/:cohort/publish', requireAdmin, async (req, res, next) => {
   try {
