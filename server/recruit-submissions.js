@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { Buffer } from 'node:buffer';
-import { copyFile, mkdir, open, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, open, readFile, rename, rm, statfs, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -8,7 +8,9 @@ export const SUBMISSION_MAX_FILE_BYTES = 30 * 1024 * 1024;
 // The optional code-and-results archive that goes with a report.
 export const ATTACHMENT_MAX_FILE_BYTES = 100 * 1024 * 1024;
 const ZIP_SIGNATURES = [Buffer.from([0x50, 0x4b, 0x03, 0x04]), Buffer.from([0x50, 0x4b, 0x05, 0x06]), Buffer.from([0x50, 0x4b, 0x07, 0x08])];
-export const MAX_SUBMISSIONS_PER_COHORT = 1000;
+export const MAX_SUBMISSIONS_PER_COHORT = 5000;
+// Refuse new submissions before the disk is full, so the site and earlier submissions keep working.
+export const MIN_FREE_DISK_BYTES = 2 * 1024 * 1024 * 1024;
 // One student's share, so a handful of accounts cannot use up the cohort's whole quota.
 export const MAX_SUBMISSIONS_PER_STUDENT = 30;
 
@@ -153,7 +155,7 @@ const moveFile = async (from, to) => {
 // "ViT_张三_2250001_大一_计算机_v2.pdf" → "ViT_张三_2250001_大一_计算机_v2_代码与结果.zip"
 const attachmentNameFor = (finalName) => `${finalName.replace(/\.[^.]+$/, '')}_代码与结果.zip`;
 
-export const createSubmissionStore = (dataDirectory) => {
+export const createSubmissionStore = (dataDirectory, { minFreeBytes = MIN_FREE_DISK_BYTES } = {}) => {
   const directory = path.join(dataDirectory, 'recruit-submissions');
   const filesDirectory = path.join(directory, 'files');
   const indexPath = path.join(directory, 'index.json');
@@ -210,6 +212,8 @@ export const createSubmissionStore = (dataDirectory) => {
         const id = crypto.randomUUID();
         const storedName = `${id}${extension}`;
         await mkdir(filesDirectory, { recursive: true });
+        const disk = await statfs(filesDirectory).catch(() => null);
+        if (disk && disk.bavail * disk.bsize < minFreeBytes) throw createError('服务器存储空间不足，暂时无法提交，请联系实验室', 507);
         await writeFile(path.join(filesDirectory, storedName), file.buffer, { flag: 'wx' });
         const attachmentStored = attachment ? `${id}-attachment.zip` : '';
         if (attachment) {

@@ -66,3 +66,15 @@ test('refuses archives that are not zip files, are empty or too large, and keeps
     await cleanup();
   }
 });
+
+test('refuses new submissions when the disk is nearly full, and writes nothing', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'ailab-disk-'));
+  try {
+    const store = createSubmissionStore(path.join(root, 'data'), { minFreeBytes: Number.MAX_SAFE_INTEGER });
+    await assert.rejects(store.add({ cohort: 'c', fields, file: pdf() }), (error) => error.status === 507 && /存储空间不足/.test(error.message));
+    assert.deepEqual(await readdir(path.join(root, 'data', 'recruit-submissions', 'files')), []);
+    assert.equal((await store.list('c')).length, 0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

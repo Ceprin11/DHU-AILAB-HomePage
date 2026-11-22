@@ -99,9 +99,9 @@ export default function SubmissionForm({ cohort, applicant = null, preview = fal
     Object.entries(form).forEach(([key, value]) => body.append(key, value.trim()));
     body.append('file', file);
     if (attachment) body.append('attachment', attachment);
-    setStatus({ phase: 'uploading', error: '', result: null });
+    setStatus({ phase: 'uploading', error: '', result: null, progress: 0 });
     try {
-      const result = await api.recruit.submit(cohort.id, body);
+      const result = await api.recruit.submit(cohort.id, body, { onProgress: (ratio) => setStatus((current) => (current.phase === 'uploading' ? { ...current, progress: ratio } : current)) });
       setStatus({ phase: 'done', error: '', result });
       loadMine();
     } catch (error) {
@@ -135,7 +135,7 @@ export default function SubmissionForm({ cohort, applicant = null, preview = fal
     );
   }
 
-  const extension = file ? extensionOf(file.name) : '.pptx';
+  const extension = file ? extensionOf(file.name) : '.pdf';
   const namePreview = previewFileName({ ...form, name: applicant?.name, student_id: applicant?.student_id, grade: applicant?.grade, major: applicant?.major }, extension);
 
   return (
@@ -183,7 +183,7 @@ export default function SubmissionForm({ cohort, applicant = null, preview = fal
         </label>
       </Field>
 
-      <Field label="代码与结果" required={false} optional hint={`把代码、README、预测结果 CSV、实验日志等打包成一个 .zip，不超过 ${MAX_ATTACHMENT_BYTES / 1024 / 1024}MB。题目要求交代码或预测结果的，请一定附上。`}>
+      <Field label="代码与结果" required={false} optional hint={`把代码、README、预测结果 CSV、实验日志等打包成一个 .zip，不超过 ${MAX_ATTACHMENT_BYTES / 1024 / 1024}MB。题目要求交代码或预测结果的，请一定附上；不要放数据集和模型权重。`}>
         <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-card px-5 py-6 text-center transition-colors hover:border-primary/50 hover:bg-secondary/30 focus-within:border-primary">
           <FileArchive size={22} strokeWidth={1.8} className="text-primary" aria-hidden="true" />
           <span className="text-sm font-medium text-foreground">{attachment ? attachment.name : '点击选择 .zip 压缩包'}</span>
@@ -202,7 +202,7 @@ export default function SubmissionForm({ cohort, applicant = null, preview = fal
       {status.error && <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">{status.error}</p>}
 
       <Button type="submit" disabled={uploading || preview} className="w-full gap-2 sm:w-auto">
-        {uploading ? <><Loader2 size={16} className="animate-spin" aria-hidden="true" /> 上传中，请不要关闭页面</> : preview ? '预览模式下不能提交' : '提交'}
+        {uploading ? <><Loader2 size={16} className="animate-spin" aria-hidden="true" /> {status.progress >= 1 ? '上传完成，正在保存…' : `上传中 ${Math.round((status.progress || 0) * 100)}%，请不要关闭页面`}</> : preview ? '预览模式下不能提交' : '提交'}
       </Button>
 
       <MySubmissions submissions={mine.submissions} />

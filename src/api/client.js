@@ -1,3 +1,36 @@
+// Large uploads (a report plus a code zip of up to 100MB) on slow dorm or phone networks can take many minutes,
+// so this uses XMLHttpRequest for upload progress and only gives up when the connection stalls.
+function uploadWithProgress(url, formData, { onProgress, stallMs = 120000 } = {}) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    let stallTimer = null;
+    const armStall = () => {
+      window.clearTimeout(stallTimer);
+      stallTimer = window.setTimeout(() => xhr.abort(), stallMs);
+    };
+    xhr.open('POST', url);
+    xhr.responseType = 'text';
+    xhr.upload.onprogress = (event) => {
+      armStall();
+      if (event.lengthComputable && onProgress) onProgress(event.loaded / event.total);
+    };
+    xhr.upload.onload = () => { window.clearTimeout(stallTimer); stallTimer = window.setTimeout(() => xhr.abort(), 10 * 60 * 1000); };
+    xhr.onload = () => {
+      window.clearTimeout(stallTimer);
+      let data = {};
+      try { data = JSON.parse(xhr.responseText || '{}'); } catch { data = {}; }
+      if (xhr.status >= 200 && xhr.status < 300) return resolve(data);
+      const error = new Error(data.message || (xhr.status === 413 ? '文件太大，请压缩后重试' : '提交失败，请稍后重试'));
+      error.status = xhr.status;
+      reject(error);
+    };
+    xhr.onerror = () => { window.clearTimeout(stallTimer); reject(new Error('网络中断，提交没有完成，请检查网络后重新提交')); };
+    xhr.onabort = () => { window.clearTimeout(stallTimer); reject(new Error('上传长时间没有进展，已停止。请换一个更稳定的网络后重新提交')); };
+    armStall();
+    xhr.send(formData);
+  });
+}
+
 async function request(url, options = {}) {
   const { timeoutMs = 10000, ...fetchOptions } = options;
   const controller = new AbortController();
@@ -206,8 +239,8 @@ export const api = {
     },
   },
   recruit: {
-    submit(cohort, formData) {
-      return request(`/api/recruit/${encodeURIComponent(cohort)}/submissions`, { method: 'POST', body: formData, timeoutMs: 120000 });
+    submit(cohort, formData, { onProgress } = {}) {
+      return uploadWithProgress(`/api/recruit/${encodeURIComponent(cohort)}/submissions`, formData, { onProgress });
     },
     submissions(cohort) {
       return request(`/api/recruit/${encodeURIComponent(cohort)}/submissions`);
