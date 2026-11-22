@@ -100,13 +100,10 @@ export default function SubmissionForm({ cohort, applicant = null, preview = fal
     if (uploading || preview) return;
     const problem = validate();
     if (problem) return setStatus({ phase: 'idle', error: problem, result: null });
-    const body = new FormData();
-    Object.entries(form).forEach(([key, value]) => body.append(key, value.trim()));
-    if (file) body.append('file', file);
-    if (attachment) body.append('attachment', attachment);
+    const fields = Object.fromEntries(Object.entries(form).map(([key, value]) => [key, value.trim()]));
     setStatus({ phase: 'uploading', error: '', result: null, progress: 0 });
     try {
-      const result = await api.recruit.submit(cohort.id, body, { onProgress: (ratio) => setStatus((current) => (current.phase === 'uploading' ? { ...current, progress: ratio } : current)) });
+      const result = await api.recruit.submit(cohort.id, fields, { file, attachment }, { onProgress: (ratio) => setStatus((current) => (current.phase === 'uploading' ? { ...current, progress: ratio } : current)) });
       setStatus({ phase: 'done', error: '', result });
       loadMine();
     } catch (error) {
