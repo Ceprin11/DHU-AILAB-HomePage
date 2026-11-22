@@ -125,7 +125,7 @@ export default function RecruitPublishPanel({ cohort, cohorts, onChanged }) {
             <div className="flex flex-wrap items-end gap-2">
               <div className="space-y-1">
                 <label htmlFor="publish-at" className="block text-xs font-medium text-muted-foreground">定时发布（北京时间）</label>
-                <DatePicker id="publish-at" includeTime value={when} onChange={setWhen} placeholder="选择发布时间" disablePast className="h-9 w-56" />
+                <DatePicker id="publish-at" includeTime timeZone="Asia/Shanghai" value={when} onChange={setWhen} placeholder="选择发布时间" disablePast className="h-9 w-56" />
               </div>
               <Button type="button" variant="outline" className="gap-1.5" disabled={Boolean(status.busy)} onClick={schedule}>
                 {status.busy === 'schedule' ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <CalendarClock size={15} aria-hidden="true" />} {cohort.publish_at ? '改期' : '设置定时'}

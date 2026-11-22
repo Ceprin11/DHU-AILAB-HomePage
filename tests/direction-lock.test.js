@@ -79,8 +79,9 @@ test('the lock is per student, ignores letter case of the id and spaces in the n
   assert.doesNotThrow(() => checkDirectionLock(records, 'c', fields({ student_id: '2250009', name: '李四', direction: 'BERT' })), 'another cohort does not count');
 });
 
-test('a different name on a known student id is refused after the lock', () => {
-  assert.throws(() => checkDirectionLock(records, 'c', fields({ name: '赵六', direction: 'BERT' })), /不一致/);
+test('identity comes from the account, so a corrected name does not block a locked student', () => {
+  assert.doesNotThrow(() => checkDirectionLock(records, 'c', fields({ name: '张三丰', direction: 'BERT' })));
+  assert.throws(() => checkDirectionLock(records, 'c', fields({ name: '张三丰', direction: 'ViT' })), /论文已经锁定/);
 });
 
 test('the store only applies the lock when asked, so students can still change paper before it', async () => {

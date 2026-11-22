@@ -6,6 +6,8 @@ import process from 'node:process';
 
 export const SUBMISSION_MAX_FILE_BYTES = 30 * 1024 * 1024;
 export const MAX_SUBMISSIONS_PER_COHORT = 1000;
+// One student's share, so a handful of accounts cannot use up the cohort's whole quota.
+export const MAX_SUBMISSIONS_PER_STUDENT = 30;
 
 const OFFICE_ZIP_SIGNATURE = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
 const OFFICE_LEGACY_SIGNATURE = Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
@@ -99,17 +101,24 @@ export const validateSubmissionFile = (file) => {
 };
 
 const sameStudent = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
-const sameName = (a, b) => String(a).replace(/\s+/g, '').toLowerCase() === String(b).replace(/\s+/g, '').toLowerCase();
+
+// The paper a student is held to once the choice is locked: the one of their newest submission ('' if none).
+// Ties on the timestamp go to the later record, which is stored after the earlier one.
+const newestDirection = (records, cohort, studentId) => {
+  let latest = null;
+  for (const record of records) {
+    if (record.cohort === cohort && sameStudent(record.student_id, studentId) && (!latest || record.created_at >= latest.created_at)) latest = record;
+  }
+  return latest ? latest.direction : '';
+};
 
 // After the paper choice is locked, a student keeps the paper of their newest submission.
 // People who never submitted before the lock may still pick one; their first submission then locks them too.
+// Who the student is comes from their signed-in account, so there is no separate name check here.
 export const checkDirectionLock = (records, cohort, fields) => {
-  const mine = records.filter((record) => record.cohort === cohort && sameStudent(record.student_id, fields.student_id));
-  if (!mine.length) return;
-  const latest = mine.reduce((best, record) => (record.created_at >= best.created_at ? record : best));
-  if (!sameName(latest.name, fields.name)) throw createError('学号和姓名与之前提交的记录不一致，请核对后再提交', 403);
-  // The message must not name the paper: someone who only knows a student id and name would learn another person's choice.
-  if (latest.direction !== fields.direction) throw createError('论文已经锁定：只能继续提交你之前选的那一篇，请重新选择论文', 409);
+  const locked = newestDirection(records, cohort, fields.student_id);
+  // The message does not name the paper; the student's own page shows it.
+  if (locked && locked !== fields.direction) throw createError('论文已经锁定：只能继续提交你之前选的那一篇，请重新选择论文', 409);
 };
 
 export const createSubmissionStore = (dataDirectory) => {
@@ -148,7 +157,7 @@ export const createSubmissionStore = (dataDirectory) => {
   };
 
   return {
-    add({ cohort, fields, file, lockDirection = false }) {
+    add({ cohort, fields, file, applicantId = '', lockDirection = false }) {
       const extension = validateSubmissionFile(file);
       return enqueue(async () => {
         const records = await readIndex();
@@ -156,11 +165,14 @@ export const createSubmissionStore = (dataDirectory) => {
         if (records.filter((record) => record.cohort === cohort).length >= MAX_SUBMISSIONS_PER_COHORT) {
           throw createError('本期提交数量已达上限，请联系实验室', 429);
         }
-        const version = 1 + records.filter((record) => (
-          record.cohort === cohort
-          && record.student_id.toLowerCase() === fields.student_id.toLowerCase()
-          && record.direction === fields.direction
-        )).length;
+        const own = records.filter((record) => record.cohort === cohort && sameStudent(record.student_id, fields.student_id));
+        if (own.length >= MAX_SUBMISSIONS_PER_STUDENT) {
+          throw createError(`你在本期已经提交了 ${MAX_SUBMISSIONS_PER_STUDENT} 次，达到上限，如需继续提交请联系实验室`, 429);
+        }
+        // One more than the highest version so far, so deleting an old version never produces two files with the same name.
+        const version = 1 + own
+          .filter((record) => record.direction === fields.direction)
+          .reduce((highest, record) => Math.max(highest, Number(record.version) || 0), 0);
         const id = crypto.randomUUID();
         const storedName = `${id}${extension}`;
         await mkdir(filesDirectory, { recursive: true });
@@ -168,6 +180,7 @@ export const createSubmissionStore = (dataDirectory) => {
         const record = {
           id,
           cohort,
+          ...(applicantId ? { applicant_id: applicantId } : {}),
           ...fields,
           version,
           final_name: buildSubmissionFileName(fields, version, extension),
@@ -196,16 +209,21 @@ export const createSubmissionStore = (dataDirectory) => {
       });
     },
 
-    // One applicant's own submissions in a cohort, newest first, with their contact details for pre-filling the form.
-    async listOwn(cohort, studentId) {
+    // One account's own submissions in a cohort, newest first, with their contact details for pre-filling the form.
+    // Matched by account, not student id: an account registered again after an admin deleted the old one starts empty.
+    async listOwn(cohort, applicantId) {
       const records = await readIndex();
       return records
-        .filter((record) => record.cohort === cohort && sameStudent(record.student_id, studentId))
+        .filter((record) => record.cohort === cohort && applicantId && record.applicant_id === applicantId)
         .reverse() // records are stored oldest first; reversing makes same-millisecond ties come out newest first
         .sort((a, b) => b.created_at.localeCompare(a.created_at))
         .map(({ id, direction, version, final_name: finalName, size, created_at: createdAt, qq = '', wechat = '', email = '' }) => ({
           id, direction, version, final_name: finalName, size, created_at: createdAt, qq, wechat, email,
         }));
+    },
+
+    async lockedDirection(cohort, studentId) {
+      return newestDirection(await readIndex(), cohort, studentId);
     },
 
     async list(cohort, options) {

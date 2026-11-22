@@ -100,6 +100,8 @@ export default function SubmissionForm({ cohort, applicant = null, preview = fal
       loadMine();
     } catch (error) {
       setStatus({ phase: 'idle', error: error.message || '提交失败，请稍后重试', result: null });
+      // The lock may have started while the page was open: reload it so the paper select shows the right choice.
+      loadMine();
     }
   };
 

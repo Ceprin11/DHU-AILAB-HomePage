@@ -725,7 +725,8 @@ app.get('/api/docs/:cohort/pages/:slug', async (req, res, next) => {
 const applicantRegistrations = new Map();
 const applicantLoginFailures = new Map();
 const registrationWindowMs = 60 * 60 * 1000;
-const maxRegistrationsPerWindow = 10;
+// Campus and dorm networks put many students behind one public IP, so this is generous, and only successful registrations count.
+const maxRegistrationsPerWindow = 200;
 
 const limitRegistration = (req, res, next) => {
   const now = Date.now();
@@ -740,7 +741,9 @@ const limitRegistration = (req, res, next) => {
     res.setHeader('Retry-After', String(Math.ceil((recent[0] + registrationWindowMs - now) / 1000)));
     return res.status(429).json({ message: '注册过于频繁，请稍后再试' });
   }
-  applicantRegistrations.set(clientKey, [...recent, now]);
+  res.on('finish', () => {
+    if (res.statusCode === 201) applicantRegistrations.set(clientKey, [...(applicantRegistrations.get(clientKey) || []), Date.now()]);
+  });
   next();
 };
 
@@ -795,9 +798,9 @@ app.get('/api/recruit/:cohort/my-submissions', requireApplicant, async (req, res
   try {
     const cohort = await docsStore.getCohort(req.params.cohort);
     if (!cohort) return res.status(404).json({ message: '没有找到这一期招新' });
-    const submissions = await submissionStore.listOwn(cohort.id, req.applicant.student_id);
-    const locked = Boolean(cohort.submission.directionLock?.locked) && submissions.length > 0;
-    res.json({ submissions, locked_direction: locked ? submissions[0].direction : '' });
+    const submissions = await submissionStore.listOwn(cohort.id, req.applicant.id);
+    const lockedDirection = cohort.submission.directionLock?.locked ? await submissionStore.lockedDirection(cohort.id, req.applicant.student_id) : '';
+    res.json({ submissions, locked_direction: lockedDirection });
   } catch (error) {
     next(error);
   }
@@ -826,7 +829,10 @@ const limitSubmissions = (req, res, next) => {
     res.setHeader('Retry-After', String(Math.ceil((recent[0] + submissionWindowMs - now) / 1000)));
     return res.status(429).json({ message: '提交过于频繁，请稍后再试' });
   }
-  submissionAttempts.set(clientKey, [...recent, now]);
+  // Only accepted submissions count: a student who gets a few lock or file-type errors near the deadline is not shut out.
+  res.on('finish', () => {
+    if (res.statusCode === 201) submissionAttempts.set(clientKey, [...(submissionAttempts.get(clientKey) || []), Date.now()]);
+  });
   next();
 };
 
@@ -864,7 +870,7 @@ app.post('/api/recruit/:cohort/submissions', requireApplicant, limitSubmissions,
     // Who is applying comes from the account, never from the form: the same person always submits under the same identity.
     const { name, student_id: studentId, grade, major } = req.applicant;
     const fields = normalizeSubmissionFields({ ...req.body, name, student_id: studentId, grade, major }, req.cohort.submission);
-    const record = await submissionStore.add({ cohort: req.cohort.id, fields, file: req.file, lockDirection: Boolean(req.cohort.submission.directionLock?.locked) });
+    const record = await submissionStore.add({ cohort: req.cohort.id, fields, file: req.file, applicantId: req.applicant.id, lockDirection: Boolean(req.cohort.submission.directionLock?.locked) });
     res.status(201).json({ id: record.id, created_at: record.created_at, final_name: record.final_name, version: record.version });
   } catch (error) {
     next(error);

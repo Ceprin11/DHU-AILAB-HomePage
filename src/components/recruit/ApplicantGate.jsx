@@ -168,11 +168,12 @@ function AccountBar({ applicant, onSignedOut, preview = false }) {
     <div className="rounded-xl border border-border/75 bg-secondary/30 px-4 py-3 sm:px-5">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-primary"><UserRound size={17} strokeWidth={1.8} aria-hidden="true" /></span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-foreground">{applicant.name}<span className="ml-2 font-normal text-muted-foreground">{applicant.student_id}</span></p>
-          <p className="truncate text-xs text-muted-foreground">{[applicant.grade, applicant.major].filter(Boolean).join(' · ')} · 这些信息来自你的报名账号，不能在表单里修改</p>
+        {/* On a phone the buttons move to their own row, so the name and student id are never cut off. */}
+        <div className="min-w-0 flex-1 basis-[calc(100%-3.25rem)] sm:basis-0">
+          <p className="break-all text-sm font-semibold text-foreground">{applicant.name}<span className="ml-2 font-normal text-muted-foreground">{applicant.student_id}</span></p>
+          <p className="text-xs leading-5 text-muted-foreground">{[applicant.grade, applicant.major].filter(Boolean).join(' · ')} · 这些信息来自你的报名账号，不能在表单里修改</p>
         </div>
-        <div className="flex shrink-0 gap-1">
+        <div className="-ml-2 flex shrink-0 gap-1 sm:ml-0">
           <Button type="button" variant="ghost" size="sm" className="gap-1.5" disabled={preview} onClick={() => setChanging((value) => !value)}><KeyRound size={14} aria-hidden="true" /> 修改密码</Button>
           <Button type="button" variant="ghost" size="sm" className="gap-1.5" disabled={busy || preview} onClick={signOut}><LogOut size={14} aria-hidden="true" /> 退出登录</Button>
         </div>
