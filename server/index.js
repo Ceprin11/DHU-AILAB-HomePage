@@ -960,18 +960,21 @@ app.post('/api/recruit/:cohort/submissions', requireApplicant, limitSubmissions,
     const fields = normalizeSubmissionFields({ ...req.body, name, student_id: studentId, grade, major }, req.cohort.submission);
     const [report] = req.files?.file || [];
     const [attachment] = req.files?.attachment || [];
-    if (!report) return res.status(400).json({ message: '请选择要提交的报告文件' });
-    if (report.size > SUBMISSION_MAX_FILE_BYTES) return res.status(413).json({ message: `报告文件不能超过 ${SUBMISSION_MAX_FILE_BYTES / 1024 / 1024}MB` });
-    const file = { originalname: report.originalname, buffer: await readFile(report.path) };
+    // Until the paper choice locks the report is optional: submitting without one records the chosen paper.
+    const lock = req.cohort.submission.directionLock;
+    const reportRequired = !lock || lock.locked;
+    if (report && report.size > SUBMISSION_MAX_FILE_BYTES) return res.status(413).json({ message: `报告文件不能超过 ${SUBMISSION_MAX_FILE_BYTES / 1024 / 1024}MB` });
+    const file = report ? { originalname: report.originalname, buffer: await readFile(report.path) } : null;
     const record = await submissionStore.add({
       cohort: req.cohort.id,
       fields,
       file,
       attachment: attachment ? { path: attachment.path, originalname: attachment.originalname, size: attachment.size } : null,
       applicantId: req.applicant.id,
-      lockDirection: Boolean(req.cohort.submission.directionLock?.locked),
+      lockDirection: Boolean(lock?.locked),
+      reportRequired,
     });
-    res.status(201).json({ id: record.id, created_at: record.created_at, final_name: record.final_name, attachment_name: record.attachment_name || '', version: record.version });
+    res.status(201).json({ id: record.id, created_at: record.created_at, final_name: record.final_name, has_report: record.has_report, attachment_name: record.attachment_name || '', version: record.version });
   } catch (error) {
     next(error);
   } finally {
