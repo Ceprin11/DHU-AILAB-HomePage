@@ -1,35 +1,86 @@
-// Large uploads (a report plus a code zip of up to 100MB) on slow dorm or phone networks can take many minutes,
-// so this uses XMLHttpRequest for upload progress and only gives up when the connection stalls.
-function uploadWithProgress(url, formData, { onProgress, stallMs = 120000 } = {}) {
+// Files are uploaded in pieces before the submission is sent. The reverse proxy in front of the site ends any request
+// that takes longer than 60 seconds, so a 20MB report on a slow dorm or phone network cannot go up in one request.
+// Each piece takes a few seconds; a failed piece is sent again, and after a dropped connection the upload continues
+// from the last byte the server has.
+const CHUNK_BYTES = 1024 * 1024;
+const MIN_CHUNK_BYTES = 256 * 1024;
+const CHUNK_TIMEOUT_MS = 50 * 1000;
+const MAX_CHUNK_FAILURES = 8;
+
+function putChunk(url, piece, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    let stallTimer = null;
-    const armStall = () => {
-      window.clearTimeout(stallTimer);
-      stallTimer = window.setTimeout(() => xhr.abort(), stallMs);
-    };
-    xhr.open('POST', url);
-    xhr.responseType = 'text';
-    xhr.upload.onprogress = (event) => {
-      armStall();
-      if (event.lengthComputable && onProgress) onProgress(event.loaded / event.total);
-    };
-    xhr.upload.onload = () => { window.clearTimeout(stallTimer); stallTimer = window.setTimeout(() => xhr.abort(), 10 * 60 * 1000); };
+    xhr.open('PUT', url);
+    xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+    xhr.timeout = CHUNK_TIMEOUT_MS;
+    xhr.upload.onprogress = (event) => { if (onProgress) onProgress(event.loaded); };
     xhr.onload = () => {
-      window.clearTimeout(stallTimer);
       let data = {};
       try { data = JSON.parse(xhr.responseText || '{}'); } catch { data = {}; }
       if (xhr.status >= 200 && xhr.status < 300) return resolve(data);
-      const fallback = xhr.status === 413 ? '文件太大，请压缩后重试' : xhr.status === 429 ? '现在访问的人比较多，提交没有完成，请稍等几秒再提交' : '提交失败，请稍后重试';
-      const error = new Error(data.message || fallback);
-      error.status = xhr.status;
-      reject(error);
+      reject(Object.assign(new Error(data.message || '上传失败'), { status: xhr.status, received: data.received, json: Boolean(data.message) }));
     };
-    xhr.onerror = () => { window.clearTimeout(stallTimer); reject(new Error('网络中断，提交没有完成，请检查网络后重新提交')); };
-    xhr.onabort = () => { window.clearTimeout(stallTimer); reject(new Error('上传长时间没有进展，已停止。请换一个更稳定的网络后重新提交')); };
-    armStall();
-    xhr.send(formData);
+    xhr.onerror = () => reject(Object.assign(new Error('网络中断'), { network: true }));
+    xhr.ontimeout = () => reject(Object.assign(new Error('上传超时'), { timeout: true }));
+    xhr.send(piece);
   });
+}
+
+// A failure worth sending the same piece again for: the network, a timeout, the proxy turning the request away,
+// or the server restarting. A clear answer from the site (wrong file type, too large, upload expired) is not.
+const isRetryable = (error) => error.network || error.timeout || error.status === 429 || error.status === 408 || error.status >= 500 || (error.status && !error.json);
+
+export async function uploadInPieces(cohort, file, kind, { onProgress, wait = sleep } = {}) {
+  const session = await request(`/api/recruit/${encodeURIComponent(cohort)}/uploads`, {
+    method: 'POST',
+    body: JSON.stringify({ kind, name: file.name, size: file.size }),
+  });
+  let offset = session.received || 0;
+  let chunk = Math.min(CHUNK_BYTES, session.chunk_bytes || CHUNK_BYTES);
+  let failures = 0;
+  if (onProgress) onProgress(offset);
+  while (offset < file.size) {
+    const piece = file.slice(offset, Math.min(file.size, offset + chunk));
+    try {
+      const at = offset;
+      const result = await putChunk(`/api/recruit/uploads/${encodeURIComponent(session.id)}?offset=${at}`, piece, (loaded) => { if (onProgress) onProgress(at + loaded); });
+      offset = result.received;
+      failures = 0;
+    } catch (error) {
+      if (error.status === 409 && Number.isInteger(error.received)) { offset = error.received; continue; }
+      if (!isRetryable(error)) throw error;
+      failures += 1;
+      if (failures > MAX_CHUNK_FAILURES) throw new Error('网络不稳定，上传多次失败。已上传的部分会保留一段时间，请换一个更稳定的网络后重新提交');
+      // A piece that cannot finish in time is too big for this network: send smaller pieces.
+      if (error.timeout || error.status === 504) chunk = Math.max(MIN_CHUNK_BYTES, Math.floor(chunk / 2));
+      await wait(Math.min(1000 * 2 ** (failures - 1), 15000));
+      try {
+        offset = (await request(`/api/recruit/uploads/${encodeURIComponent(session.id)}`)).received;
+      } catch (statusError) {
+        if (statusError.status === 404) throw new Error('上传已失效，请重新提交');
+      }
+    }
+    if (onProgress) onProgress(offset);
+  }
+  return session.id;
+}
+
+// Uploads the report and the zip (each optional), then sends the submission itself, which is a small request.
+async function submitWithUploads(cohort, fields, { file = null, attachment = null } = {}, { onProgress } = {}) {
+  const total = (file?.size || 0) + (attachment?.size || 0);
+  let done = 0;
+  const report = (sent) => { if (onProgress && total) onProgress(Math.min(1, (done + sent) / total)); };
+  const body = { ...fields };
+  if (file) {
+    body.report_upload = await uploadInPieces(cohort, file, 'report', { onProgress: report });
+    done += file.size;
+  }
+  if (attachment) {
+    body.attachment_upload = await uploadInPieces(cohort, attachment, 'attachment', { onProgress: report });
+    done += attachment.size;
+  }
+  if (onProgress) onProgress(1);
+  return request(`/api/recruit/${encodeURIComponent(cohort)}/submissions`, { method: 'POST', body: JSON.stringify(body), timeoutMs: 55000 });
 }
 
 // The reverse proxy in front of the site answers 429 (with no JSON body) when one network sends many requests at
@@ -281,8 +332,9 @@ export const api = {
     },
   },
   recruit: {
-    submit(cohort, formData, { onProgress } = {}) {
-      return uploadWithProgress(`/api/recruit/${encodeURIComponent(cohort)}/submissions`, formData, { onProgress });
+    // `fields` are the form's text fields; `files` holds the report and the zip, either of which may be missing.
+    submit(cohort, fields, files, { onProgress } = {}) {
+      return submitWithUploads(cohort, fields, files, { onProgress });
     },
     submissions(cohort) {
       return request(`/api/recruit/${encodeURIComponent(cohort)}/submissions`);

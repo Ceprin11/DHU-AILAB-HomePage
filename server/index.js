@@ -20,6 +20,7 @@ import { applyHomeSelectionPolicy } from './album-permissions.js';
 import { CONTRIBUTION_ENTITY_NAMES, normalizeContentContribution } from './content-contribution.js';
 import { ASSET_MAX_BYTES, createDocsStore, isInlineAsset, seedContentDirectory } from './docs-store.js';
 import { createApplicantStore, normalizeApplicantProfile, validatePassword } from './applicant-store.js';
+import { createChunkedUploads, MAX_CHUNK_BYTES } from './chunked-uploads.js';
 import { ATTACHMENT_MAX_FILE_BYTES, createSubmissionStore, MARKUP_EXTENSIONS, normalizeSubmissionFields, SUBMISSION_MAX_FILE_BYTES } from './recruit-submissions.js';
 import { executeMemberImport, planMemberImport } from './member-import.js';
 import { isPublicMember } from './member-visibility.js';
@@ -938,8 +939,52 @@ const submissionUpload = multer({
 // Leftovers from an upload that was cut off by a restart.
 rm(submissionTemporaryDirectory, { recursive: true, force: true }).catch(() => {});
 
-const uploadedFiles = (req) => [...(req.files?.file || []), ...(req.files?.attachment || [])];
+// Files sent in pieces before the submission (see server/chunked-uploads.js). Requests through the reverse proxy are cut
+// off after 60 seconds, so a whole report plus zip in one request fails on a slow network.
+const chunkedUploads = createChunkedUploads(submissionTemporaryDirectory);
+setInterval(() => { chunkedUploads.sweep().catch(() => {}); }, 10 * 60 * 1000).unref();
+
+app.post('/api/recruit/:cohort/uploads', requireApplicant, requireOpenCohort, async (req, res, next) => {
+  try {
+    const { kind, name, size } = req.body || {};
+    res.status(201).json(await chunkedUploads.start({ owner: req.applicant.id, kind, name, size }));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/recruit/uploads/:id', requireApplicant, (req, res, next) => {
+  try {
+    res.json(chunkedUploads.status(req.params.id, req.applicant.id));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put('/api/recruit/uploads/:id', requireApplicant, express.raw({ type: 'application/octet-stream', limit: MAX_CHUNK_BYTES }), async (req, res, next) => {
+  try {
+    const data = Buffer.isBuffer(req.body) ? req.body : null;
+    res.json(await chunkedUploads.append({ id: req.params.id, owner: req.applicant.id, offset: req.query.offset, data }));
+  } catch (error) {
+    if (error.status === 409) return res.status(409).json({ message: error.message, received: error.received });
+    next(error);
+  }
+});
+
+const uploadedFiles = (req) => [...(req.files?.file || []), ...(req.files?.attachment || []), ...(req.takenUploads || [])];
 const removeUploads = (req) => Promise.all(uploadedFiles(req).map((file) => rm(file.path, { force: true })));
+
+// A file for the submission: one uploaded in pieces beforehand (by id), or one sent in this request (older pages).
+const submittedFile = async (req, field, uploadField, kind) => {
+  const uploadId = typeof req.body?.[uploadField] === 'string' ? req.body[uploadField] : '';
+  if (uploadId) {
+    const taken = await chunkedUploads.take({ id: uploadId, owner: req.applicant.id, kind });
+    (req.takenUploads ||= []).push(taken);
+    return taken;
+  }
+  const [sent] = req.files?.[field] || [];
+  return sent || null;
+};
 
 const receiveSubmissionFile = (req, res, next) => {
   submissionUpload.fields([{ name: 'file', maxCount: 1 }, { name: 'attachment', maxCount: 1 }])(req, res, (error) => {
@@ -958,8 +1003,8 @@ app.post('/api/recruit/:cohort/submissions', requireApplicant, limitSubmissions,
     // Who is applying comes from the account, never from the form: the same person always submits under the same identity.
     const { name, student_id: studentId, grade, major } = req.applicant;
     const fields = normalizeSubmissionFields({ ...req.body, name, student_id: studentId, grade, major }, req.cohort.submission);
-    const [report] = req.files?.file || [];
-    const [attachment] = req.files?.attachment || [];
+    const report = await submittedFile(req, 'file', 'report_upload', 'report');
+    const attachment = await submittedFile(req, 'attachment', 'attachment_upload', 'attachment');
     // Until the paper choice locks the report is optional: submitting without one records the chosen paper.
     const lock = req.cohort.submission.directionLock;
     const reportRequired = !lock || lock.locked;
