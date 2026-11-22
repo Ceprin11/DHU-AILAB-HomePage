@@ -184,7 +184,9 @@ export const createSubmissionStore = (dataDirectory, { minFreeBytes = MIN_FREE_D
     return run;
   };
 
-  const serialize = ({ stored_name: _storedName, attachment_stored: _attachmentStored, ...record }, { includeContact = false } = {}) => {
+  // has_report is false for a paper choice recorded without a report (allowed before the choice locks).
+  const serialize = ({ stored_name: storedName, attachment_stored: _attachmentStored, ...stored }, { includeContact = false } = {}) => {
+    const record = { ...stored, has_report: Boolean(storedName) };
     if (includeContact) return record;
     const { qq: _qq, wechat: _wechat, email: _email, contact: _legacyContact, ...visible } = record;
     return visible;
@@ -192,8 +194,14 @@ export const createSubmissionStore = (dataDirectory, { minFreeBytes = MIN_FREE_D
 
   return {
     // `attachment` is optional: the code-and-results zip, already on disk, moved into place here.
-    async add({ cohort, fields, file, attachment = null, applicantId = '', lockDirection = false }) {
-      const extension = validateSubmissionFile(file);
+    // Before the paper choice locks, a student may submit without a report: that records which paper they chose.
+    // `reportRequired` is false only then. A code-and-results zip always comes together with a report.
+    async add({ cohort, fields, file = null, attachment = null, applicantId = '', lockDirection = false, reportRequired = true }) {
+      if (!file) {
+        if (reportRequired) throw createError('请选择要提交的报告文件');
+        if (attachment) throw createError('上传代码与结果压缩包时，请同时上传报告');
+      }
+      const extension = file ? validateSubmissionFile(file) : '';
       await validateAttachment(attachment);
       return enqueue(async () => {
         const records = await readIndex();
@@ -205,26 +213,29 @@ export const createSubmissionStore = (dataDirectory, { minFreeBytes = MIN_FREE_D
         if (own.length >= MAX_SUBMISSIONS_PER_STUDENT) {
           throw createError(`你在本期已经提交了 ${MAX_SUBMISSIONS_PER_STUDENT} 次，达到上限，如需继续提交请联系实验室`, 429);
         }
-        // One more than the highest version so far, so deleting an old version never produces two files with the same name.
-        const version = 1 + own
-          .filter((record) => record.direction === fields.direction)
-          .reduce((highest, record) => Math.max(highest, Number(record.version) || 0), 0);
+        // One more than the highest report version so far, so deleting an old version never produces two files with the
+        // same name. A paper choice without a report has no file and no version.
+        const version = file ? 1 + own
+          .filter((record) => record.direction === fields.direction && record.stored_name)
+          .reduce((highest, record) => Math.max(highest, Number(record.version) || 0), 0) : 0;
         const id = crypto.randomUUID();
-        const storedName = `${id}${extension}`;
-        await mkdir(filesDirectory, { recursive: true });
-        const disk = await statfs(filesDirectory).catch(() => null);
-        if (disk && disk.bavail * disk.bsize < minFreeBytes) throw createError('服务器存储空间不足，暂时无法提交，请联系实验室', 507);
-        await writeFile(path.join(filesDirectory, storedName), file.buffer, { flag: 'wx' });
+        const storedName = file ? `${id}${extension}` : '';
+        if (file) {
+          await mkdir(filesDirectory, { recursive: true });
+          const disk = await statfs(filesDirectory).catch(() => null);
+          if (disk && disk.bavail * disk.bsize < minFreeBytes) throw createError('服务器存储空间不足，暂时无法提交，请联系实验室', 507);
+          await writeFile(path.join(filesDirectory, storedName), file.buffer, { flag: 'wx' });
+        }
         const attachmentStored = attachment ? `${id}-attachment.zip` : '';
         if (attachment) {
           try {
             await moveFile(attachment.path, path.join(filesDirectory, attachmentStored));
           } catch (error) {
-            await rm(path.join(filesDirectory, storedName), { force: true });
+            if (storedName) await rm(path.join(filesDirectory, storedName), { force: true });
             throw error;
           }
         }
-        const finalName = buildSubmissionFileName(fields, version, extension);
+        const finalName = file ? buildSubmissionFileName(fields, version, extension) : '';
         const record = {
           id,
           cohort,
@@ -232,9 +243,9 @@ export const createSubmissionStore = (dataDirectory, { minFreeBytes = MIN_FREE_D
           ...fields,
           version,
           final_name: finalName,
-          original_name: sanitizeOriginalName(file.originalname),
+          original_name: file ? sanitizeOriginalName(file.originalname) : '',
           extension,
-          size: file.buffer.length,
+          size: file ? file.buffer.length : 0,
           stored_name: storedName,
           ...(attachment ? {
             attachment_name: attachmentNameFor(finalName),
@@ -247,7 +258,7 @@ export const createSubmissionStore = (dataDirectory, { minFreeBytes = MIN_FREE_D
         try {
           await writeIndex([...records, record]);
         } catch (error) {
-          await rm(path.join(filesDirectory, storedName), { force: true });
+          if (storedName) await rm(path.join(filesDirectory, storedName), { force: true });
           if (attachmentStored) await rm(path.join(filesDirectory, attachmentStored), { force: true });
           throw error;
         }
@@ -272,8 +283,8 @@ export const createSubmissionStore = (dataDirectory, { minFreeBytes = MIN_FREE_D
         .filter((record) => record.cohort === cohort && applicantId && record.applicant_id === applicantId)
         .reverse() // records are stored oldest first; reversing makes same-millisecond ties come out newest first
         .sort((a, b) => b.created_at.localeCompare(a.created_at))
-        .map(({ id, direction, version, final_name: finalName, size, attachment_name: attachmentName = '', attachment_size: attachmentSize = 0, created_at: createdAt, qq = '', wechat = '', email = '' }) => ({
-          id, direction, version, final_name: finalName, size, attachment_name: attachmentName, attachment_size: attachmentSize, created_at: createdAt, qq, wechat, email,
+        .map(({ id, direction, version, final_name: finalName, size, stored_name: storedName, attachment_name: attachmentName = '', attachment_size: attachmentSize = 0, created_at: createdAt, qq = '', wechat = '', email = '' }) => ({
+          id, direction, version, final_name: finalName, size, has_report: Boolean(storedName), attachment_name: attachmentName, attachment_size: attachmentSize, created_at: createdAt, qq, wechat, email,
         }));
     },
 
@@ -291,7 +302,7 @@ export const createSubmissionStore = (dataDirectory, { minFreeBytes = MIN_FREE_D
 
     async getFile(id) {
       const record = (await readIndex()).find((item) => item.id === id);
-      if (!record) return null;
+      if (!record?.stored_name) return null;
       return { filePath: path.join(filesDirectory, record.stored_name), downloadName: record.final_name, record: serialize(record) };
     },
 
@@ -307,7 +318,7 @@ export const createSubmissionStore = (dataDirectory, { minFreeBytes = MIN_FREE_D
         const record = records.find((item) => item.id === id);
         if (!record) return false;
         await writeIndex(records.filter((item) => item.id !== id));
-        await rm(path.join(filesDirectory, record.stored_name), { force: true });
+        if (record.stored_name) await rm(path.join(filesDirectory, record.stored_name), { force: true });
         if (record.attachment_stored) await rm(path.join(filesDirectory, record.attachment_stored), { force: true });
         return true;
       });

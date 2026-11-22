@@ -51,7 +51,7 @@ export default function SubmissionTimes({ submission, now = new Date() }) {
           <Row key="lock" icon={Lock} title="论文锁定" time={formatBeijingTime(lock.at)} status={remaining(lock.at, now, '已锁定')}>
             {lock.locked
               ? '已经提交过的同学只能继续提交原来选的论文；还没提交过的同学可以选一篇，提交后同样锁定。'
-              : '在这之前可以随时更换论文，以最后一次提交为准；到点后不能再换。'}
+              : '在这之前可以随时更换论文，以最后一次提交为准，可以先不传报告、只登记选好的论文；到点后不能再换，之后的提交必须附上报告。'}
           </Row>
         ) : (
           <Row key="deadline" icon={CalendarClock} title="提交截止" time={formatBeijingTime(deadline)} status={remaining(deadline, now, '已截止')}>
