@@ -83,14 +83,39 @@ test('lists only the applicant\'s own submissions, newest first, with their cont
     const submissions = createSubmissionStore(path.join(root, 'data'));
     const base = { name: '张三', grade: '大一', major: '计算机', direction: 'ViT', wechat: '', email: '' };
     const file = () => ({ originalname: 'a.html', buffer: Buffer.from('<p>hi</p>') });
-    await submissions.add({ cohort: '2026-autumn', fields: { ...base, student_id: 'A1001', qq: '11111' }, file: file() });
-    await submissions.add({ cohort: '2026-autumn', fields: { ...base, name: '李四', student_id: 'B2002', qq: '22222' }, file: file() });
-    await submissions.add({ cohort: '2026-autumn', fields: { ...base, student_id: 'A1001', qq: '33333' }, file: file() });
-    await submissions.add({ cohort: '2025-autumn', fields: { ...base, student_id: 'A1001', qq: '44444' }, file: file() });
-    const own = await submissions.listOwn('2026-autumn', 'a1001');
+    await submissions.add({ cohort: '2026-autumn', applicantId: 'acc-a', fields: { ...base, student_id: 'A1001', qq: '11111' }, file: file() });
+    await submissions.add({ cohort: '2026-autumn', applicantId: 'acc-b', fields: { ...base, name: '李四', student_id: 'B2002', qq: '22222' }, file: file() });
+    await submissions.add({ cohort: '2026-autumn', applicantId: 'acc-a', fields: { ...base, student_id: 'A1001', qq: '33333' }, file: file() });
+    await submissions.add({ cohort: '2025-autumn', applicantId: 'acc-a', fields: { ...base, student_id: 'A1001', qq: '44444' }, file: file() });
+    const own = await submissions.listOwn('2026-autumn', 'acc-a');
     assert.deepEqual(own.map((item) => item.qq), ['33333', '11111']);
     assert.ok(own.every((item) => !('name' in item) && !('student_id' in item) && !('stored_name' in item)));
-    assert.deepEqual(await submissions.listOwn('2026-autumn', 'C3003'), []);
+    assert.deepEqual(await submissions.listOwn('2026-autumn', 'acc-c'), []);
+    // an account registered again for the same student id (after an admin deleted the old one) sees none of the old records
+    assert.deepEqual(await submissions.listOwn('2026-autumn', 'acc-a-new'), []);
+    assert.deepEqual(await submissions.listOwn('2026-autumn', ''), []);
+    // but the lock still follows the student id
+    assert.equal(await submissions.lockedDirection('2026-autumn', 'a1001'), 'ViT');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('caps each student\'s submissions and numbers versions after the highest one', async () => {
+  const { root, cleanup } = await setup();
+  try {
+    const submissions = createSubmissionStore(path.join(root, 'data'));
+    const fields = { name: '张三', student_id: 'A1001', grade: '大一', major: '计算机', direction: 'ViT', qq: '11111', wechat: '', email: '' };
+    const file = () => ({ originalname: 'a.html', buffer: Buffer.from('<p>hi</p>') });
+    const v1 = await submissions.add({ cohort: 'c', fields, file: file() });
+    await submissions.add({ cohort: 'c', fields, file: file() });
+    await submissions.remove(v1.id);
+    const next = await submissions.add({ cohort: 'c', fields, file: file() });
+    assert.equal(next.version, 3, 'v2 is still there, so the next one is v3, not a second v2');
+    const { MAX_SUBMISSIONS_PER_STUDENT } = await import('../server/recruit-submissions.js');
+    for (let index = (await submissions.list('c')).length; index < MAX_SUBMISSIONS_PER_STUDENT; index += 1) await submissions.add({ cohort: 'c', fields, file: file() });
+    await assert.rejects(submissions.add({ cohort: 'c', fields, file: file() }), (error) => error.status === 429 && /上限/.test(error.message));
+    await submissions.add({ cohort: 'c', fields: { ...fields, student_id: 'B2002', name: '李四' }, file: file() });
   } finally {
     await cleanup();
   }

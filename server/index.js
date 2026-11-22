@@ -1,9 +1,10 @@
 import crypto from 'node:crypto';
 import { Buffer } from 'node:buffer';
 import { execFile } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
+import { createWriteStream, existsSync } from 'node:fs';
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { createServer as createHttpServer } from 'node:http';
+import { pipeline } from 'node:stream';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -19,7 +20,7 @@ import { applyHomeSelectionPolicy } from './album-permissions.js';
 import { CONTRIBUTION_ENTITY_NAMES, normalizeContentContribution } from './content-contribution.js';
 import { ASSET_MAX_BYTES, createDocsStore, isInlineAsset, seedContentDirectory } from './docs-store.js';
 import { createApplicantStore, normalizeApplicantProfile, validatePassword } from './applicant-store.js';
-import { createSubmissionStore, MARKUP_EXTENSIONS, normalizeSubmissionFields, SUBMISSION_MAX_FILE_BYTES } from './recruit-submissions.js';
+import { ATTACHMENT_MAX_FILE_BYTES, createSubmissionStore, MARKUP_EXTENSIONS, normalizeSubmissionFields, SUBMISSION_MAX_FILE_BYTES } from './recruit-submissions.js';
 import { executeMemberImport, planMemberImport } from './member-import.js';
 import { isPublicMember } from './member-visibility.js';
 import { isPublicAlbumCategory, serializePublicAlbum } from './public-albums.js';
@@ -68,6 +69,8 @@ const applicantStore = createApplicantStore(dataDirectory);
 const submissionStore = createSubmissionStore(dataDirectory);
 const app = express();
 const httpServer = createHttpServer(app);
+// Node cuts off any request body after 5 minutes by default; a 130MB submission on a slow network needs longer.
+httpServer.requestTimeout = 30 * 60 * 1000;
 const loginAttempts = new Map();
 const loginWindowMs = 15 * 60 * 1000;
 const maxLoginAttempts = 10;
@@ -721,11 +724,31 @@ app.get('/api/docs/:cohort/pages/:slug', async (req, res, next) => {
   }
 });
 
+// Counts a request against a limit as soon as it starts (so parallel requests cannot slip past the check),
+// and gives the slot back if the request does not end in success (201).
+const holdSlot = (map, key, time, res) => {
+  map.set(key, [...(map.get(key) || []), time]);
+  let settled = false;
+  const release = () => {
+    if (settled) return;
+    settled = true;
+    if (res.statusCode === 201 && res.writableFinished) return;
+    const list = map.get(key) || [];
+    const index = list.indexOf(time);
+    if (index >= 0) list.splice(index, 1);
+    if (list.length) map.set(key, list);
+    else map.delete(key);
+  };
+  res.on('finish', release);
+  res.on('close', release);
+};
+
 // --- applicant accounts: register, sign in, sign out ---
 const applicantRegistrations = new Map();
 const applicantLoginFailures = new Map();
 const registrationWindowMs = 60 * 60 * 1000;
-const maxRegistrationsPerWindow = 10;
+// Campus and dorm networks put many students behind one public IP, so this is generous, and only successful registrations count.
+const maxRegistrationsPerWindow = 200;
 
 const limitRegistration = (req, res, next) => {
   const now = Date.now();
@@ -740,7 +763,7 @@ const limitRegistration = (req, res, next) => {
     res.setHeader('Retry-After', String(Math.ceil((recent[0] + registrationWindowMs - now) / 1000)));
     return res.status(429).json({ message: '注册过于频繁，请稍后再试' });
   }
-  applicantRegistrations.set(clientKey, [...recent, now]);
+  holdSlot(applicantRegistrations, clientKey, now, res);
   next();
 };
 
@@ -795,9 +818,9 @@ app.get('/api/recruit/:cohort/my-submissions', requireApplicant, async (req, res
   try {
     const cohort = await docsStore.getCohort(req.params.cohort);
     if (!cohort) return res.status(404).json({ message: '没有找到这一期招新' });
-    const submissions = await submissionStore.listOwn(cohort.id, req.applicant.student_id);
-    const locked = Boolean(cohort.submission.directionLock?.locked) && submissions.length > 0;
-    res.json({ submissions, locked_direction: locked ? submissions[0].direction : '' });
+    const submissions = await submissionStore.listOwn(cohort.id, req.applicant.id);
+    const lockedDirection = cohort.submission.directionLock?.locked ? await submissionStore.lockedDirection(cohort.id, req.applicant.student_id) : '';
+    res.json({ submissions, locked_direction: lockedDirection });
   } catch (error) {
     next(error);
   }
@@ -826,7 +849,8 @@ const limitSubmissions = (req, res, next) => {
     res.setHeader('Retry-After', String(Math.ceil((recent[0] + submissionWindowMs - now) / 1000)));
     return res.status(429).json({ message: '提交过于频繁，请稍后再试' });
   }
-  submissionAttempts.set(clientKey, [...recent, now]);
+  // Only accepted submissions count: a student who gets a few lock or file-type errors near the deadline is not shut out.
+  holdSlot(submissionAttempts, clientKey, now, res);
   next();
 };
 
@@ -842,19 +866,49 @@ const requireOpenCohort = async (req, res, next) => {
   }
 };
 
+// Uploads go to a temporary folder on disk (next to the stored files, so moving them is a rename), not into memory:
+// the code-and-results zip can be 100MB and several students may upload at once.
+const submissionTemporaryDirectory = path.join(dataDirectory, 'recruit-submissions', 'tmp');
+// A minimal disk storage: `pipeline` closes the file even when the student's connection drops mid-upload,
+// so an interrupted upload never leaves an open file holding disk space.
+const temporaryDiskStorage = {
+  _handleFile(_req, file, done) {
+    mkdir(submissionTemporaryDirectory, { recursive: true }).then(() => {
+      const target = path.join(submissionTemporaryDirectory, `${crypto.randomUUID()}.upload`);
+      const output = createWriteStream(target, { flags: 'wx' });
+      pipeline(file.stream, output, (error) => {
+        if (error) {
+          rm(target, { force: true }).finally(() => done(error));
+          return;
+        }
+        done(null, { path: target, size: output.bytesWritten });
+      });
+    }, done);
+  },
+  _removeFile(_req, file, done) {
+    rm(file.path, { force: true }).then(() => done(null), done);
+  },
+};
 const submissionUpload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: SUBMISSION_MAX_FILE_BYTES, files: 1, fields: 10, fieldSize: 8 * 1024 },
+  storage: temporaryDiskStorage,
+  limits: { fileSize: ATTACHMENT_MAX_FILE_BYTES, files: 2, fields: 10, fieldSize: 8 * 1024 },
   defParamCharset: 'utf8',
 });
 
+// Leftovers from an upload that was cut off by a restart.
+rm(submissionTemporaryDirectory, { recursive: true, force: true }).catch(() => {});
+
+const uploadedFiles = (req) => [...(req.files?.file || []), ...(req.files?.attachment || [])];
+const removeUploads = (req) => Promise.all(uploadedFiles(req).map((file) => rm(file.path, { force: true })));
+
 const receiveSubmissionFile = (req, res, next) => {
-  submissionUpload.single('file')(req, res, (error) => {
+  submissionUpload.fields([{ name: 'file', maxCount: 1 }, { name: 'attachment', maxCount: 1 }])(req, res, (error) => {
     if (!error) return next();
+    removeUploads(req).catch(() => {});
     if (!(error instanceof multer.MulterError)) return next(error);
     const message = error.code === 'LIMIT_FILE_SIZE'
-      ? `文件不能超过 ${SUBMISSION_MAX_FILE_BYTES / 1024 / 1024}MB`
-      : error.code === 'LIMIT_UNEXPECTED_FILE' || error.code === 'LIMIT_FILE_COUNT' ? '一次只能提交一个文件' : '提交失败，请检查表单后重试';
+      ? `单个文件不能超过 ${ATTACHMENT_MAX_FILE_BYTES / 1024 / 1024}MB`
+      : error.code === 'LIMIT_UNEXPECTED_FILE' || error.code === 'LIMIT_FILE_COUNT' ? '只能提交一份报告和一个压缩包' : '提交失败，请检查表单后重试';
     res.status(error.code === 'LIMIT_FILE_SIZE' ? 413 : 400).json({ message });
   });
 };
@@ -864,8 +918,35 @@ app.post('/api/recruit/:cohort/submissions', requireApplicant, limitSubmissions,
     // Who is applying comes from the account, never from the form: the same person always submits under the same identity.
     const { name, student_id: studentId, grade, major } = req.applicant;
     const fields = normalizeSubmissionFields({ ...req.body, name, student_id: studentId, grade, major }, req.cohort.submission);
-    const record = await submissionStore.add({ cohort: req.cohort.id, fields, file: req.file, lockDirection: Boolean(req.cohort.submission.directionLock?.locked) });
-    res.status(201).json({ id: record.id, created_at: record.created_at, final_name: record.final_name, version: record.version });
+    const [report] = req.files?.file || [];
+    const [attachment] = req.files?.attachment || [];
+    if (!report) return res.status(400).json({ message: '请选择要提交的报告文件' });
+    if (report.size > SUBMISSION_MAX_FILE_BYTES) return res.status(413).json({ message: `报告文件不能超过 ${SUBMISSION_MAX_FILE_BYTES / 1024 / 1024}MB` });
+    const file = { originalname: report.originalname, buffer: await readFile(report.path) };
+    const record = await submissionStore.add({
+      cohort: req.cohort.id,
+      fields,
+      file,
+      attachment: attachment ? { path: attachment.path, originalname: attachment.originalname, size: attachment.size } : null,
+      applicantId: req.applicant.id,
+      lockDirection: Boolean(req.cohort.submission.directionLock?.locked),
+    });
+    res.status(201).json({ id: record.id, created_at: record.created_at, final_name: record.final_name, attachment_name: record.attachment_name || '', version: record.version });
+  } catch (error) {
+    next(error);
+  } finally {
+    removeUploads(req).catch(() => {});
+  }
+});
+
+app.get('/api/recruit/submissions/:id/attachment', requireAuth, async (req, res, next) => {
+  try {
+    const entry = await submissionStore.getAttachment(req.params.id);
+    if (!entry) return res.status(404).json({ message: '这份提交没有压缩包' });
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.download(entry.filePath, entry.downloadName, (error) => {
+      if (error && !res.headersSent) res.status(404).json({ message: '文件不存在' });
+    });
   } catch (error) {
     next(error);
   }
@@ -1551,7 +1632,9 @@ app.use((error, _req, res, _next) => {
     const status = error.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
     return res.status(status).json({ message: error.code === 'LIMIT_FILE_SIZE' ? '文件不能超过 25MB' : '文件上传失败' });
   }
-  res.status(error.status || 500).json({ message: error.message || '服务器错误' });
+  // Unexpected errors (disk full, file system paths…) are logged above but never shown to visitors.
+  if (!error.status) return res.status(500).json({ message: '服务器出了点问题，请稍后重试；如果一直失败，请联系实验室' });
+  res.status(error.status).json({ message: error.message || '请求失败' });
 });
 
 httpServer.listen(port, () => {

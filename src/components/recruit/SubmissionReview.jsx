@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import useDocumentTitle from '@/hooks/use-document-title';
 import { useAuth } from '@/lib/AuthContext';
-import { fieldOfDirection, formatBeijingTime, formatFileSize, groupSubmissions, sectionSubmissionGroups, submissionFileUrl } from '@/lib/recruit';
+import { fieldOfDirection, formatBeijingTime, formatFileSize, groupSubmissions, sectionSubmissionGroups, submissionAttachmentUrl, submissionFileUrl } from '@/lib/recruit';
 import { cn } from '@/lib/utils';
 
 const FilePreview = lazy(() => import('@/components/recruit/FilePreview'));
@@ -21,8 +21,8 @@ const contactLine = (row) => [row.qq && `QQ ${row.qq}`, row.wechat && `微信 ${
 const escapeCsv = (value) => `"${String(value ?? '').replace(/"/g, '""').replace(/^([=+\-@])/, "'$1")}"`;
 
 const exportCsv = (cohortId, rows) => {
-  const header = ['提交时间', '方向', '姓名', '学号', '年级', '专业', 'QQ', '微信', '邮箱', '版本', '文件名', '备注'];
-  const lines = rows.map((row) => [formatBeijingTime(row.created_at), row.direction, row.name, row.student_id, row.grade, row.major, row.qq, row.wechat, row.email, `v${row.version}`, row.final_name, row.note]);
+  const header = ['提交时间', '方向', '姓名', '学号', '年级', '专业', 'QQ', '微信', '邮箱', '版本', '文件名', '压缩包', '备注'];
+  const lines = rows.map((row) => [formatBeijingTime(row.created_at), row.direction, row.name, row.student_id, row.grade, row.major, row.qq, row.wechat, row.email, `v${row.version}`, row.final_name, row.attachment_name || '', row.note]);
   const csv = `\uFEFF${[header, ...lines].map((line) => line.map(escapeCsv).join(',')).join('\r\n')}`;
   const link = document.createElement('a');
   link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
@@ -167,7 +167,8 @@ export default function SubmissionReview({ cohort, submissionId }) {
               {isAdmin && contactLine(selected) && <p className="mt-1 text-sm text-muted-foreground">{contactLine(selected)}</p>}
             </div>
             <div className="flex shrink-0 gap-2">
-              <Button asChild variant="outline" size="sm" className="gap-1.5"><a href={submissionFileUrl(selected.id, { download: true })}><Download size={14} aria-hidden="true" /> 下载</a></Button>
+              <Button asChild variant="outline" size="sm" className="gap-1.5"><a href={submissionFileUrl(selected.id, { download: true })}><Download size={14} aria-hidden="true" /> 下载报告</a></Button>
+              {selected.attachment_name && <Button asChild variant="outline" size="sm" className="gap-1.5"><a href={submissionAttachmentUrl(selected.id)}><Download size={14} aria-hidden="true" /> 下载代码与结果</a></Button>}
               {isAdmin && <Button type="button" variant="outline" size="sm" className="gap-1.5 text-destructive hover:text-destructive" disabled={removing} onClick={remove}>{removing ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Trash2 size={14} aria-hidden="true" />} 删除</Button>}
             </div>
           </header>
@@ -194,6 +195,9 @@ export default function SubmissionReview({ cohort, submissionId }) {
             <span className="break-all font-mono text-foreground">{selected.final_name}</span>
             <span>{formatFileSize(selected.size)}</span>
             <span>{formatBeijingTime(selected.created_at)}</span>
+            {selected.attachment_name
+              ? <span className="w-full break-all"><span className="font-mono text-foreground">{selected.attachment_name}</span> · {formatFileSize(selected.attachment_size)}</span>
+              : <span className="w-full">没有附带代码与结果压缩包</span>}
           </div>
           {selected.note && <p className="mt-3 whitespace-pre-line rounded-lg border border-border/75 bg-card px-4 py-3 text-sm text-foreground/90">备注：{selected.note}</p>}
 

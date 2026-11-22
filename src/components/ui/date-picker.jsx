@@ -10,6 +10,8 @@ const HOURS = Array.from({ length: 24 }, (_, index) => pad(index));
 const MINUTES = Array.from({ length: 60 }, (_, index) => pad(index));
 const TIME_SELECT = 'h-9 rounded-md border border-border/85 bg-background px-2 font-medium shadow-sm outline-none focus:ring-1 focus:ring-ring';
 const localDateValue = (date = new Date()) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+// Today's date as seen in a time zone (e.g. "Asia/Shanghai"), so "今天" does not depend on the computer's own clock setting.
+const todayValue = (timeZone) => (timeZone ? new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()) : localDateValue());
 
 const parseDateValue = (value) => {
   const [year, month, day] = String(value || '').slice(0, 10).split('-').map(Number);
@@ -25,7 +27,7 @@ const formatDateLabel = (value, includeTime) => {
   return includeTime && String(value).includes('T') ? `${label} ${String(value).slice(11, 16)}` : label;
 };
 
-export function DatePicker({ id, value, onChange, includeTime = false, defaultTime = '09:00', disablePast = false, placeholder = '选择日期', className, disabled = false }) {
+export function DatePicker({ id, value, onChange, includeTime = false, defaultTime = '09:00', disablePast = false, timeZone, placeholder = '选择日期', className, disabled = false }) {
   const [open, setOpen] = useState(false);
   const selected = parseDateValue(value);
   const timeValue = includeTime && String(value || '').includes('T') ? String(value).slice(11, 16) : defaultTime;
@@ -38,14 +40,14 @@ export function DatePicker({ id, value, onChange, includeTime = false, defaultTi
   };
 
   const selectToday = () => {
-    const today = localDateValue();
+    const today = todayValue(timeZone);
     onChange(includeTime ? `${today}T${timeValue}` : today);
     if (!includeTime) setOpen(false);
   };
 
   const [hour, minute] = timeValue.split(':');
   const changeTime = (nextHour, nextMinute) => {
-    onChange(`${String(value || '').slice(0, 10) || localDateValue()}T${nextHour}:${nextMinute}`);
+    onChange(`${String(value || '').slice(0, 10) || todayValue(timeZone)}T${nextHour}:${nextMinute}`);
   };
 
   return (
@@ -76,7 +78,7 @@ export function DatePicker({ id, value, onChange, includeTime = false, defaultTi
           defaultMonth={selected}
           onSelect={selectDate}
           locale={zhCN}
-          disabled={disablePast ? { before: parseDateValue(localDateValue()) } : undefined}
+          disabled={disablePast ? { before: parseDateValue(todayValue(timeZone)) } : undefined}
           initialFocus
           className="rounded-xl bg-secondary/30"
           classNames={{

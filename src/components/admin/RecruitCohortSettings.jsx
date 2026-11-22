@@ -177,10 +177,10 @@ export default function RecruitCohortSettings({ cohorts, onSaved, onRenamed }) {
             </div>
             <div className="space-y-4">
               <Field label="提交截止时间（北京时间，可选）" htmlFor={`cohort-deadline-${index}`} hint="在日历里选日期，再选具体时间，默认当天 23:59。点“清除”表示不设截止。">
-                <DatePicker id={`cohort-deadline-${index}`} includeTime defaultTime="23:59" value={toPickerValue(item.submission_deadline)} onChange={(value) => patch(index, { submission_deadline: fromPickerValue(value) })} placeholder="不设截止" />
+                <DatePicker id={`cohort-deadline-${index}`} includeTime timeZone="Asia/Shanghai" defaultTime="23:59" value={toPickerValue(item.submission_deadline)} onChange={(value) => patch(index, { submission_deadline: fromPickerValue(value) })} placeholder="不设截止" />
               </Field>
               <Field label="论文锁定时间（北京时间，可选）" htmlFor={`cohort-lock-${index}`} hint="到这个时间后，已经提交过的同学只能继续提交原来选的论文，不能再换；在这之前可以随便换，以最后一次提交为准。点“清除”表示不锁定。">
-                <DatePicker id={`cohort-lock-${index}`} includeTime defaultTime="23:59" value={toPickerValue(item.direction_lock_at)} onChange={(value) => patch(index, { direction_lock_at: fromPickerValue(value) })} placeholder="不锁定" />
+                <DatePicker id={`cohort-lock-${index}`} includeTime timeZone="Asia/Shanghai" defaultTime="23:59" value={toPickerValue(item.direction_lock_at)} onChange={(value) => patch(index, { direction_lock_at: fromPickerValue(value) })} placeholder="不锁定" />
               </Field>
               <label className="flex items-center gap-2 text-sm text-foreground">
                 <Switch checked={item.submissions} onCheckedChange={(value) => patch(index, { submissions: value })} aria-label="开放提交" />
