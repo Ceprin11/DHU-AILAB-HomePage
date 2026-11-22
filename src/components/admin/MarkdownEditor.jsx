@@ -142,7 +142,7 @@ const MarkdownEditor = forwardRef(function MarkdownEditor({ initialValue, cohort
     const crepe = new Crepe({
       root: host.current,
       defaultValue: altToCaption(initialValue),
-      features: { [Crepe.Feature.Latex]: false, [Crepe.Feature.AI]: false },
+      features: { [Crepe.Feature.AI]: false },
       featureConfigs: {
         [Crepe.Feature.Placeholder]: { text: LABELS.placeholder, mode: 'block' },
         [Crepe.Feature.BlockEdit]: { textGroup: LABELS.text, listGroup: LABELS.list, advancedGroup: LABELS.advanced },

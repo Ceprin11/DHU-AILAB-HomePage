@@ -365,4 +365,9 @@
   .doc-prose .doc-figure { @apply my-6 block text-center; }
   .doc-prose .doc-figure img { @apply my-0; }
   .doc-prose .doc-figcaption { @apply mt-2 block text-sm text-muted-foreground; }
+  .doc-prose .katex-display { @apply my-5 overflow-x-auto overflow-y-hidden py-1; }
+  .doc-prose .katex { font-size: 1.05em; }
+  .doc-prose .doc-mermaid { @apply my-6 flex justify-center overflow-x-auto rounded-xl border border-border/75 bg-card p-4; }
+  .doc-prose .doc-mermaid svg { @apply h-auto max-w-full; }
+  .doc-prose .doc-mermaid-loading { @apply text-sm text-muted-foreground; }
 }
