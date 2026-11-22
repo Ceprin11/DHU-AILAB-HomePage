@@ -2,7 +2,8 @@ import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
+import lazyWithRetry from '@/lib/lazy-with-retry';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import ScrollToTop from './components/ScrollToTop';
@@ -12,23 +13,23 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { domAnimation, LazyMotion } from 'framer-motion';
 import AppErrorBoundary from '@/components/AppErrorBoundary';
 
-const Members = lazy(() => import('@/pages/Members'));
-const Notifications = lazy(() => import('@/pages/Notifications'));
-const Awards = lazy(() => import('@/pages/Awards'));
-const Activities = lazy(() => import('@/pages/Activities'));
-const Videos = lazy(() => import('@/pages/Videos'));
-const Join = lazy(() => import('@/pages/Join'));
-const Recruit = lazy(() => import('@/pages/Recruit'));
-const QAPage = lazy(() => import('@/pages/QAPage'));
-const Resources = lazy(() => import('@/pages/Resources'));
-const Admin = lazy(() => import('@/pages/Admin'));
-const AdminLogin = lazy(() => import('@/pages/AdminLogin'));
-const ClubLife = lazy(() => import('@/pages/ClubLife'));
-const Gallery = lazy(() => import('@/pages/Gallery'));
-const Contribute = lazy(() => import('@/pages/Contribute'));
-const AIGuide = lazy(() => import('@/pages/AIGuide'));
-const MemberCenter = lazy(() => import('@/pages/MemberCenter'));
-const MemberPasswordChange = lazy(() => import('@/pages/MemberPasswordChange'));
+const Members = lazyWithRetry(() => import('@/pages/Members'));
+const Notifications = lazyWithRetry(() => import('@/pages/Notifications'));
+const Awards = lazyWithRetry(() => import('@/pages/Awards'));
+const Activities = lazyWithRetry(() => import('@/pages/Activities'));
+const Videos = lazyWithRetry(() => import('@/pages/Videos'));
+const Join = lazyWithRetry(() => import('@/pages/Join'));
+const Recruit = lazyWithRetry(() => import('@/pages/Recruit'));
+const QAPage = lazyWithRetry(() => import('@/pages/QAPage'));
+const Resources = lazyWithRetry(() => import('@/pages/Resources'));
+const Admin = lazyWithRetry(() => import('@/pages/Admin'));
+const AdminLogin = lazyWithRetry(() => import('@/pages/AdminLogin'));
+const ClubLife = lazyWithRetry(() => import('@/pages/ClubLife'));
+const Gallery = lazyWithRetry(() => import('@/pages/Gallery'));
+const Contribute = lazyWithRetry(() => import('@/pages/Contribute'));
+const AIGuide = lazyWithRetry(() => import('@/pages/AIGuide'));
+const MemberCenter = lazyWithRetry(() => import('@/pages/MemberCenter'));
+const MemberPasswordChange = lazyWithRetry(() => import('@/pages/MemberPasswordChange'));
 
 const PageLoading = () => (
   <div className="page-shell page-section" role="status" aria-live="polite">

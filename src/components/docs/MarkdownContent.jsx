@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeSlug from 'rehype-slug';
 import remarkGfm from 'remark-gfm';
 import { Link } from 'react-router-dom';
 import MermaidDiagram from '@/components/docs/MermaidDiagram';
+import { importWithRetry } from '@/lib/lazy-with-retry';
 
 const EXTERNAL_URL = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i;
 const PAGE_LINK = /^(?:\.\/)?([^/?#:]+)\.md(#.*)?$/;
@@ -30,6 +31,22 @@ export const resolveDocsPageLink = (cohort, href) => {
   return `/recruit/${encodeURIComponent(cohort)}${slug === 'index' ? '' : `/${encodeURIComponent(slug)}`}${match[2] || ''}`;
 };
 
+// When many people open the same page at once, the reverse proxy may turn some image requests away (429). The
+// browser does not try again by itself, so the image retries a few times with a short wait.
+const IMAGE_RETRY_DELAYS_MS = [1000, 2500, 5000];
+function RetryingImage({ src, alt }) {
+  const [attempt, setAttempt] = useState(0);
+  const timer = useRef(null);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+  useEffect(() => { setAttempt(0); }, [src]);
+  const current = attempt && src ? `${src}${src.includes('?') ? '&' : '?'}retry=${attempt}` : src;
+  const handleError = () => {
+    if (attempt >= IMAGE_RETRY_DELAYS_MS.length) return;
+    timer.current = window.setTimeout(() => setAttempt((value) => value + 1), IMAGE_RETRY_DELAYS_MS[attempt]);
+  };
+  return <img src={current} alt={alt} loading="lazy" decoding="async" onError={handleError} />;
+}
+
 const buildComponents = (cohort) => ({
   a({ href, children }) {
     const pagePath = resolveDocsPageLink(cohort, href);
@@ -42,7 +59,7 @@ const buildComponents = (cohort) => ({
   // The visual editor stores a resize ratio ("1.00") in the alt slot and the caption in the title.
   img({ src, alt, title }) {
     const description = /^\d+(\.\d+)?$/.test(alt || '') ? '' : alt || '';
-    const image = <img src={resolveDocsAssetUrl(cohort, src)} alt={description || title || ''} loading="lazy" decoding="async" />;
+    const image = <RetryingImage src={resolveDocsAssetUrl(cohort, src)} alt={description || title || ''} />;
     return title ? <span className="doc-figure">{image}<span className="doc-figcaption">{title}</span></span> : image;
   },
   // ```mermaid blocks become diagrams; every other code block stays as it is.
@@ -75,7 +92,9 @@ export default function MarkdownContent({ cohort, children }) {
   React.useEffect(() => {
     if (!needsMath || math) return undefined;
     let cancelled = false;
-    import('@/components/docs/math-plugins').then((module) => { if (!cancelled) setMath(module.default); });
+    importWithRetry(() => import('@/components/docs/math-plugins'))
+      .then((module) => { if (!cancelled) setMath(module.default); })
+      .catch(() => {});
     return () => { cancelled = true; };
   }, [needsMath, math]);
 

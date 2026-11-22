@@ -17,7 +17,10 @@ export default function MemberPasswordChange() {
   const [saving, setSaving] = useState(false);
 
   if (!user) return <Navigate to="/admin-login" replace />;
-  if (!user.is_member) return <Navigate to="/admin" replace />;
+  // The super administrator has no member profile, but can change its own password here.
+  const isSuper = Boolean(user.is_super);
+  if (!user.is_member && !isSuper) return <Navigate to="/admin" replace />;
+  const minLength = isSuper ? 12 : 8;
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -26,14 +29,14 @@ export default function MemberPasswordChange() {
       setError('两次输入的新密码不一致');
       return;
     }
-    if (newPassword.length < 8) {
-      setError('新密码至少需要 8 位');
+    if (newPassword.length < minLength) {
+      setError(`新密码至少需要 ${minLength} 位`);
       return;
     }
     setSaving(true);
     try {
       await changePassword(currentPassword, newPassword);
-      navigate('/', { replace: true });
+      navigate(isSuper ? '/admin' : '/', { replace: true });
     } catch (changeError) {
       setError(changeError.message || '密码修改失败');
       setSaving(false);
@@ -56,10 +59,12 @@ export default function MemberPasswordChange() {
           <KeyRound size={20} strokeWidth={1.8} aria-hidden="true" />
         </div>
         <h1 className="mt-5 font-display text-2xl font-bold tracking-tight text-foreground">
-          {user.must_change_password ? '设置新的登录密码' : '修改登录密码'}
+          {isSuper ? '修改管理员密码' : user.must_change_password ? '设置新的登录密码' : '修改登录密码'}
         </h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          {user.must_change_password ? '首次登录需要修改初始密码，完成后才能进入成员中心。' : '请输入当前密码并设置新的登录密码。'}
+          {isSuper
+            ? '修改后，原来的管理员密码（包括服务器配置里的那个）立即失效，其他已登录的管理员会话也会退出。新密码至少 12 位。'
+            : user.must_change_password ? '首次登录需要修改初始密码，完成后才能进入成员中心。' : '请输入当前密码并设置新的登录密码。'}
         </p>
 
         {error && (
@@ -78,14 +83,14 @@ export default function MemberPasswordChange() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="new-password">新密码</Label>
-            <Input id="new-password" type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={8} maxLength={128} placeholder="至少 8 位" className="h-11" required />
+            <Input id="new-password" type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={minLength} maxLength={128} placeholder={`至少 ${minLength} 位`} className="h-11" required />
           </div>
           <div className="space-y-2">
             <Label htmlFor="confirm-password">确认新密码</Label>
-            <Input id="confirm-password" type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} minLength={8} maxLength={128} className="h-11" required />
+            <Input id="confirm-password" type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} minLength={minLength} maxLength={128} className="h-11" required />
           </div>
           <Button type="submit" className="h-11 w-full font-semibold" disabled={saving}>
-            {saving ? '正在保存' : '保存并返回主页'}
+            {saving ? '正在保存' : isSuper ? '保存并返回后台' : '保存并返回主页'}
           </Button>
         </form>
 

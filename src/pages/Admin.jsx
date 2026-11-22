@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Loader2, LogOut, Save, Settings } from 'lucide-react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { KeyRound, Loader2, LogOut, Save, Settings, ShieldAlert } from 'lucide-react';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { api } from '@/api/client';
 import { useAuth } from '@/lib/AuthContext';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -242,7 +242,7 @@ export default function Admin() {
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-12 sm:px-8 sm:py-16">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2.5">
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground"><Settings size={18} /></span>
           <div>
@@ -250,10 +250,24 @@ export default function Admin() {
             <p className="font-mono-date text-xs text-muted-foreground">AILAB Admin Console · {user.is_super ? '超级管理员' : `成员管理员 ${user.full_name}`}</p>
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={handleLogout} className="gap-1.5">
-          <LogOut size={15} /> 退出登录
-        </Button>
+        <div className="flex shrink-0 gap-2">
+          {user.is_super && (
+            <Button asChild variant="outline" size="sm" className="gap-1.5">
+              <Link to="/member-password"><KeyRound size={15} /> 修改密码</Link>
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={handleLogout} className="gap-1.5">
+            <LogOut size={15} /> 退出登录
+          </Button>
+        </div>
       </div>
+
+      {user.is_super && user.password_customized === false && (
+        <div role="alert" className="mt-6 flex flex-col gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-5 py-4 text-sm text-foreground sm:flex-row sm:items-center sm:justify-between">
+          <p className="flex items-start gap-2.5"><ShieldAlert size={18} className="mt-0.5 shrink-0 text-destructive" aria-hidden="true" /><span>超级管理员还在用服务器配置里的初始密码，这个密码在公开的代码仓库里出现过。请现在修改，修改后旧密码立即失效。</span></p>
+          <Button asChild size="sm" className="shrink-0"><Link to="/member-password">修改密码</Link></Button>
+        </div>
+      )}
 
       <Tabs defaultValue="members" className="mt-8">
         <TabsList className="flex w-full flex-wrap justify-start gap-1 h-auto bg-secondary/50 p-1">

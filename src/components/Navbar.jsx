@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { AnimatePresence, m, useReducedMotion } from 'framer-motion';
-import { BookOpen, ChevronDown, ChevronRight, CircleHelp, Images, LogOut, Menu, Settings, Trophy, UserRound, X } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronRight, CircleHelp, Images, KeyRound, LogOut, Menu, Settings, Trophy, UserRound, X } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { cn } from '@/lib/utils';
 import { useSiteText } from '@/lib/siteText';
@@ -111,6 +111,7 @@ export default function Navbar() {
                 <DropdownMenuLabel className="px-2.5 pb-1 pt-3 font-mono-date text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">账号</DropdownMenuLabel>
                 <AccountMenuLink to={accountLink} icon={user.role === 'admin' ? Settings : UserRound} title={accountLabel} description={user.role === 'admin' ? '管理网站内容与账号' : '维护个人资料与头像'} />
                 {user.role === 'admin' && user.is_member && <AccountMenuLink to="/member-center" icon={UserRound} title="个人中心" description="维护个人资料与头像" />}
+                {user.is_super && <AccountMenuLink to="/member-password" icon={KeyRound} title="修改管理员密码" description={user.password_customized ? '更换超级管理员的登录密码' : '还在用服务器配置里的初始密码，请尽快修改'} />}
                 <DropdownMenuSeparator className="my-2" />
                 <DropdownMenuLabel className="px-2.5 pb-1 pt-1 font-mono-date text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">内容管理</DropdownMenuLabel>
                 <AccountMenuLink to="/gallery" icon={Images} title="相册管理" description={user.role === 'admin' ? '管理相册并选择主页照片' : '上传和整理公共相册'} />
@@ -177,6 +178,7 @@ export default function Navbar() {
                   <p className="px-2 pb-1 font-mono-date text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">账号</p>
                   <MobileAccountLink to={accountLink} icon={user.role === 'admin' ? Settings : UserRound} title={accountLabel} onClick={() => setOpen(false)} />
                   {user.role === 'admin' && user.is_member && <MobileAccountLink to="/member-center" icon={UserRound} title="个人中心" onClick={() => setOpen(false)} />}
+                  {user.is_super && <MobileAccountLink to="/member-password" icon={KeyRound} title="修改管理员密码" onClick={() => setOpen(false)} />}
                   <div className="my-2 h-px bg-border" />
                   <p className="px-2 pb-1 font-mono-date text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">内容管理</p>
                   <MobileAccountLink to="/gallery" icon={Images} title="相册管理" onClick={() => setOpen(false)} />
