@@ -50,7 +50,7 @@ function Field({ label, htmlFor, hint, children }) {
   );
 }
 
-export default function RecruitCohortSettings({ cohorts, onSaved }) {
+export default function RecruitCohortSettings({ cohorts, onSaved, onRenamed }) {
   const [drafts, setDrafts] = useState(() => cohorts.map(toDraft));
   const [status, setStatus] = useState({ busy: false, error: '', notice: '' });
 
@@ -95,6 +95,21 @@ export default function RecruitCohortSettings({ cohorts, onSaved }) {
     setDrafts((current) => current.filter((_, position) => position !== index));
   };
 
+  const rename = async (item) => {
+    const input = window.prompt(`把批次编号「${item.id}」改成（小写字母、数字和连字符，如 2026-fall）：`, item.id);
+    const next = (input || '').trim().toLowerCase();
+    if (!next || next === item.id) return;
+    if (!window.confirm(`确认把「${item.id}」改成「${next}」？\n\n文档、图片附件和已收到的提交会一起迁移，页面网址会从 /recruit/${item.id} 变成 /recruit/${next}，旧网址不再有效。\n\n这个页面上还没保存的修改会丢失。`)) return;
+    setStatus({ busy: true, error: '', notice: '' });
+    try {
+      const result = await api.recruitAdmin.renameCohort(item.id, next);
+      setStatus({ busy: false, error: '', notice: `批次编号已改为 ${result.id}。` });
+      onRenamed(result.id, result.cohorts);
+    } catch (error) {
+      setStatus({ busy: false, error: error.message || '修改失败', notice: '' });
+    }
+  };
+
   const save = async () => {
     setStatus({ busy: true, error: '', notice: '' });
     try {
@@ -114,8 +129,11 @@ export default function RecruitCohortSettings({ cohorts, onSaved }) {
         <fieldset key={item.existing ? item.id : `new-${index}`} className="min-w-0 space-y-4 rounded-xl border border-border/75 bg-card px-4 pb-5 pt-2 sm:px-5">
           <legend className="px-2 text-sm font-semibold text-foreground">{item.label || item.id || '新批次'}</legend>
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="批次编号" htmlFor={`cohort-id-${index}`} hint={item.existing ? '已创建的编号不能修改。' : '小写字母、数字和连字符，如 2027-autumn。'}>
-              <Input id={`cohort-id-${index}`} value={item.id} disabled={item.existing} onChange={(event) => patch(index, { id: event.target.value.trim().toLowerCase() })} className="font-mono text-sm" />
+            <Field label="批次编号" htmlFor={`cohort-id-${index}`} hint={item.existing ? '编号是网址的一部分，要改请点右侧的“修改编号”。' : '小写字母、数字和连字符，如 2027-fall。'}>
+              <div className="flex gap-2">
+                <Input id={`cohort-id-${index}`} value={item.id} disabled={item.existing} onChange={(event) => patch(index, { id: event.target.value.trim().toLowerCase() })} className="font-mono text-sm" />
+                {item.existing && <Button type="button" variant="outline" size="sm" className="shrink-0" disabled={status.busy} onClick={() => rename(item)}>修改编号</Button>}
+              </div>
             </Field>
             <Field label="显示名称" htmlFor={`cohort-label-${index}`}><Input id={`cohort-label-${index}`} value={item.label} maxLength={40} onChange={(event) => patch(index, { label: event.target.value })} placeholder="如 26 秋季招新" /></Field>
             <Field label="状态">

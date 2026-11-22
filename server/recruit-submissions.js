@@ -187,6 +187,15 @@ export const createSubmissionStore = (dataDirectory) => {
       });
     },
 
+    renameCohort(cohort, nextCohort) {
+      return enqueue(async () => {
+        const records = await readIndex();
+        const count = records.filter((record) => record.cohort === cohort).length;
+        if (count) await writeIndex(records.map((record) => (record.cohort === cohort ? { ...record, cohort: nextCohort } : record)));
+        return count;
+      });
+    },
+
     async list(cohort, options) {
       const records = await readIndex();
       return records

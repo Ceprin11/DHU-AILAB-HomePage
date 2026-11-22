@@ -730,6 +730,44 @@ export const createDocsStore = (contentDirectory, { now = () => new Date() } = {
       });
     },
 
+    // Changes a cohort's id: the folder (pages and assets live inside it) and the manifest entry move together.
+    // Pages refer to images by relative paths, so nothing inside the documents needs rewriting.
+    renameCohort(cohortId, nextId) {
+      return enqueue(async () => {
+        const target = String(nextId ?? '').trim();
+        if (!COHORT_ID_PATTERN.test(target) || target.length > 40) throw createError('批次编号只能用小写字母、数字和连字符，例如 2026-fall');
+        const manifest = await readCohortManifest();
+        if (!manifest.some((cohort) => cohort.id === cohortId)) throw createError('没有找到这一期招新', 404);
+        if (target === cohortId) throw createError('新编号和原来的一样');
+        if (manifest.some((cohort) => cohort.id === target)) throw createError('这个批次编号已经有了');
+        const from = cohortDirectory(cohortId);
+        const to = cohortDirectory(target);
+        if (!from || !to) throw createError('批次编号不正确');
+        let targetExists = true;
+        try {
+          await stat(to);
+        } catch (error) {
+          if (error.code !== 'ENOENT') throw error;
+          targetExists = false;
+        }
+        if (targetExists) throw createError('服务器上已经有同名的文档目录，请先处理它');
+        let moved = true;
+        try {
+          await rename(from, to);
+        } catch (error) {
+          if (error.code !== 'ENOENT') throw error;
+          moved = false; // a cohort that never got any documents has no folder yet
+        }
+        try {
+          await writeManifest(manifest.map((cohort) => normalizeCohortInput(cohort.id === cohortId ? { ...cohort, id: target } : cohort)));
+        } catch (error) {
+          if (moved) await rename(to, from);
+          throw error;
+        }
+        return target;
+      });
+    },
+
     cancelSchedule(cohortId) {
       return enqueue(async () => {
         const manifest = await readCohortManifest();

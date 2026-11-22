@@ -963,6 +963,21 @@ const sendCohortState = async (res, cohortId, extra = {}) => {
   res.json({ cohort, ...extra });
 };
 
+app.put('/api/admin/recruit/:cohort/rename', requireAdmin, async (req, res, next) => {
+  try {
+    const id = await docsStore.renameCohort(req.params.cohort, req.body?.id);
+    try {
+      await submissionStore.renameCohort(req.params.cohort, id);
+    } catch (error) {
+      await docsStore.renameCohort(id, req.params.cohort);
+      throw error;
+    }
+    res.json({ id, cohorts: await docsStore.readCohortsForAdmin() });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.put('/api/admin/recruit/:cohort/submissions-open', requireAdmin, async (req, res, next) => {
   try {
     if (typeof req.body?.open !== 'boolean') return res.status(400).json({ message: '请指定开启或关闭' });
