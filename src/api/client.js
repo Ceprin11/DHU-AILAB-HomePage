@@ -20,7 +20,8 @@ function uploadWithProgress(url, formData, { onProgress, stallMs = 120000 } = {}
       let data = {};
       try { data = JSON.parse(xhr.responseText || '{}'); } catch { data = {}; }
       if (xhr.status >= 200 && xhr.status < 300) return resolve(data);
-      const error = new Error(data.message || (xhr.status === 413 ? '文件太大，请压缩后重试' : '提交失败，请稍后重试'));
+      const fallback = xhr.status === 413 ? '文件太大，请压缩后重试' : xhr.status === 429 ? '现在访问的人比较多，提交没有完成，请稍等几秒再提交' : '提交失败，请稍后重试';
+      const error = new Error(data.message || fallback);
       error.status = xhr.status;
       reject(error);
     };
@@ -31,37 +32,67 @@ function uploadWithProgress(url, formData, { onProgress, stallMs = 120000 } = {}
   });
 }
 
+// The reverse proxy in front of the site answers 429 (with no JSON body) when one network sends many requests at
+// once, for example a whole dorm opening the recruitment page together. Those requests never reached the site, so
+// they are safe to send again after a short wait. A 429 from the site itself (too many logins, registrations or
+// submissions) carries a JSON message and is not retried.
+const PROXY_RETRY_DELAYS_MS = [700, 1500, 3000, 5000];
+const sleep = (ms) => new Promise((resolve) => { window.setTimeout(resolve, ms); });
+export const isProxyThrottle = (response) => response.status === 429 && !(response.headers.get('content-type') || '').includes('application/json');
+export const proxyRetryDelay = (response, attempt) => {
+  const retryAfter = Number(response.headers.get('retry-after'));
+  const base = Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter * 1000, 8000) : PROXY_RETRY_DELAYS_MS[attempt];
+  return base + Math.round(Math.random() * 400);
+};
+
 async function request(url, options = {}) {
   const { timeoutMs = 10000, ...fetchOptions } = options;
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
   let response;
 
-  try {
-    response = await fetch(url, {
-      credentials: 'same-origin',
-      ...fetchOptions,
-      signal: controller.signal,
-      headers: {
-        ...(fetchOptions.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
-        ...fetchOptions.headers,
-      },
-    });
-  } catch (error) {
-    if (error?.name === 'AbortError') throw new Error('请求超时，请检查网络后重试');
-    throw error;
-  } finally {
-    window.clearTimeout(timeout);
+  for (let attempt = 0; ; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      response = await fetch(url, {
+        credentials: 'same-origin',
+        ...fetchOptions,
+        signal: controller.signal,
+        headers: {
+          ...(fetchOptions.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+          ...fetchOptions.headers,
+        },
+      });
+    } catch (error) {
+      if (error?.name === 'AbortError') throw new Error('请求超时，请检查网络后重试');
+      throw error;
+    } finally {
+      window.clearTimeout(timeout);
+    }
+    if (!isProxyThrottle(response) || attempt >= PROXY_RETRY_DELAYS_MS.length) break;
+    await sleep(proxyRetryDelay(response, attempt));
   }
 
   if (response.status === 204) return null;
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(data.message || '请求失败');
+    const error = new Error(data.message || (response.status === 429 ? '现在访问的人比较多，请稍等几秒再试' : '请求失败'));
     error.status = response.status;
     throw error;
   }
   return data;
+}
+
+// Public recruitment pages are read by several components at once (and again after /recruit redirects to a cohort).
+// Identical reads within a few seconds share one request. The administrator's preview always reads fresh.
+const sharedReads = new Map();
+const SHARED_READ_TTL_MS = 15 * 1000;
+function sharedRead(url) {
+  const cached = sharedReads.get(url);
+  if (cached && Date.now() - cached.at < SHARED_READ_TTL_MS) return cached.promise;
+  const promise = request(url);
+  sharedReads.set(url, { at: Date.now(), promise });
+  promise.catch(() => { if (sharedReads.get(url)?.promise === promise) sharedReads.delete(url); });
+  return promise;
 }
 
 const entityListCache = new Map();
@@ -132,6 +163,12 @@ export const api = {
     },
     me() {
       return request('/api/auth/me');
+    },
+    changeAdminPassword(currentPassword, newPassword) {
+      return request('/api/auth/admin-password', {
+        method: 'POST',
+        body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+      });
     },
     changePassword(currentPassword, newPassword) {
       return request('/api/auth/change-password', {
@@ -222,6 +259,9 @@ export const api = {
     homePhotos() {
       return request('/api/public/home-photos');
     },
+    stats() {
+      return request('/api/public/stats');
+    },
     albums(category) {
       return request(`/api/public/albums?${new URLSearchParams({ category })}`);
     },
@@ -229,13 +269,15 @@ export const api = {
   docs: {
     // `preview` asks for the administrator's view: unpublished cohorts and draft pages, as they will look once published.
     cohorts({ preview = false } = {}) {
-      return request(`/api/docs/cohorts${preview ? '?preview=1' : ''}`);
+      return preview ? request('/api/docs/cohorts?preview=1') : sharedRead('/api/docs/cohorts');
     },
     pages(cohort, { preview = false } = {}) {
-      return request(`/api/docs/${encodeURIComponent(cohort)}/pages${preview ? '?preview=1' : ''}`);
+      const url = `/api/docs/${encodeURIComponent(cohort)}/pages`;
+      return preview ? request(`${url}?preview=1`) : sharedRead(url);
     },
     page(cohort, slug, { preview = false } = {}) {
-      return request(`/api/docs/${encodeURIComponent(cohort)}/pages/${encodeURIComponent(slug)}${preview ? '?preview=1' : ''}`);
+      const url = `/api/docs/${encodeURIComponent(cohort)}/pages/${encodeURIComponent(slug)}`;
+      return preview ? request(`${url}?preview=1`) : sharedRead(url);
     },
   },
   recruit: {

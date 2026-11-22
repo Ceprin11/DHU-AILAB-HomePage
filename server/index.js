@@ -24,6 +24,7 @@ import { ATTACHMENT_MAX_FILE_BYTES, createSubmissionStore, MARKUP_EXTENSIONS, no
 import { executeMemberImport, planMemberImport } from './member-import.js';
 import { isPublicMember } from './member-visibility.js';
 import { isPublicAlbumCategory, serializePublicAlbum } from './public-albums.js';
+import { createAdminCredentials, loadSessionKey } from './site-secrets.js';
 import { createStore } from './store.js';
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -61,6 +62,10 @@ await Promise.all([
   mkdir(originalUploadsDirectory, { recursive: true }),
   mkdir(imageVariantsDirectory, { recursive: true }),
 ]);
+// Session cookies are signed with SESSION_SECRET mixed with a key that only exists on this server (data/secrets),
+// and the super administrator's password can be changed from the website (stored in data/secrets as well).
+const sessionKey = await loadSessionKey(dataDirectory, sessionSecret);
+const adminCredentials = createAdminCredentials(dataDirectory, { environmentPassword: adminPassword });
 const store = createStore(dataDirectory);
 const memberAccountStore = createMemberAccountStore(dataDirectory);
 if (await seedContentDirectory(recruitSeedDirectory, recruitContentDirectory)) console.log('Recruitment content seeded from content/recruit');
@@ -441,14 +446,14 @@ const parseCookies = (header = '') => Object.fromEntries(
 
 const createSession = (session, ttlMs = 12 * 60 * 60 * 1000) => {
   const payload = Buffer.from(JSON.stringify({ ...session, exp: Date.now() + ttlMs })).toString('base64url');
-  const signature = crypto.createHmac('sha256', sessionSecret).update(payload).digest('base64url');
+  const signature = crypto.createHmac('sha256', sessionKey).update(payload).digest('base64url');
   return `${payload}.${signature}`;
 };
 
 const verifySession = (token = '', roles = ['admin', 'member']) => {
   const [payload, signature] = token.split('.');
   if (!payload || !signature) return false;
-  const expected = crypto.createHmac('sha256', sessionSecret).update(payload).digest('base64url');
+  const expected = crypto.createHmac('sha256', sessionKey).update(payload).digest('base64url');
   if (signature.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return false;
   try {
     const session = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
@@ -463,7 +468,7 @@ const resolveSession = async (req) => {
   const token = parseCookies(req.headers.cookie)[sessionCookie];
   const session = verifySession(token);
   if (!session) return null;
-  if (session.role === 'admin') return { role: 'admin', super: true };
+  if (session.role === 'admin') return (session.v || 0) === await adminCredentials.version() ? { role: 'admin', super: true } : null;
   const account = await memberAccountStore.getByMemberId(session.member_id);
   if (!account || !account.active || account.session_version !== session.session_version) return null;
   const member = await store.get('Member', session.member_id);
@@ -536,6 +541,9 @@ const memberUser = (member, account) => ({
   must_change_password: account.must_change_password,
 });
 
+// password_customized is false while the super administrator still signs in with ADMIN_PASSWORD from the environment.
+const superAdminUser = async () => ({ id: 'ailab-admin', role: 'admin', is_super: true, full_name: 'AILAB 管理员', headline: '管理员', password_customized: await adminCredentials.isCustomized() });
+
 const registerLoginFailure = (clientKey, attempt, now) => {
   loginAttempts.set(clientKey, {
     count: (attempt?.count || 0) + 1,
@@ -558,10 +566,10 @@ app.post('/api/auth/login', async (req, res) => {
     res.setHeader('Retry-After', String(Math.ceil((attempt.resetAt - now) / 1000)));
     return res.status(429).json({ message: '登录尝试次数过多，请稍后再试' });
   }
-  if (normalizedAccount === adminAccount && password === adminPassword) {
+  if (normalizedAccount === adminAccount && await adminCredentials.verify(password || '')) {
     loginAttempts.delete(clientKey);
-    setSessionCookie(res, { role: 'admin' });
-    return res.json({ id: 'ailab-admin', role: 'admin', is_super: true, full_name: 'AILAB 管理员', headline: '管理员' });
+    setSessionCookie(res, { role: 'admin', v: await adminCredentials.version() });
+    return res.json(await superAdminUser());
   }
 
   const memberAccount = await memberAccountStore.authenticate(normalizedAccount, password || '');
@@ -576,9 +584,13 @@ app.post('/api/auth/login', async (req, res) => {
   res.json(memberUser(member, memberAccount));
 });
 
-app.get('/api/auth/me', requireAuth, (req, res) => {
-  if (req.auth.super) return res.json({ id: 'ailab-admin', role: 'admin', is_super: true, full_name: 'AILAB 管理员', headline: '管理员' });
-  res.json(memberUser(req.auth.member, req.auth.account));
+app.get('/api/auth/me', requireAuth, async (req, res, next) => {
+  try {
+    if (req.auth.super) return res.json(await superAdminUser());
+    res.json(memberUser(req.auth.member, req.auth.account));
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.post('/api/auth/change-password', requireMember, async (req, res, next) => {
@@ -587,6 +599,19 @@ app.post('/api/auth/change-password', requireMember, async (req, res, next) => {
     const account = await memberAccountStore.changePassword(req.auth.member.id, currentPassword || '', newPassword || '');
     setSessionCookie(res, { role: 'member', member_id: req.auth.member.id, session_version: account.session_version });
     res.json(memberUser(req.auth.member, account));
+  } catch (error) {
+    next(error);
+  }
+});
+
+// The super administrator (ADMIN_ACCOUNT) changes its own password. Every other administrator session ends.
+app.post('/api/auth/admin-password', requireAdmin, async (req, res, next) => {
+  try {
+    if (!req.auth.super) return res.status(403).json({ message: '只有超级管理员账号可以在这里修改密码' });
+    const { current_password: currentPassword, new_password: newPassword } = req.body || {};
+    const version = await adminCredentials.change(currentPassword || '', newPassword || '');
+    setSessionCookie(res, { role: 'admin', v: version });
+    res.json(await superAdminUser());
   } catch (error) {
     next(error);
   }
@@ -646,6 +671,21 @@ app.get('/api/public/members', async (req, res, next) => {
     const records = await store.list('Member', req.query.sort, req.query.limit || 500);
     res.setHeader('Cache-Control', 'no-store');
     res.json(records.filter(isPublicMember));
+  } catch (error) {
+    next(error);
+  }
+});
+
+// The footer and the home page only show how many members, awards and activities there are.
+app.get('/api/public/stats', async (_req, res, next) => {
+  try {
+    const [members, awards, activities] = await Promise.all([
+      store.list('Member', '', 500),
+      store.list('Award', '', 500),
+      store.list('Activity', '', 500),
+    ]);
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ members: members.filter(isPublicMember).length, awards: awards.length, activities: activities.length });
   } catch (error) {
     next(error);
   }

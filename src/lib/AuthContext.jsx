@@ -29,7 +29,9 @@ export function AuthProvider({ children }) {
   };
 
   const changePassword = async (currentPassword, newPassword) => {
-    const updatedUser = await api.auth.changePassword(currentPassword, newPassword);
+    const updatedUser = user?.is_super
+      ? await api.auth.changeAdminPassword(currentPassword, newPassword)
+      : await api.auth.changePassword(currentPassword, newPassword);
     setUser(updatedUser);
     return updatedUser;
   };

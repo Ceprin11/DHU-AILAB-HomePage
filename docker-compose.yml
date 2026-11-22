@@ -3,7 +3,8 @@ services:
     image: crpi-o9yt3hdv6ozp2o64.cn-heyuan.personal.cr.aliyuncs.com/dhu-ailab/ailab-homepage:latest
     build: .
     ports:
-      - 3001:3000
+      # Only reachable from the server itself; visitors come in through Traefik.
+      - 127.0.0.1:3001:3000
     volumes:
       - ./data:/app/data
     environment:
@@ -11,8 +12,9 @@ services:
       NODE_ENV: production
       PORT: 3000
       ADMIN_ACCOUNT: AILAB
-      ADMIN_PASSWORD: ai_lab_nb!!!!
-      SESSION_SECRET: G3UVD8l13ea0Je6QgghWfTxokb/X73NCEHacIZ1cWhw=
+      # Real values live only on the server (/data/compose/ailab), never in this repository.
+      ADMIN_PASSWORD: replace-with-a-long-random-password
+      SESSION_SECRET: replace-with-output-of-openssl-rand-base64-32
       DATA_DIR: data
       COOKIE_SECURE: true
       TRUST_PROXY: true
