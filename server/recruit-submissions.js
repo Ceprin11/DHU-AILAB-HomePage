@@ -109,7 +109,7 @@ export const checkDirectionLock = (records, cohort, fields) => {
   const latest = mine.reduce((best, record) => (record.created_at >= best.created_at ? record : best));
   if (!sameName(latest.name, fields.name)) throw createError('学号和姓名与之前提交的记录不一致，请核对后再提交', 403);
   // The message must not name the paper: someone who only knows a student id and name would learn another person's choice.
-  if (latest.direction !== fields.direction) throw createError('论文已经锁定：只能继续提交你第一次选的那一篇，请重新选择论文', 409);
+  if (latest.direction !== fields.direction) throw createError('论文已经锁定：只能继续提交你之前选的那一篇，请重新选择论文', 409);
 };
 
 export const createSubmissionStore = (dataDirectory) => {
@@ -194,6 +194,18 @@ export const createSubmissionStore = (dataDirectory) => {
         if (count) await writeIndex(records.map((record) => (record.cohort === cohort ? { ...record, cohort: nextCohort } : record)));
         return count;
       });
+    },
+
+    // One applicant's own submissions in a cohort, newest first, with their contact details for pre-filling the form.
+    async listOwn(cohort, studentId) {
+      const records = await readIndex();
+      return records
+        .filter((record) => record.cohort === cohort && sameStudent(record.student_id, studentId))
+        .reverse() // records are stored oldest first; reversing makes same-millisecond ties come out newest first
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+        .map(({ id, direction, version, final_name: finalName, size, created_at: createdAt, qq = '', wechat = '', email = '' }) => ({
+          id, direction, version, final_name: finalName, size, created_at: createdAt, qq, wechat, email,
+        }));
     },
 
     async list(cohort, options) {

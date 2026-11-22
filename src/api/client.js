@@ -218,6 +218,9 @@ export const api = {
   },
   // Accounts for applicants: separate from member accounts, only good for filling in the application.
   applicant: {
+    mySubmissions(cohort) {
+      return request(`/api/recruit/${encodeURIComponent(cohort)}/my-submissions`);
+    },
     me() {
       return request('/api/recruit/me');
     },

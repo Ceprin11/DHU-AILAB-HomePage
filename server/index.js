@@ -790,6 +790,19 @@ app.post('/api/recruit/logout', (_req, res) => {
 
 app.get('/api/recruit/me', requireApplicant, (req, res) => res.json(applicantUser(req.applicant)));
 
+// The signed-in applicant's own submissions in this cohort, and the paper they are held to once the choice is locked.
+app.get('/api/recruit/:cohort/my-submissions', requireApplicant, async (req, res, next) => {
+  try {
+    const cohort = await docsStore.getCohort(req.params.cohort);
+    if (!cohort) return res.status(404).json({ message: '没有找到这一期招新' });
+    const submissions = await submissionStore.listOwn(cohort.id, req.applicant.student_id);
+    const locked = Boolean(cohort.submission.directionLock?.locked) && submissions.length > 0;
+    res.json({ submissions, locked_direction: locked ? submissions[0].direction : '' });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post('/api/recruit/password', requireApplicant, async (req, res, next) => {
   try {
     const applicant = await applicantStore.changePassword(req.applicant.id, req.body?.current_password, req.body?.new_password);

@@ -76,3 +76,22 @@ test('moves the received submissions to the new cohort id', async () => {
     await cleanup();
   }
 });
+
+test('lists only the applicant\'s own submissions, newest first, with their contact details', async () => {
+  const { root, cleanup } = await setup();
+  try {
+    const submissions = createSubmissionStore(path.join(root, 'data'));
+    const base = { name: '张三', grade: '大一', major: '计算机', direction: 'ViT', wechat: '', email: '' };
+    const file = () => ({ originalname: 'a.html', buffer: Buffer.from('<p>hi</p>') });
+    await submissions.add({ cohort: '2026-autumn', fields: { ...base, student_id: 'A1001', qq: '11111' }, file: file() });
+    await submissions.add({ cohort: '2026-autumn', fields: { ...base, name: '李四', student_id: 'B2002', qq: '22222' }, file: file() });
+    await submissions.add({ cohort: '2026-autumn', fields: { ...base, student_id: 'A1001', qq: '33333' }, file: file() });
+    await submissions.add({ cohort: '2025-autumn', fields: { ...base, student_id: 'A1001', qq: '44444' }, file: file() });
+    const own = await submissions.listOwn('2026-autumn', 'a1001');
+    assert.deepEqual(own.map((item) => item.qq), ['33333', '11111']);
+    assert.ok(own.every((item) => !('name' in item) && !('student_id' in item) && !('stored_name' in item)));
+    assert.deepEqual(await submissions.listOwn('2026-autumn', 'C3003'), []);
+  } finally {
+    await cleanup();
+  }
+});

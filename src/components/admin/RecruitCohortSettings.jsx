@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ArrowDown, ArrowUp, Loader2, Plus, Save, Trash2, Wand2 } from 'lucide-react';
 import { api } from '@/api/client';
 import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -39,6 +40,10 @@ const SUGGESTED_GROUPS = [
   { name: '自然语言处理', members: ['BERT', 'GPT-2', 'GPT-3', 'T5', 'LLaMA', 'Transformer'] },
   { name: '多模态', members: ['CLIP', 'BLIP', 'LLaVA', 'Flamingo', 'Stable Diffusion'] },
 ];
+
+// The cohort stores Beijing times as "2026-12-06 18:00"; the picker works with "2026-12-06T18:00".
+const toPickerValue = (text) => String(text || '').trim().replace(' ', 'T');
+const fromPickerValue = (value) => String(value || '').replace('T', ' ');
 
 function Field({ label, htmlFor, hint, children }) {
   return (
@@ -171,11 +176,11 @@ export default function RecruitCohortSettings({ cohorts, onSaved, onRenamed }) {
               </div>
             </div>
             <div className="space-y-4">
-              <Field label="提交截止时间（北京时间，可选）" htmlFor={`cohort-deadline-${index}`} hint="写 2026-12-06 表示当天 23:59:59，写 2026-12-06 18:00 表示具体时刻。留空表示不设截止。">
-                <Input id={`cohort-deadline-${index}`} value={item.submission_deadline} onChange={(event) => patch(index, { submission_deadline: event.target.value })} placeholder="2026-12-06 18:00" />
+              <Field label="提交截止时间（北京时间，可选）" htmlFor={`cohort-deadline-${index}`} hint="在日历里选日期，再选具体时间，默认当天 23:59。点“清除”表示不设截止。">
+                <DatePicker id={`cohort-deadline-${index}`} includeTime defaultTime="23:59" value={toPickerValue(item.submission_deadline)} onChange={(value) => patch(index, { submission_deadline: fromPickerValue(value) })} placeholder="不设截止" />
               </Field>
-              <Field label="论文锁定时间（北京时间，可选）" htmlFor={`cohort-lock-${index}`} hint="到这个时间后，已经提交过的同学只能继续提交原来选的论文，不能再换；在这之前可以随便换，以最后一次提交为准。写法：2026-11-28 23:59，留空表示不锁定。">
-                <Input id={`cohort-lock-${index}`} value={item.direction_lock_at || ''} onChange={(event) => patch(index, { direction_lock_at: event.target.value })} placeholder="2026-11-28 23:59" />
+              <Field label="论文锁定时间（北京时间，可选）" htmlFor={`cohort-lock-${index}`} hint="到这个时间后，已经提交过的同学只能继续提交原来选的论文，不能再换；在这之前可以随便换，以最后一次提交为准。点“清除”表示不锁定。">
+                <DatePicker id={`cohort-lock-${index}`} includeTime defaultTime="23:59" value={toPickerValue(item.direction_lock_at)} onChange={(value) => patch(index, { direction_lock_at: fromPickerValue(value) })} placeholder="不锁定" />
               </Field>
               <label className="flex items-center gap-2 text-sm text-foreground">
                 <Switch checked={item.submissions} onCheckedChange={(value) => patch(index, { submissions: value })} aria-label="开放提交" />
